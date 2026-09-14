@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Nothing here is a credential. The point of this workflow is that there are
+  # none: a claim that deterministic paths run without a provider is only worth
+  # something if it is verified somewhere that genuinely has no provider.
+  FORCE_COLOR: "1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Create the environment
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e packages/research-core
+          uv pip install --python .venv/bin/python --no-deps \
+            -e tools/deep-research -e tools/fact-check
+          uv pip install --python .venv/bin/python pytest ruff
+
+      - name: Lint and format check
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+
+      - name: Tests
+        run: .venv/bin/python -m pytest packages/research-core/tests -q
+
+  conformance:
+    # Runs the external conformance kit against THIS commit, with the shared core
+    # installed from the checkout rather than from git -- otherwise a pull request
+    # that changes research-core would be graded against the core already on main.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Prove this environment has no provider credentials
+        # Asserted rather than assumed. If a credential ever leaks into CI, the
+        # deterministic-without-a-provider checks below would start passing for
+        # the wrong reason, and nothing would say so.
+        run: |
+          leaked=""
+          for var in PERPLEXITY_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY \
+                     GOOGLE_API_KEY GEMINI_API_KEY AZURE_OPENAI_API_KEY; do
+            if [ -n "${!var:-}" ]; then leaked="$leaked $var"; fi
+          done
+          if [ -n "$leaked" ]; then
+            echo "::error::provider credentials present in CI:$leaked"
+            exit 1
+          fi
+          echo "no provider credentials present"
+
+      - name: Build both distribution roots
+        run: |
+          uv build --out-dir dist/deep-research tools/deep-research
+          uv build --out-dir dist/fact-check tools/fact-check
+          ls -la dist/*/
+
+      - name: Install the BUILT artifacts
+        # The wheels, not the source tree. A tool that only works from a checkout
+        # is not a tool anyone can install.
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python ./packages/research-core
+          uv pip install --python .venv/bin/python --no-deps \
+            dist/deep-research/*.whl dist/fact-check/*.whl
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch the conformance kit
+        # Cloned fresh each run rather than vendored: the bar is whatever the
+        # specification says today, not whatever it said when we last copied it.
+        run: git clone --depth 1 https://github.com/microsoft/amplifier-smart-tools.git /tmp/spec
+
+      - name: Conformance
+        run: |
+          status=0
+          for root in tools/deep-research tools/fact-check; do
+            echo "::group::$root"
+            if ! (cd /tmp/spec && uv run conformance/run.py "$GITHUB_WORKSPACE/$root"); then
+              echo "::error::conformance FAILED for $root"
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $status
+
+      - name: Deterministic smoke, with the environment scrubbed
+        # Belt and braces over the kit's own check: run the declared smoke verb
+        # with nothing whatsoever in the environment.
+        run: |
+          env -i PATH="$PWD/.venv/bin:/usr/bin:/bin" deep-research manifest < /dev/null > /dev/null
+          env -i PATH="$PWD/.venv/bin:/usr/bin:/bin" fact-check   manifest < /dev/null > /dev/null
+          echo "both deterministic smoke capabilities ran with an empty environment"
+
+  install-from-git:
+    # The packaging seam: a single distribution root, installed on its own from
+    # git, with no checkout of this repository present. This is what proves the
+    # shared package resolves through its own #subdirectory= fragment -- a
+    # relative path dependency would pass every other job here and fail this one.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install each tool from git, alone
+        run: |
+          for tool in deep-research fact-check; do
+            echo "::group::$tool"
+            uv venv "/tmp/$tool"
+            uv pip install --python "/tmp/$tool/bin/python" \
+              "$tool @ git+https://github.com/${{ github.repository }}@${{ github.sha }}#subdirectory=tools/$tool"
+            "/tmp/$tool/bin/$tool" manifest < /dev/null
+            echo "::endgroup::"
+          done
