@@ -162,6 +162,15 @@ class _Display:
             self._on_event({"type": "progress", "message": event.get("message")})
         elif kind == "error":
             self._on_event({"type": "engine_error", "message": event.get("message")})
+        elif kind == "usage":
+            # Was tracked into self.usage above but never handed to the
+            # caller -- a run with several LLM calls (a gather with tool use
+            # is exactly that) never surfaced usage as it happened, only
+            # self.usage's last value, which nothing downstream reads either.
+            # Forwarding here is what makes a long turn's cost visible live,
+            # matching the five event types this class's own contract claims
+            # to map (tool/started, tool/completed, progress, error, usage).
+            self._on_event({"type": "usage", **self.usage})
 
 
 def client_library_for(provider: str) -> str | None:

@@ -72,8 +72,12 @@ NAVIGATING A LARGE RESULT
   broken), 1 the operation failed, 2 the request was impossible or refused,
   3 a model-backed verb was asked for with no provider configured.
 
-This version ships `manifest` only. The verbs above are specified in
-contracts/cli.v1.md and arrive next.
+OUTPUT FORMAT
+
+  Every capability returns JSON on stdout, always -- there is no text mode and
+  no --json flag, because every consumer of this tool is code. The
+  specification leaves the format to each capability and asks only that the
+  help text say which one it is. This is it.
 """
 
 
