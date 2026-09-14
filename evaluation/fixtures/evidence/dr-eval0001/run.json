@@ -1,0 +1,17 @@
+{
+  "schema": "research-run/v1",
+  "run_id": "dr-eval0001",
+  "tool": "deep-research",
+  "status": "complete",
+  "query": "What is known about state-based CRDT convergence and adoption?",
+  "depth": "medium",
+  "backend": "fixture",
+  "stages": [
+    {"name": "scope", "status": "complete"},
+    {"name": "gather", "status": "complete"},
+    {"name": "synthesise", "status": "complete"},
+    {"name": "report", "status": "complete"}
+  ],
+  "counts": {"sources": 4},
+  "usage": {"tokens_in": 0, "tokens_out": 0, "cost_usd": null}
+}

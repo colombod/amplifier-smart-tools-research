@@ -1,0 +1,113 @@
+{
+  "schema": "research-eval-claims/v1",
+  "evidence_run": "dr-eval0001",
+  "note": "Deliberately weighted toward claims the evidence does NOT settle. Eight of fourteen expect `unverifiable`, because accuracy on cleanly-true claims is not what anyone needs to know. Every expectation below is decidable from the fixture report alone -- if you cannot point at the line that makes an expectation correct, the claim does not belong here.",
+  "categories": {
+    "supported": "stated plainly in the evidence",
+    "refuted": "the evidence explicitly CONTRADICTS the claim -- not merely silent",
+    "unverifiable": "the evidence says nothing about it either way",
+    "opinion": "a value judgment, whatever grammar it wears",
+    "true_in_part": "one half is supported and the other is not evidenced at all",
+    "unsupported_reason": "the conclusion may well be true, but the evidence gives no basis for the REASON asserted"
+  },
+  "claims": [
+    {
+      "id": "c01",
+      "category": "supported",
+      "expected": "supported",
+      "text": "State-based CRDTs converge when replicas form a join-semilattice and every update is monotonic.",
+      "because": "Report section 1 states exactly this and attributes it to [s1]."
+    },
+    {
+      "id": "c02",
+      "category": "supported",
+      "expected": "supported",
+      "text": "Delta-state CRDTs reduce message size compared with shipping the full state on every update.",
+      "because": "Report section 1 states this and attributes it to [s2]."
+    },
+    {
+      "id": "c03",
+      "category": "refuted",
+      "expected": "refuted",
+      "text": "CRDT convergence requires messages to be delivered in order.",
+      "because": "The report says the proof 'does not require any ordering of message delivery' [s1]. The evidence contradicts the claim rather than being silent on it."
+    },
+    {
+      "id": "c04",
+      "category": "refuted",
+      "expected": "refuted",
+      "text": "The delta-state optimisation weakens the convergence guarantee.",
+      "because": "The report says the guarantee is 'unchanged by that optimisation' [s2]."
+    },
+    {
+      "id": "c05",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "CRDTs were first described in 2011.",
+      "because": "Report section 3 says no source here gives a date for when CRDTs were first described. The date may well be right; this evidence cannot say."
+    },
+    {
+      "id": "c06",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "Figma uses CRDTs in production for its collaborative editor.",
+      "because": "Section 3 says no source names a specific company's production deployment."
+    },
+    {
+      "id": "c07",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "CRDTs outperform operational transformation on end-to-end latency.",
+      "because": "Section 3 says no source compares the two on any measured axis."
+    },
+    {
+      "id": "c08",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "CRDTs are unsuitable for financial ledgers.",
+      "because": "Section 3 says suitability for financial ledgers is not addressed. A tool that refutes this is inventing a finding; one that supports it is inventing a different one."
+    },
+    {
+      "id": "c09",
+      "category": "opinion",
+      "expected": "opinion",
+      "text": "CRDTs are the most elegant solution to distributed consistency.",
+      "because": "'Most elegant' is a value judgment with no evidential test."
+    },
+    {
+      "id": "c10",
+      "category": "opinion",
+      "expected": "opinion",
+      "text": "Memory overhead is an acceptable price to pay for convergence without coordination.",
+      "because": "Factual grammar, but 'acceptable price' is a judgment. The overhead is evidenced [s4]; its acceptability is not a fact about the world."
+    },
+    {
+      "id": "c11",
+      "category": "true_in_part",
+      "expected": "unverifiable",
+      "text": "Redis and Figma both offer active-active geo-distribution built on CRDTs.",
+      "because": "Redis is evidenced [s3]; Figma appears nowhere. The claim AS STATED is not supported, and nothing contradicts the Figma half, so it is unverifiable rather than refuted. A tool that answers `supported` has graded the half it recognised."
+    },
+    {
+      "id": "c12",
+      "category": "true_in_part",
+      "expected": "unverifiable",
+      "text": "Adopters report memory overhead and CPU cost as their two most common complaints.",
+      "because": "Memory overhead as the most common complaint is evidenced [s4]. CPU cost appears nowhere, and 'two most common' is a stronger claim than the evidence carries."
+    },
+    {
+      "id": "c13",
+      "category": "unsupported_reason",
+      "expected": "unverifiable",
+      "text": "CRDTs are being adopted because they remove the need for consensus protocols.",
+      "because": "Adoption is evidenced [s3][s4]. The REASON is nowhere in the evidence. The conclusion is plausible, which is exactly what makes this the category where confident tools fail invisibly."
+    },
+    {
+      "id": "c14",
+      "category": "unsupported_reason",
+      "expected": "unverifiable",
+      "text": "Delta-state CRDTs were introduced because full-state propagation was too slow in production deployments.",
+      "because": "That delta-state reduces message size is evidenced [s2]. That production slowness was the MOTIVATION is not in the evidence at all."
+    }
+  ]
+}

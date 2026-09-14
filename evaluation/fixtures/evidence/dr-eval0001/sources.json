@@ -1,0 +1,10 @@
+{
+  "schema": "research-sources/v1",
+  "run_id": "dr-eval0001",
+  "sources": [
+    {"id": "s1", "url": "https://hal.inria.fr/inria-00555588", "title": "A comprehensive study of Convergent and Commutative Replicated Data Types", "category": "academic", "snippet": "Defines state-based CRDTs and proves that a join-semilattice with a monotonic update function converges."},
+    {"id": "s2", "url": "https://arxiv.org/abs/1805.06358", "title": "Delta State Replicated Data Types", "category": "academic", "snippet": "Shows delta-state CRDTs reduce the message size that full state-based propagation requires."},
+    {"id": "s3", "url": "https://redis.io/docs/about/", "title": "Redis documentation", "category": "docs", "snippet": "Describes Redis's active-active geo-distribution built on conflict-free replicated data types."},
+    {"id": "s4", "url": "https://www.infoq.com/news/2022/03/crdt-production/", "title": "CRDTs in production systems", "category": "news", "snippet": "Reports several teams adopting CRDTs for collaborative editing, and notes that memory overhead is the most common complaint."}
+  ]
+}
