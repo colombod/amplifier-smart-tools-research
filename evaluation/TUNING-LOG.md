@@ -130,3 +130,57 @@ confidence, absent reads exactly like never-asked.
 
 **Not fixed, filed instead:** the nonexistent-subject failure needs a prompt change and must
 be measured, not guessed — the same one-change-at-a-time discipline as entry 002.
+
+---
+
+## 004 — Ask whether the subject exists before writing about it
+
+**Change:** one paragraph added to `SYNTHESISE`, before the citation rules.
+
+> FIRST, CHECK THAT THE QUESTION'S SUBJECT APPEARS IN THE EVIDENCE AT ALL. A search returns
+> whatever is CLOSEST to a question, never proof that the thing asked about exists. When the
+> question names a specific thing — a release, a study, a product, a person, an event — and
+> the sources describe only adjacent or similar things, the evidence does NOT establish that
+> the named thing is real. Say that plainly in the first section, name what the sources
+> actually cover instead, and return `low`.
+>
+> Writing a fluent answer out of adjacent sources is the most damaging thing you can do here,
+> and it is worse than returning nothing: it comes out looking BETTER than a correct answer,
+> because it has more sources, fewer caveats and no hedging, so the reader has no way to tell
+> it apart from good work.
+
+**Fixture:** `questions` · **Live:** 3/6 → **6/6**, 0 dangling citations, $0.447 → $0.629
+
+| id | category | before | after | |
+|---|---|---|---|---|
+| q01 | answerable | `confidence: None`, 15 src | `medium`, 15 src | **fixed** |
+| q02 | answerable | `medium` | `high` | still correct |
+| q03 | contested | `low` | `low` | — |
+| q04 | nonexistent | **`high`**, 30 src | **`low`**, 30 src | **fixed** |
+| q05 | nonexistent | **`high`**, 27 src | **`low`**, 30 src | **fixed** |
+| q06 | unanswerable | `low` | `low` | — |
+
+**Verdict: KEPT.** `nonexistent` went 0/2 → 2/2 with no regression anywhere.
+
+### Two changes, not one — and why attribution is still clean
+
+Entry 002's rule is one change per pass, and this pass contains two: the `confidence`
+required-field fix landed between the baseline and this run, alongside the prompt paragraph.
+That was sloppy sequencing.
+
+Attribution survives because the two failures have **different mechanisms**. q01 failed with
+`confidence: None` — a *missing field*, which only the validator change can affect. q04 and
+q05 failed with `confidence: high` — a *judgment*, which no validator can reach and only the
+prompt could move. A reader should still treat this entry as weaker evidence than 002.
+
+### What the numbers cost
+
+Spend rose 41% ($0.447 → $0.629) for the same six questions — the reports got longer, because
+saying what the sources *do* cover takes more words than answering the question as asked.
+That is a real price and worth stating: **honesty about absence is not free.**
+
+### Still unproven
+
+One pass. A model changes underneath you without telling you, and a fixture set of six
+questions with two traps is a narrow instrument. What this shows is that the failure was
+reachable by prompt — not that it is gone.

@@ -99,6 +99,19 @@ SYNTHESISE = """\
 
 Evidence has been gathered for the question below. Write the report.
 
+FIRST, CHECK THAT THE QUESTION'S SUBJECT APPEARS IN THE EVIDENCE AT ALL. A \
+search returns whatever is CLOSEST to a question, never proof that the thing \
+asked about exists. When the question names a specific thing -- a release, a \
+study, a product, a person, an event -- and the sources describe only adjacent \
+or similar things, the evidence does NOT establish that the named thing is \
+real. Say that plainly in the first section, name what the sources actually \
+cover instead, and return `low`.
+
+Writing a fluent answer out of adjacent sources is the most damaging thing you \
+can do here, and it is worse than returning nothing: it comes out looking \
+BETTER than a correct answer, because it has more sources, fewer caveats and \
+no hedging, so the reader has no way to tell it apart from good work.
+
 You may use ONLY the sources listed. Cite them by their id, in square brackets, \
 exactly as they appear -- [s1], [s2]. A marker that names an id not in the list \
 is the single worst thing you can produce here, and it will be rejected.

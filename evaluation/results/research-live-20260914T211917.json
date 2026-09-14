@@ -1,0 +1,127 @@
+{
+  "dangling_citations": {
+    "count": 0,
+    "description": "citations pointing at sources the run does not have -- the defect that makes a report look like evidence when it is not"
+  },
+  "overall": {
+    "accuracy": 1.0,
+    "correct": 6,
+    "n": 6
+  },
+  "pass": {
+    "at": "2026-09-14T21:19:17.269677+00:00",
+    "backend": "default",
+    "mode": "live",
+    "model": "provider default",
+    "provider": "first resolvable",
+    "question_count": 6,
+    "seconds": 550.0,
+    "spend": {
+      "cost_usd": 0.629427,
+      "tokens_in": 106742,
+      "tokens_out": 46716
+    }
+  },
+  "per_category": {
+    "answerable": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "contested": {
+      "accuracy": 1.0,
+      "correct": 1,
+      "missed": [],
+      "n": 1
+    },
+    "nonexistent": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "unanswerable": {
+      "accuracy": 1.0,
+      "correct": 1,
+      "missed": [],
+      "n": 1
+    }
+  },
+  "questions": [
+    {
+      "category": "answerable",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_expected": true,
+        "enough_sources": true
+      },
+      "confidence": "medium",
+      "correct": true,
+      "dangling": 0,
+      "id": "q01",
+      "sources": 15
+    },
+    {
+      "category": "answerable",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_expected": true,
+        "enough_sources": true
+      },
+      "confidence": "high",
+      "correct": true,
+      "dangling": 0,
+      "id": "q02",
+      "sources": 15
+    },
+    {
+      "category": "contested",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_not_overstated": true
+      },
+      "confidence": "low",
+      "correct": true,
+      "dangling": 0,
+      "id": "q03",
+      "sources": 30
+    },
+    {
+      "category": "nonexistent",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_expected": true
+      },
+      "confidence": "low",
+      "correct": true,
+      "dangling": 0,
+      "id": "q04",
+      "sources": 30
+    },
+    {
+      "category": "nonexistent",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_expected": true
+      },
+      "confidence": "low",
+      "correct": true,
+      "dangling": 0,
+      "id": "q05",
+      "sources": 30
+    },
+    {
+      "category": "unanswerable",
+      "checks": {
+        "citations_resolve": true,
+        "confidence_expected": true
+      },
+      "confidence": "low",
+      "correct": true,
+      "dangling": 0,
+      "id": "q06",
+      "sources": 27
+    }
+  ]
+}
