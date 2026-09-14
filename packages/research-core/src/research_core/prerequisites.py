@@ -75,15 +75,23 @@ def _credential_detector(surface: str) -> Callable[[], tuple[str, str]]:
 def _ai_provider_detector() -> tuple[str, str]:
     """A provider is satisfied only if a turn could actually run.
 
-    This detector reported `satisfied` on a credential alone while every turn
-    failed at mount time for want of a client library -- the exact false
-    all-clear the unknown-never-satisfied rule elsewhere in this module exists
-    to prevent, one level down. A prerequisite check must answer "can this
-    work", not "is there a key".
+    Two corrections live here, both found by running the thing rather than
+    reasoning about it.
+
+    The first: this reported `satisfied` on a credential alone while every turn
+    died at mount time for want of a client library -- the exact false
+    all-clear the unknown-never-satisfied rule below exists to prevent, one
+    level down.
+
+    The second is subtler and the reverse. It reported `absent` whenever our own
+    environment and credentials file were empty -- but the engine we embed is
+    the HOST's own library, and it resolves the host's credentials on its own.
+    With every *_API_KEY scrubbed, the engine still reported anthropic usable,
+    because it reads Amplifier's configuration directly. So the detector said
+    "not ready" about a path that works. The authority on whether a turn can run
+    is the thing that runs it, and that is the engine -- not us.
     """
     found = status("model_provider")
-    if not found.present:
-        return ABSENT, found.detail
 
     from research_core.engine import (
         available_providers,
@@ -93,15 +101,24 @@ def _ai_provider_detector() -> tuple[str, str]:
 
     usable = available_providers()
     if usable:
-        return SATISFIED, f"{found.detail}, client library present for {usable[0]}"
+        if found.present:
+            return SATISFIED, f"{found.detail}, client library present for {usable[0]}"
+        # The engine found a credential we cannot see, which is not a bug: the
+        # engine is the host's own library and resolves the host's configuration.
+        return (
+            SATISFIED,
+            f"resolved by the embedded engine ({usable[0]}) from the host's own "
+            "configuration, not from this tool's environment or credentials file",
+        )
 
     with_credentials = credentialled_providers()
     if with_credentials:
         missing = sorted({client_library_for(p) or p for p in with_credentials})
         return (
             ABSENT,
-            f"{found.detail}, but no client library is installed "
-            f"({', '.join(missing)}); the engine ships none of its own",
+            f"credentials resolve for {', '.join(with_credentials)}, but no "
+            f"client library is installed ({', '.join(missing)}); the engine "
+            "ships none of its own",
         )
     return ABSENT, found.detail
 

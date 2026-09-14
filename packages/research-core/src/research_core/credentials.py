@@ -27,7 +27,25 @@ DEFAULT_CREDENTIALS_PATH = "~/.config/amplifier-research/credentials.toml"
 
 SOURCE_ENVIRONMENT = "environment"
 SOURCE_FILE = "credentials-file"
+SOURCE_HOST_CONFIG = "host-config"
 SOURCE_ABSENT = "absent"
+
+#: Hosts we know how to read, and where their configuration lives. Reading one is
+#: NEVER automatic -- see `host_config` in config.py for why.
+KNOWN_HOSTS: dict[str, str] = {"amplifier": "~/.amplifier/settings.yaml"}
+
+#: A host's provider module name, mapped to the surface it can satisfy. Only the
+#: model provider appears here, and the omission is the point: Perplexity is not
+#: an Amplifier provider, it is a tool that reads PERPLEXITY_API_KEY from the
+#: environment, so no amount of host piggybacking can supply it. Saying that
+#: plainly beats letting someone discover it as a silent absence.
+HOST_PROVIDER_MODULES: tuple[str, ...] = (
+    "provider-anthropic",
+    "provider-openai",
+    "provider-gemini",
+    "provider-google",
+    "provider-azure-openai",
+)
 
 #: Each credential surface, and the environment variables that satisfy it. The
 #: model provider has several because any one of them is enough.
@@ -99,7 +117,50 @@ def _read_credentials_file(path: Path) -> dict[str, str]:
     return values
 
 
-def resolve_credential(surface: str) -> tuple[str | None, CredentialStatus]:
+def host_config_path(host_config: str | None) -> Path | None:
+    """Where an opted-in host keeps its configuration, if anywhere."""
+    if not host_config or not host_config.strip():
+        return None
+    value = host_config.strip()
+    return Path(KNOWN_HOSTS.get(value, value)).expanduser()
+
+
+def _read_host_config(path: Path) -> str | None:
+    """The first provider credential a host's configuration carries.
+
+    Best-effort and quiet about failure: this file belongs to another
+    application, its format is that application's business and free to change,
+    and a caller who opted in is asking us to look, not promising it will work.
+    An unreadable host config means "no credential here", never an error --
+    the absence is then reported the same way any other absence is.
+    """
+    try:
+        import yaml
+
+        document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:  # noqa: BLE001 - another app's file, on its own schedule
+        return None
+
+    providers = (document.get("config") or {}).get("providers") or []
+    if not isinstance(providers, list):
+        return None
+    for entry in providers:
+        if not isinstance(entry, dict):
+            continue
+        module = str(entry.get("module") or "")
+        if not any(known in module for known in HOST_PROVIDER_MODULES):
+            continue
+        key = ((entry.get("config") or {}) if isinstance(entry.get("config"), dict) else {}).get(
+            "api_key"
+        )
+        if isinstance(key, str) and key.strip():
+            return key.strip()
+    return None
+
+
+def resolve_credential(
+    surface: str, *, host_config: str | None = None
+) -> tuple[str | None, CredentialStatus]:
     """Resolve one credential surface.
 
     Returns the value for the caller that must actually use it, and a status that
@@ -119,19 +180,37 @@ def resolve_credential(surface: str) -> tuple[str | None, CredentialStatus]:
     if surface in from_file:
         return from_file[surface], CredentialStatus(surface, SOURCE_FILE, str(path))
 
+    # Last, and only because someone asked for it in writing.
+    host_path = host_config_path(host_config)
+    if host_path is not None and surface == "model_provider":
+        from_host = _read_host_config(host_path)
+        if from_host:
+            return from_host, CredentialStatus(
+                surface,
+                SOURCE_HOST_CONFIG,
+                f"{host_path} (host config, opted in)",
+            )
+
     variables = " or ".join(SURFACES[surface])
-    return None, CredentialStatus(
-        surface,
-        SOURCE_ABSENT,
-        f"not set: no {variables}, and nothing for {surface} in {path}",
-    )
+    detail = f"not set: no {variables}, and nothing for {surface} in {path}"
+    if host_path is not None:
+        if surface == "model_provider":
+            detail += f", and no provider credential in {host_path}"
+        else:
+            # Say why the opt-in cannot help here rather than leaving someone to
+            # wonder whether it was consulted.
+            detail += (
+                f"; host_config is set but cannot satisfy {surface} -- a host's "
+                "provider configuration carries model credentials only"
+            )
+    return None, CredentialStatus(surface, SOURCE_ABSENT, detail)
 
 
-def status(surface: str) -> CredentialStatus:
+def status(surface: str, *, host_config: str | None = None) -> CredentialStatus:
     """Whether a surface is satisfied, without the caller ever holding the value."""
-    return resolve_credential(surface)[1]
+    return resolve_credential(surface, host_config=host_config)[1]
 
 
-def all_status() -> dict[str, CredentialStatus]:
+def all_status(*, host_config: str | None = None) -> dict[str, CredentialStatus]:
     """Every surface's status. Safe to print in full."""
-    return {surface: status(surface) for surface in SURFACES}
+    return {s: status(s, host_config=host_config) for s in SURFACES}

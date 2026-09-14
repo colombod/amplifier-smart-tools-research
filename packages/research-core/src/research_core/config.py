@@ -108,6 +108,17 @@ SETTINGS: tuple[Setting, ...] = (
         "Which model to use. Unset means the provider's own default.",
     ),
     Setting(
+        "host_config",
+        str,
+        None,
+        "RESEARCH_HOST_CONFIG",
+        "Opt in to reading a HOST application's configuration for a model "
+        "credential. Unset means never -- a smart tool is consumable from any "
+        "host, and one that silently reads a particular host's private config "
+        "file has quietly become that host's tool. Accepts 'amplifier' or a "
+        "path. Only the model provider can be satisfied this way.",
+    ),
+    Setting(
         "max_read_lines",
         int,
         5000,

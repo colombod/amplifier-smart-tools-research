@@ -34,6 +34,21 @@ ALL_CREDENTIAL_VARS = (
 )
 
 
+@pytest.fixture
+def no_host_providers(monkeypatch):
+    """Simulate a machine where the HOST has no provider configured either.
+
+    Scrubbing the environment is not enough: the engine we embed is the host's
+    own library and resolves the host's configuration directly, so on a
+    developer machine it reports a usable provider with every *_API_KEY unset.
+    A test about "nothing configured" has to say so to the engine as well.
+    """
+    import research_core.engine as engine
+
+    monkeypatch.setattr(engine, "available_providers", lambda: [])
+    monkeypatch.setattr(engine, "credentialled_providers", lambda: [])
+
+
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv(CREDENTIALS_PATH_ENV_VAR, str(tmp_path / "credentials.toml"))
@@ -115,7 +130,9 @@ def test_no_requirement_is_mandatory(package):
 
 
 @pytest.mark.parametrize("package", sorted(TOOLS))
-def test_each_optional_requirement_names_its_cost_where_a_reader_will_see_it(package):
+def test_each_optional_requirement_names_its_cost_where_a_reader_will_see_it(
+    package, no_host_providers
+):
     # "optional: true means the tool runs without the dependency in a reduced
     # form, and that entry's purpose states what is lost."
     #
@@ -139,7 +156,7 @@ def test_each_optional_requirement_names_its_cost_where_a_reader_will_see_it(pac
 
 
 @pytest.mark.parametrize("package", sorted(TOOLS))
-def test_check_reports_absent_when_nothing_is_configured(package, tmp_path):
+def test_check_reports_absent_when_nothing_is_configured(package, tmp_path, no_host_providers):
     pytest.importorskip(package)
     document = check(load_manifest(package), runs_dir=str(tmp_path / "runs"))
     assert {r["state"] for r in document["requirements"]} == {"absent"}
@@ -150,13 +167,29 @@ def test_check_reports_absent_when_nothing_is_configured(package, tmp_path):
 
 
 @pytest.mark.parametrize("package", sorted(TOOLS))
-def test_check_sees_the_key_when_it_is_set(package, monkeypatch):
+def test_check_sees_the_key_when_it_is_set(package, monkeypatch, no_host_providers):
     pytest.importorskip(package)
     monkeypatch.setenv("PERPLEXITY_API_KEY", "sk-not-a-real-key")
     found = {r["name"]: r for r in check(load_manifest(package))["requirements"]}
     assert found["perplexity"]["state"] == "satisfied"
     assert found["perplexity"]["detail"] == "resolved from $PERPLEXITY_API_KEY"
     assert found["ai-provider"]["state"] == "absent"
+
+
+@pytest.mark.parametrize("package", sorted(TOOLS))
+def test_a_provider_the_host_supplies_is_reported_as_such(package, monkeypatch):
+    """The embedded engine is the host's own library and resolves the host's
+    credentials. Reporting `absent` because OUR environment is empty would say
+    "not ready" about a path that works."""
+    import research_core.engine as engine
+
+    monkeypatch.setattr(engine, "available_providers", lambda: ["anthropic"])
+    pytest.importorskip(package)
+    found = {r["name"]: r for r in check(load_manifest(package))["requirements"]}
+    assert found["ai-provider"]["state"] == "satisfied"
+    assert "host's own configuration" in found["ai-provider"]["detail"]
+    # and it is honest about where it did NOT come from
+    assert "not from this tool" in found["ai-provider"]["detail"]
 
 
 @pytest.mark.parametrize("package", sorted(TOOLS))
