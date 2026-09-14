@@ -28,10 +28,15 @@ agent = [
   # 'anthropic'". One default client ships so the agent path works out of the
   # box; the others are opt-in below.
   "anthropic>=0.40",
-  # tool-web and tool-search need this and the engine does not bring it. Without
-  # it they fail validation, the engine logs it and continues, and a research
-  # agent answers from memory with no sources.
+  # What tool-web and tool-search need, and the engine brings NONE of it. Found
+  # one at a time, the hard way: aiohttp, then bs4, then ddgs -- each fix
+  # revealed the next, because the engine logs a module that fails to load and
+  # carries on without it. With any one missing there is no web search, and a
+  # research agent with no search does not fail: it answers from memory and
+  # records URLs it never opened as sources.
   "aiohttp>=3.9",
+  "beautifulsoup4>=4.12",
+  "ddgs>=9.0",
 ]
 agent-openai = ["openai>=1.50"]
 agent-gemini = ["google-genai>=0.8"]

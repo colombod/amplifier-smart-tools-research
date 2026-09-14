@@ -47,17 +47,6 @@ PROVIDER_CLIENTS: dict[str, str] = {
     "gemini": "google.genai",
 }
 
-#: What each tool module needs before it can load. The engine validates a module
-#: by importing it, logs the failure, and then CARRIES ON WITHOUT IT -- so a
-#: research agent silently loses its ability to search and answers from memory
-#: instead. Found by a live run that reported status complete with zero sources.
-#: Like PROVIDER_CLIENTS, this mapping is ours to keep because the engine ships
-#: none of these dependencies and offers no extra that would.
-TOOL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
-    "tool-web": ("aiohttp",),
-    "tool-search": ("aiohttp",),
-}
-
 #: The tools a research gather is allowed. The engine's default plan carries far
 #: more -- filesystem, bash, delegation - and a research run has no business
 #: with any of them. We FILTER rather than clear, which is the one deliberate
@@ -198,24 +187,6 @@ def client_library_present(provider: str) -> bool:
         return False
 
 
-def missing_tool_requirements(tools: Sequence[str]) -> dict[str, list[str]]:
-    """Which of ``tools`` cannot load here, and what each is missing."""
-    import importlib.util
-
-    missing: dict[str, list[str]] = {}
-    for tool in tools:
-        absent = []
-        for requirement in TOOL_REQUIREMENTS.get(tool, ()):
-            try:
-                if importlib.util.find_spec(requirement) is None:
-                    absent.append(requirement)
-            except (ImportError, ValueError):
-                absent.append(requirement)
-        if absent:
-            missing[tool] = absent
-    return missing
-
-
 def credentialled_providers() -> list[str]:
     """Providers whose credentials resolve, which is not the same as usable."""
     try:
@@ -280,6 +251,39 @@ def preflight(*, provider: str | None = None) -> str:
     return select_provider(available_providers(), override=provider)
 
 
+def _tools_that_did_not_mount(engine: Any, requested: Sequence[str]) -> list[str]:
+    """Which requested tools are absent from the live mount registry.
+
+    Fails loud rather than silently skipping when the registry cannot be
+    reached: a verification that quietly does nothing is worse than none,
+    because it reads like a guarantee.
+    """
+    coordinator = None
+    for path in ("session.coordinator", "coordinator", "_session.coordinator"):
+        probe: Any = engine
+        for part in path.split("."):
+            probe = getattr(probe, part, None)
+            if probe is None:
+                break
+        if probe is not None:
+            coordinator = probe
+            break
+    if coordinator is None:
+        raise EngineUnavailable(
+            "Cannot verify which tools mounted: no coordinator on the engine.",
+            "The engine's shape changed. Until the check is updated, a turn "
+            "cannot be trusted to have the tools it asked for.",
+        )
+
+    mounted = (getattr(coordinator, "mount_points", None) or {}).get("tools") or {}
+    names = (
+        set(mounted.keys())
+        if hasattr(mounted, "keys")
+        else {getattr(m, "module", getattr(m, "name", str(m))) for m in mounted}
+    )
+    return [t for t in requested if t not in names]
+
+
 async def _run_turn_async(
     prompt: str,
     *,
@@ -305,26 +309,6 @@ async def _run_turn_async(
         prepared.mount_plan["providers"] = []
         symbols["inject_provider"](prepared, chosen, model_override=model)
         symbols["inject_routing_matrix"](prepared, chosen)
-
-        # Refuse rather than run a crippled turn. The engine would mount what it
-        # can and proceed, which for a research gather means an agent with no
-        # search quietly answering from memory -- the failure is invisible in
-        # the result and expensive in trust.
-        if tools:
-            missing = missing_tool_requirements(tools)
-            if missing:
-                detail = "; ".join(
-                    f"{tool} needs {', '.join(reqs)}" for tool, reqs in missing.items()
-                )
-                everything = sorted({r for reqs in missing.values() for r in reqs})
-                raise EngineUnavailable(
-                    f"The tools this turn needs cannot load here: {detail}.",
-                    f"Install them: pip install {' '.join(everything)}. The "
-                    "engine logs a tool that fails to load and then continues "
-                    "without it, so this is refused here instead -- an agent "
-                    "that cannot search will answer from memory and return no "
-                    "sources.",
-                )
 
         # Filter, never clear: keeping the plan's own entries is what leaves the
         # web tools mounted for a gather, and an empty tuple is how a reasoning
