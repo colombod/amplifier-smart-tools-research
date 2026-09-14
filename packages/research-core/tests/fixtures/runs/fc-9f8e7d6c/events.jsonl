@@ -1,0 +1,8 @@
+{"type": "run", "run_id": "fc-9f8e7d6c", "status": "started", "at": "2026-09-14T10:02:00Z", "claims": 3, "from_run": "dr-1a2b3c4d"}
+{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "triage", "index": 1, "of": 3, "status": "complete", "at": "2026-09-14T10:02:19Z", "duration_ms": 19000}
+{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 1, "status": "complete", "verdict": "supported", "at": "2026-09-14T10:02:51Z"}
+{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 2, "status": "complete", "verdict": "refuted", "at": "2026-09-14T10:03:30Z"}
+{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 3, "status": "complete", "verdict": "unverifiable", "at": "2026-09-14T10:04:02Z"}
+{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "verify", "index": 2, "of": 3, "status": "complete", "at": "2026-09-14T10:04:02Z", "duration_ms": 103000}
+{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "compile", "index": 3, "of": 3, "status": "complete", "at": "2026-09-14T10:04:12Z", "duration_ms": 10000}
+{"type": "run", "run_id": "fc-9f8e7d6c", "status": "complete", "at": "2026-09-14T10:04:12Z", "duration_ms": 132000}

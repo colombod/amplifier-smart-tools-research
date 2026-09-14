@@ -1,0 +1,33 @@
+{
+  "schema": "research-verdicts/v1",
+  "run_id": "fc-9f8e7d6c",
+  "verdicts": [
+    {
+      "index": 1,
+      "claim": "State-based CRDTs converge regardless of the order in which updates arrive.",
+      "verdict": "supported",
+      "confidence": "high",
+      "triage": "simple",
+      "reasoning": "Both primary sources state the property directly, and it follows from merge being associative, commutative and idempotent.",
+      "sources": ["s1", "s2"]
+    },
+    {
+      "index": 2,
+      "claim": "If two CRDT replicas converge, the value they converge on is correct.",
+      "verdict": "refuted",
+      "confidence": "high",
+      "triage": "complex",
+      "reasoning": "Convergence is agreement, not correctness. The sources are explicit that strong eventual consistency says every replica agrees on a state, and says nothing about that state being one an application would accept.",
+      "sources": ["s2", "s5"]
+    },
+    {
+      "index": 3,
+      "claim": "Most production CRDT implementations apply validation outside the lattice.",
+      "verdict": "unverifiable",
+      "confidence": "low",
+      "triage": "complex",
+      "reasoning": "The claim is plausible and one source argues it from individual cases, but no source surveys implementations, so there is no evidence either way about 'most'. Checked and not established -- not refuted.",
+      "sources": ["s5"]
+    }
+  ]
+}

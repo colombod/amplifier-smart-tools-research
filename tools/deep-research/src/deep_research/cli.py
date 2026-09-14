@@ -23,6 +23,7 @@ from research_core import (
     emit,
     emit_error,
 )
+from research_core.verbs import register as register_common_verbs
 
 import deep_research
 
@@ -134,6 +135,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="override how hard a run works before it reports",
     )
     config.set_defaults(handler=_cmd_config)
+
+    register_common_verbs(verbs, prog=PROG, include_verdicts=False)
 
     return parser
 

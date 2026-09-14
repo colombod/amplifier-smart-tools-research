@@ -1,0 +1,22 @@
+{
+  "schema": "research-run/v1",
+  "run_id": "dr-7f3e9a21",
+  "tool": "deep-research",
+  "status": "complete",
+  "query": "How widely is WebAuthn deployed for consumer accounts?",
+  "depth": "medium",
+  "backend": "perplexity",
+  "created_at": "2026-09-13T14:02:10Z",
+  "updated_at": "2026-09-13T14:04:55Z",
+  "duration_ms": 165000,
+  "stages": [
+    {"name": "scope", "status": "complete", "started_at": "2026-09-13T14:02:10Z", "ended_at": "2026-09-13T14:02:24Z", "duration_ms": 14000},
+    {"name": "gather", "status": "complete", "started_at": "2026-09-13T14:02:24Z", "ended_at": "2026-09-13T14:04:01Z", "duration_ms": 97000},
+    {"name": "synthesise", "status": "complete", "started_at": "2026-09-13T14:04:01Z", "ended_at": "2026-09-13T14:04:51Z", "duration_ms": 50000},
+    {"name": "report", "status": "complete", "started_at": "2026-09-13T14:04:51Z", "ended_at": "2026-09-13T14:04:55Z", "duration_ms": 4000}
+  ],
+  "counts": {"sources": 2},
+  "usage": {"tokens_in": 8110, "tokens_out": 1902, "cost_usd": "0.1044"},
+  "confidence": "low",
+  "failure": null
+}

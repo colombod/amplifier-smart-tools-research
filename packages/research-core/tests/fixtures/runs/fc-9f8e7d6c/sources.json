@@ -1,0 +1,49 @@
+{
+  "schema": "research-sources/v1",
+  "run_id": "fc-9f8e7d6c",
+  "sources": [
+    {
+      "id": "s1",
+      "url": "https://arxiv.org/abs/1805.06358",
+      "title": "A Comprehensive Study of Convergent and Commutative Replicated Data Types",
+      "category": "academic",
+      "found_in_stage": "gather"
+    },
+    {
+      "id": "s2",
+      "url": "https://inria.hal.science/inria-00555588",
+      "title": "Conflict-free Replicated Data Types",
+      "category": "academic",
+      "found_in_stage": "gather"
+    },
+    {
+      "id": "s3",
+      "url": "https://jepsen.io/analyses",
+      "title": "Jepsen analyses index",
+      "category": "docs",
+      "found_in_stage": "gather"
+    },
+    {
+      "id": "s4",
+      "url": "https://crdt.tech/",
+      "title": "crdt.tech -- resources on CRDTs",
+      "category": "docs",
+      "found_in_stage": "gather"
+    },
+    {
+      "id": "s5",
+      "url": "https://martin.kleppmann.com/2020/07/06/crdt-hard-parts.html",
+      "title": "CRDTs: The Hard Parts",
+      "category": "other",
+      "found_in_stage": "gather"
+    },
+    {
+      "id": "s6",
+      "url": "https://www.infoq.com/presentations/crdt-distributed-systems/",
+      "title": "CRDTs in production",
+      "category": "news",
+      "found_in_stage": "gather"
+    }
+  ],
+  "inherited_from": "dr-1a2b3c4d"
+}

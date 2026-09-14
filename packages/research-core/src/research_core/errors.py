@@ -45,6 +45,25 @@ class CredentialsInsecureError(SmartToolError):
     exit_code = 2
 
 
+class RunNotFoundError(SmartToolError):
+    """No such run in the runs directory this invocation is pointed at.
+
+    Named rather than empty. Several callers may be pointed at different runs
+    directories, so "not found" and "you are looking in the wrong place" are the
+    same message and it has to say which directory it looked in.
+    """
+
+    code = "run_not_found"
+    exit_code = 1
+
+
+class RunsDirUnusableError(SmartToolError):
+    """The runs directory is not a directory, or cannot be written."""
+
+    code = "runs_dir_unusable"
+    exit_code = 1
+
+
 class NoProviderError(SmartToolError):
     """A model-backed capability was asked for with no backend configured.
 

@@ -1,0 +1,5 @@
+{"type": "run", "run_id": "dr-c0ffee11", "status": "started", "at": "2026-09-12T08:30:00Z", "query": "What is the current state of post-quantum TLS deployment?", "depth": "high", "backend": "perplexity"}
+{"type": "stage", "run_id": "dr-c0ffee11", "stage": "scope", "index": 1, "of": 4, "status": "complete", "at": "2026-09-12T08:30:19Z", "duration_ms": 19000}
+{"type": "stage", "run_id": "dr-c0ffee11", "stage": "gather", "index": 2, "of": 4, "status": "started", "at": "2026-09-12T08:30:19Z"}
+{"type": "error", "run_id": "dr-c0ffee11", "stage": "gather", "code": "backend_error", "message": "The evidence backend returned 503 three times in a row.", "at": "2026-09-12T08:32:11Z"}
+{"type": "run", "run_id": "dr-c0ffee11", "status": "failed", "at": "2026-09-12T08:32:11Z", "duration_ms": 131000}

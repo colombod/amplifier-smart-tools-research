@@ -1,0 +1,13 @@
+{"type": "run", "run_id": "dr-1a2b3c4d", "status": "started", "at": "2026-09-14T09:12:03Z", "query": "What convergence guarantees do state-based CRDTs actually provide?", "depth": "high", "backend": "perplexity"}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "scope", "index": 1, "of": 4, "status": "started", "at": "2026-09-14T09:12:03Z"}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "scope", "index": 1, "of": 4, "status": "complete", "at": "2026-09-14T09:12:21Z", "duration_ms": 18000}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "gather", "index": 2, "of": 4, "status": "started", "at": "2026-09-14T09:12:21Z"}
+{"type": "tool", "run_id": "dr-1a2b3c4d", "name": "web_search", "status": "started", "at": "2026-09-14T09:12:22Z"}
+{"type": "tool", "run_id": "dr-1a2b3c4d", "name": "web_search", "status": "complete", "at": "2026-09-14T09:13:40Z", "duration_ms": 78000}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "gather", "index": 2, "of": 4, "status": "complete", "at": "2026-09-14T09:15:02Z", "duration_ms": 161000, "sources": 6}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "synthesise", "index": 3, "of": 4, "status": "started", "at": "2026-09-14T09:15:02Z"}
+{"type": "usage", "run_id": "dr-1a2b3c4d", "tokens_in": 18422, "tokens_out": 4110, "cost_usd": "0.2841", "at": "2026-09-14T09:16:39Z"}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "synthesise", "index": 3, "of": 4, "status": "complete", "at": "2026-09-14T09:16:39Z", "duration_ms": 97000}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "report", "index": 4, "of": 4, "status": "started", "at": "2026-09-14T09:16:39Z"}
+{"type": "stage", "run_id": "dr-1a2b3c4d", "stage": "report", "index": 4, "of": 4, "status": "complete", "at": "2026-09-14T09:16:44Z", "duration_ms": 5000}
+{"type": "run", "run_id": "dr-1a2b3c4d", "status": "complete", "at": "2026-09-14T09:16:44Z", "duration_ms": 281000}

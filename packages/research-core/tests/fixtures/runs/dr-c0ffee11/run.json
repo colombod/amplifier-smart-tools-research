@@ -1,0 +1,27 @@
+{
+  "schema": "research-run/v1",
+  "run_id": "dr-c0ffee11",
+  "tool": "deep-research",
+  "status": "failed",
+  "query": "What is the current state of post-quantum TLS deployment?",
+  "depth": "high",
+  "backend": "perplexity",
+  "created_at": "2026-09-12T08:30:00Z",
+  "updated_at": "2026-09-12T08:32:11Z",
+  "duration_ms": 131000,
+  "stages": [
+    {"name": "scope", "status": "complete", "started_at": "2026-09-12T08:30:00Z", "ended_at": "2026-09-12T08:30:19Z", "duration_ms": 19000},
+    {"name": "gather", "status": "failed", "started_at": "2026-09-12T08:30:19Z", "ended_at": "2026-09-12T08:32:11Z", "duration_ms": 112000},
+    {"name": "synthesise", "status": "not_started"},
+    {"name": "report", "status": "not_started"}
+  ],
+  "counts": {"sources": 1},
+  "usage": {"tokens_in": 3204, "tokens_out": 288, "cost_usd": "0.0191"},
+  "confidence": null,
+  "failure": {
+    "stage": "gather",
+    "code": "backend_error",
+    "message": "The evidence backend returned 503 three times in a row.",
+    "remedy": "Check the backend's status, then run again. The sources gathered before the failure are kept in this run."
+  }
+}
