@@ -141,7 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     config.set_defaults(handler=_cmd_config)
 
-    register_common_verbs(verbs, prog=PROG, include_verdicts=True)
+    register_common_verbs(verbs, prog=PROG, package="fact_check", include_verdicts=True)
 
     return parser
 

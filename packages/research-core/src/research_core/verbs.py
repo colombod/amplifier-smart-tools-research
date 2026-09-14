@@ -18,6 +18,8 @@ from research_core import runs as _runs
 from research_core.config import resolve_settings
 from research_core.errors import UsageError
 from research_core.estimate import DEPTHS, estimate_run
+from research_core.manifest import load_manifest
+from research_core.prerequisites import check as check_prerequisites
 from research_core.urls import CATEGORIES, classify_urls
 
 
@@ -130,8 +132,32 @@ def cmd_estimate(args: argparse.Namespace) -> dict[str, Any]:
     return document
 
 
-def register(verbs: Any, *, prog: str, include_verdicts: bool = False) -> None:
-    """Add the deterministic navigation verbs to a tool's subparser set."""
+def cmd_check(args: argparse.Namespace) -> dict[str, Any]:
+    return check_prerequisites(load_manifest(args._package), runs_dir=_runs_dir(args))
+
+
+def register(verbs: Any, *, prog: str, package: str, include_verdicts: bool = False) -> None:
+    """Add the deterministic navigation verbs to a tool's subparser set.
+
+    ``package`` is the importable package holding the tool's own SMART_TOOL.md,
+    so `check` can look for exactly what that manifest declares rather than what
+    a second list somewhere says it declares.
+    """
+
+    check = verbs.add_parser(
+        "check",
+        help="whether this host has what the manifest says this tool needs (deterministic)",
+        description=(
+            "Look for everything this tool's manifest declares it requires, and "
+            "say what was found. The manifest only DECLARES -- reading it runs "
+            "nothing -- so detecting whether a prerequisite is actually present "
+            "is this verb's job. Reporting a problem is this verb's success: it "
+            "exits 0 whether the host is ready or not, because the report is the "
+            "deliverable. Branch on `ready` if you want otherwise."
+        ),
+    )
+    _add_runs_dir(check)
+    check.set_defaults(handler=cmd_check, _package=package)
 
     listing = verbs.add_parser(
         "list",

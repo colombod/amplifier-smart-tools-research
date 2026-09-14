@@ -265,7 +265,19 @@ class RunWriter:
 
 
 def default_runs_dir_is_writable(runs_dir: str | Path) -> bool:
-    """Whether runs can be written where the settings point. Used by `check`."""
+    """Whether runs can be written where the settings point. Used by `check`.
+
+    The directory usually does not exist yet, and neither do its parents: the
+    writer creates the whole chain on first use. So the honest question is
+    whether the nearest ancestor that DOES exist can be written to -- checking
+    only the immediate parent reports a fresh machine as broken when it is
+    merely new.
+    """
     path = Path(runs_dir).expanduser()
-    probe = path if path.exists() else path.parent
-    return probe.exists() and os.access(probe, os.W_OK)
+    probe = path
+    while not probe.exists():
+        parent = probe.parent
+        if parent == probe:
+            return False
+        probe = parent
+    return os.access(probe, os.W_OK)

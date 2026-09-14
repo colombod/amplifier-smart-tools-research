@@ -19,18 +19,22 @@ platforms:
 requires:
   - name: perplexity
     purpose: >
-      Supplies the evidence a research run is built from. Optional: every deterministic
-      verb -- reading, filtering, re-rendering and listing existing runs -- works with no
-      credential at all. Without it the research verb fails saying so rather than
-      returning a lesser answer.
+      A PERPLEXITY_API_KEY in the environment, or a perplexity entry in
+      ~/.config/amplifier-research/credentials.toml at mode 0600. It supplies the evidence
+      a research run is built from. Without it the research verb fails saying so rather
+      than returning a lesser answer, so what is lost is the gathering of new evidence;
+      every run already on disk stays readable. Run `deep-research check` to see whether
+      this host has it. The SDK is not listed here: it ships as a resolved dependency.
     optional: true
     install: docs/CONFIGURATION.md
   - name: ai-provider
     purpose: >
       Backs the reasoning stages that scope a question and synthesise the gathered
-      evidence. Optional in the same way: nothing deterministic needs it, and the research
-      verb refuses loudly rather than degrading. This tool stores no credentials of its
-      own.
+      evidence. Without it the research verb refuses rather than degrading, so what is
+      lost is research itself; every deterministic verb -- reading, filtering,
+      re-rendering and listing runs that already exist -- keeps working. Any one of
+      ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, GEMINI_API_KEY or
+      AZURE_OPENAI_API_KEY satisfies it. This tool stores no credentials of its own.
     optional: true
     install: docs/CONFIGURATION.md
 ---

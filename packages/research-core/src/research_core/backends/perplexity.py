@@ -74,8 +74,9 @@ class PerplexityBackend:
         except ModuleNotFoundError as exc:
             raise NoProviderError(
                 "The Perplexity SDK is not installed.",
-                "Install the extra: uv tool install 'deep-research[perplexity]'. "
-                "Deterministic verbs do not need it.",
+                "It ships as a resolved dependency of this tool, so its absence "
+                "means a broken install rather than a missing option: reinstall "
+                "the tool. Deterministic verbs keep working meanwhile.",
             ) from exc
 
         key, _ = resolve_credential("perplexity")

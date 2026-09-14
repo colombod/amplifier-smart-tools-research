@@ -19,17 +19,22 @@ platforms:
 requires:
   - name: perplexity
     purpose: >
-      Supplies the evidence claims are checked against. Optional: every deterministic
-      verb -- reading verdicts, filtering, re-rendering and listing existing runs --
-      works with no credential at all. Without it the check verb fails saying so rather
-      than guessing.
+      A PERPLEXITY_API_KEY in the environment, or a perplexity entry in
+      ~/.config/amplifier-research/credentials.toml at mode 0600. It supplies the evidence
+      claims are checked against. Without it the check verb fails saying so rather than
+      guessing, so what is lost is checking new claims; verdicts already on disk stay
+      readable. Run `fact-check check` to see whether this host has it. The SDK is not
+      listed here: it ships as a resolved dependency.
     optional: true
     install: docs/CONFIGURATION.md
   - name: ai-provider
     purpose: >
       Backs the stages that sort claims by type and weigh evidence against each one.
-      Optional in the same way: nothing deterministic needs it, and the check verb
-      refuses loudly rather than degrading. This tool stores no credentials of its own.
+      Without it no claim can be checked and the verb refuses rather than guessing, so
+      what is lost is checking itself; reading, filtering and re-rendering runs that
+      already exist keeps working. Any one of ANTHROPIC_API_KEY, OPENAI_API_KEY,
+      GOOGLE_API_KEY, GEMINI_API_KEY or AZURE_OPENAI_API_KEY satisfies it. This tool
+      stores no credentials of its own.
     optional: true
     install: docs/CONFIGURATION.md
 ---

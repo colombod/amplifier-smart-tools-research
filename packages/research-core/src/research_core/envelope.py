@@ -6,6 +6,7 @@ never to stdout, so a caller can parse the former without filtering the latter.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 from typing import Any
@@ -26,11 +27,26 @@ EXIT_REFUSED = 2
 EXIT_NO_PROVIDER = 3
 
 
+def _write(document: Any) -> None:
+    """Write one JSON document, and die quietly if the reader has gone away.
+
+    Output is meant to be piped. `... | head` closes the pipe early, and an
+    unhandled BrokenPipeError turns that ordinary act into a traceback on
+    stderr and a non-zero exit -- which would then look like a tool failure to
+    anything reading exit codes.
+    """
+    try:
+        json.dump(document, sys.stdout, sort_keys=True, default=str)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    except BrokenPipeError:
+        with contextlib.suppress(BrokenPipeError):
+            sys.stdout.close()
+
+
 def emit(result: Any) -> None:
     """Write the success envelope."""
-    json.dump({"result": result}, sys.stdout, sort_keys=True, default=str)
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+    _write({"result": result})
 
 
 def emit_error(code: str, message: str, remedy: str) -> None:
@@ -39,11 +55,4 @@ def emit_error(code: str, message: str, remedy: str) -> None:
     ``remedy`` is not optional. A caller should never have to infer what to do
     next from prose or from an empty result.
     """
-    json.dump(
-        {"error": {"code": code, "message": message, "remedy": remedy}},
-        sys.stdout,
-        sort_keys=True,
-        default=str,
-    )
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+    _write({"error": {"code": code, "message": message, "remedy": remedy}})

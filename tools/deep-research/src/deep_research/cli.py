@@ -170,7 +170,7 @@ def build_parser() -> argparse.ArgumentParser:
     research.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
     research.set_defaults(handler=_cmd_research)
 
-    register_common_verbs(verbs, prog=PROG, include_verdicts=False)
+    register_common_verbs(verbs, prog=PROG, package="deep_research", include_verdicts=False)
 
     return parser
 
