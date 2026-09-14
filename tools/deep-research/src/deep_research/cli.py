@@ -19,7 +19,6 @@ from research_core import (
     EXIT_OK,
     EXIT_REFUSED,
     SmartToolError,
-    effective_configuration,
     emit,
     emit_error,
 )
@@ -193,7 +192,7 @@ def _cmd_research(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _cmd_config(args: argparse.Namespace) -> dict[str, Any]:
-    return effective_configuration(runs_dir=args.runs_dir, backend=args.backend, depth=args.depth)
+    return deep_research.config(runs_dir=args.runs_dir, backend=args.backend, depth=args.depth)
 
 
 def main(argv: list[str] | None = None) -> int:

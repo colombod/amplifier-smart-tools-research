@@ -11,7 +11,7 @@ dependencies = [
     # A direct git reference, not a relative path. Every smart tool must install
     # from a git repository, and a path dependency cannot be resolved when this
     # one distribution root is installed on its own.
-    "research-core[perplexity] @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
+    "research-core[agent,perplexity] @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
 ]
 
 [project.scripts]

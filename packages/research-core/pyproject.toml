@@ -12,9 +12,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The SDK, not the credential. Installing this makes the backend available;
-# it is still refused at call time until a credential is configured.
+# SDKs, not credentials. Installing one makes a backend available; it is still
+# refused at call time until a credential is configured. Neither is needed by any
+# deterministic capability.
 perplexity = ["perplexityai>=0.27.0"]
+# The embedded agent engine, behind the reasoning turns and the agent backend.
+# Heavy and git-only: it pulls amplifier-foundation, the Rust-backed
+# amplifier-core, and an ASGI stack this tool never uses. Named as an extra so
+# the weight is a visible decision rather than a silent one.
+agent = ["amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@main"]
+
+[tool.hatch.metadata]
+# Required for the direct git reference in the agent extra.
+allow-direct-references = true
 
 [build-system]
 requires = ["hatchling"]

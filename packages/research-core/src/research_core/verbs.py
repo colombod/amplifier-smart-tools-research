@@ -11,24 +11,12 @@ Nothing here needs a credential or reaches a network.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import Any
 
+from research_core import api
 from research_core import runs as _runs
-from research_core.config import resolve_settings
-from research_core.errors import UsageError
-from research_core.estimate import DEPTHS, estimate_run
-from research_core.manifest import load_manifest
-from research_core.prerequisites import check as check_prerequisites
-from research_core.urls import CATEGORIES, classify_urls
-
-
-def _settings(args: argparse.Namespace):
-    return resolve_settings(runs_dir=getattr(args, "runs_dir", None))
-
-
-def _runs_dir(args: argparse.Namespace) -> str:
-    return _settings(args)["runs_dir"]
+from research_core.estimate import DEPTHS
+from research_core.urls import CATEGORIES
 
 
 def _add_runs_dir(parser: argparse.ArgumentParser) -> None:
@@ -39,101 +27,60 @@ def _add_runs_dir(parser: argparse.ArgumentParser) -> None:
     )
 
 
+# Every handler below is one library call plus the shaping of its result. If one
+# of them ever grows a branch, the capability has started living in the wrapper
+# and belongs in research_core.api instead.
+
+
+def cmd_check(args: argparse.Namespace) -> dict[str, Any]:
+    return api.check(args._package, runs_dir=args.runs_dir)
+
+
 def cmd_list(args: argparse.Namespace) -> dict[str, Any]:
-    runs_dir = _runs_dir(args)
-    found = _runs.list_runs(runs_dir, limit=args.limit, status=args.status, tool=args.tool)
-    return {
-        "runs_dir": runs_dir,
-        "count": len(found),
-        "runs": found,
-        "note": (
-            "Nothing reaps runs. An accumulating evidence store is the point, so "
-            "the tool does not decide when evidence stops being useful."
-        ),
-    }
+    return api.list_runs(
+        runs_dir=args.runs_dir, limit=args.limit, status=args.status, tool=args.tool
+    )
 
 
 def cmd_status(args: argparse.Namespace) -> dict[str, Any]:
-    run = _runs.load_run(_runs_dir(args), args.run_id)
-    document = _runs.status_of(run)
-    if run.status == "complete":
-        document["next"] = {
-            "read": f"{args._prog} read {run.run_id} --sections 1-2",
-            "sources": f"{args._prog} sources {run.run_id}",
-        }
-    return document
+    return api.status(args.run_id, runs_dir=args.runs_dir, prog=args._prog)
 
 
 def cmd_read(args: argparse.Namespace) -> dict[str, Any]:
-    settings = _settings(args)
-    run = _runs.load_run(settings["runs_dir"], args.run_id)
-    return _runs.read_part(
-        run,
+    return api.read(
+        args.run_id,
         part=args.part,
         lines=args.lines,
         sections=args.sections,
-        max_read_lines=settings["max_read_lines"],
+        runs_dir=args.runs_dir,
     )
 
 
 def cmd_sources(args: argparse.Namespace) -> dict[str, Any]:
-    run = _runs.load_run(_runs_dir(args), args.run_id)
-    return _runs.sources_of(run, category=args.category)
+    return api.sources(args.run_id, category=args.category, runs_dir=args.runs_dir)
 
 
 def cmd_verdicts(args: argparse.Namespace) -> dict[str, Any]:
-    run = _runs.load_run(_runs_dir(args), args.run_id)
-    return _runs.verdicts_of(run, verdict=args.verdict, index=args.claim_index)
+    return api.verdicts(
+        args.run_id,
+        verdict=args.verdict,
+        claim_index=args.claim_index,
+        runs_dir=args.runs_dir,
+    )
 
 
 def cmd_render(args: argparse.Namespace) -> dict[str, Any]:
-    run = _runs.load_run(_runs_dir(args), args.run_id)
-    rendered = _runs.render(run, fmt=args.format)
-    if args.out:
-        out = Path(args.out).expanduser()
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(rendered, encoding="utf-8")
-        # A capability that produces an artifact identifies it rather than
-        # embedding it in a message the caller then has to carve up.
-        return {
-            "run_id": run.run_id,
-            "format": args.format,
-            "path": str(out),
-            "bytes": len(rendered.encode("utf-8")),
-            "inline": False,
-        }
-    return {
-        "run_id": run.run_id,
-        "format": args.format,
-        "text": rendered,
-        "bytes": len(rendered.encode("utf-8")),
-        "inline": True,
-    }
+    return api.render(args.run_id, fmt=args.format, out=args.out, runs_dir=args.runs_dir)
 
 
 def cmd_classify(args: argparse.Namespace) -> dict[str, Any]:
-    classified = classify_urls(args.url)
-    counts: dict[str, int] = {}
-    for entry in classified:
-        counts[entry["category"]] = counts.get(entry["category"], 0) + 1
-    return {"count": len(classified), "by_category": counts, "urls": classified}
+    return api.classify(args.url)
 
 
 def cmd_estimate(args: argparse.Namespace) -> dict[str, Any]:
-    settings = _settings(args)
-    depth = args.depth or settings["depth"]
-    if args.query is None and args.claims is None:
-        raise UsageError(
-            "Nothing to estimate.",
-            "Give --query for a research run, or --claims N for a fact-check.",
-        )
-    document = estimate_run(depth=depth, claims=args.claims, backend=settings["backend"])
-    document["query"] = args.query
-    return document
-
-
-def cmd_check(args: argparse.Namespace) -> dict[str, Any]:
-    return check_prerequisites(load_manifest(args._package), runs_dir=_runs_dir(args))
+    return api.estimate(
+        query=args.query, claims=args.claims, depth=args.depth, runs_dir=args.runs_dir
+    )
 
 
 def register(verbs: Any, *, prog: str, package: str, include_verdicts: bool = False) -> None:

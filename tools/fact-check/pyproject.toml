@@ -8,7 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     # A direct git reference, not a relative path. This distribution must be
     # installable on its own from git, and a path dependency cannot resolve then.
-    "research-core @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
+    "research-core[agent,perplexity] @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
 ]
 
 [project.scripts]
