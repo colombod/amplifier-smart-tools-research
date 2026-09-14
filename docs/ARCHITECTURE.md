@@ -93,18 +93,21 @@ caller typed on purpose *this time*.
 Settings a caller may set: the runs directory, the default depth, the backend, the
 provider and model, the read ceiling, the attempt budget, and timeouts.
 
-### Absent, null, and wrong-type are three different things
+### Absent and wrong-type are different things, and wrong is fatal
 
 - **Absent** — fall through to the next tier, quietly.
-- **Explicitly null** — a legal "no opinion". Fall through, and *say so* in the
-  provenance.
-- **Present but wrong type, or unreadable** — **fatal**. A caller with a config file is
-  entitled to have it honoured or to be told plainly that it is broken. Silently
-  substituting the default is how someone ends up confidently writing runs into the wrong
-  directory.
+- **Present but wrong type, outside a setting's choices, an unknown setting name, or a
+  file that cannot be parsed** — **fatal**. A caller with a config file is entitled to
+  have it honoured or to be told plainly that it is broken. Silently substituting the
+  default is how someone ends up confidently writing runs into the wrong directory.
 
-This trichotomy is lifted from tmux-fleet, which pays for it with a dedicated error type
-and refuses rather than degrading.
+The design this follows is tmux-fleet's, which pays for it with a dedicated error type
+and refuses rather than degrading. It has a third case we do not: an explicitly-null
+value, a legal "no opinion" that falls through *and says so*. **TOML cannot express
+null**, so here that case does not exist and "no opinion" is spelled by omitting the key.
+Format chosen first, capability discovered second — the honest fix was to correct the
+documentation rather than fake a null with an empty string, which would have put the
+ambiguity back exactly where the trichotomy exists to remove it.
 
 ### Provenance is reportable
 

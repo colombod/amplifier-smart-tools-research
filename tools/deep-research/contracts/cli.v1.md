@@ -128,11 +128,20 @@ arrive by accident from a parent process.
 Configurable: `runs_dir`, `backend`, `depth`, `provider`, `model`, `max_read_lines`,
 `max_attempts`, `timeout_ms`.
 
-**Absent, null and wrong-type are three different things.** Absent falls through quietly.
-An explicit `null` is a legal "no opinion" — it falls through and says so. A value of the
-wrong type, or a config file that cannot be read, is **fatal**: `config_invalid`, exit 2.
-A caller with a config file present is entitled to have it honoured or to be told plainly
-that it is broken, never to be silently handed a default.
+**Absent and wrong-type are different things, and wrong is fatal.** A key that is absent
+falls through quietly to the next tier. A value of the wrong type, a value outside a
+setting's allowed choices, a key naming a setting that does not exist, or a file that
+cannot be parsed is **fatal**: `config_invalid`, exit 2. A caller with a config file
+present is entitled to have it honoured or to be told plainly that it is broken, never to
+be silently handed a default.
+
+**TOML has no null**, so "no opinion" is spelled by *omitting the key* — there is no
+third, explicitly-null case to distinguish. This is stated here rather than left for
+someone to discover by writing `depth = ""` and watching it be refused.
+
+A key naming a setting that does not exist is refused rather than ignored, and the error
+names it. A setting nobody reads is a setting whose author believes something untrue
+about their deployment.
 
 **Credentials are separate and the environment wins.**
 

@@ -35,15 +35,20 @@ depth    = "medium"
 Settings: `runs_dir`, `backend`, `depth`, `provider`, `model`, `max_read_lines`,
 `max_attempts`, `timeout_ms`.
 
-### Absent, null and wrong-type are three different things
+### Absent and wrong-type are different things, and wrong is fatal
 
 - **Absent** — resolution falls through to the next tier, quietly.
-- **Explicitly `null`** — a legal "no opinion". Resolution falls through and says so.
-- **Wrong type, or a file that cannot be read** — **fatal**: `config_invalid`, exit 2.
+- **Wrong type, outside the allowed choices, an unknown setting name, or a file that
+  cannot be parsed** — **fatal**: `config_invalid`, exit 2.
+
+**TOML has no null**, so "no opinion" is spelled by *omitting the key*. There is no third,
+explicitly-null case: `depth = ""` is a wrong value, not an abstention, and is refused as
+one.
 
 A caller with a config file present is entitled to have it honoured or to be told plainly
 that it is broken. Silently substituting a default is how runs end up written somewhere
-nobody expects.
+nobody expects — and a key naming a setting that does not exist is refused too, because a
+setting nobody reads is a setting whose author believes something untrue.
 
 ### Asking which tier won
 

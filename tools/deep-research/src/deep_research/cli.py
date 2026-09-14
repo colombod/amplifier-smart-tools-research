@@ -19,6 +19,7 @@ from research_core import (
     EXIT_OK,
     EXIT_REFUSED,
     SmartToolError,
+    effective_configuration,
     emit,
     emit_error,
 )
@@ -109,11 +110,40 @@ def build_parser() -> argparse.ArgumentParser:
     )
     manifest.set_defaults(handler=_cmd_manifest)
 
+    config = verbs.add_parser(
+        "config",
+        help="the effective settings, and which tier each came from (deterministic)",
+        description=(
+            "Print the effective settings and, for each, where it came from: an "
+            "explicit argument, the config file, an environment variable, or the "
+            "built-in default -- in that order of precedence. Anything seen and "
+            "deliberately not honoured is reported as such rather than vanishing. "
+            "Credential surfaces report only the tier that satisfied them, never a "
+            "value. Deterministic: runs with no provider configured."
+        ),
+    )
+    config.add_argument(
+        "--runs-dir",
+        metavar="PATH",
+        help="override the runs directory for this invocation",
+    )
+    config.add_argument("--backend", metavar="NAME", help="override the evidence backend")
+    config.add_argument(
+        "--depth",
+        choices=("low", "medium", "high"),
+        help="override how hard a run works before it reports",
+    )
+    config.set_defaults(handler=_cmd_config)
+
     return parser
 
 
 def _cmd_manifest(_args: argparse.Namespace) -> dict[str, Any]:
     return deep_research.manifest().to_dict()
+
+
+def _cmd_config(args: argparse.Namespace) -> dict[str, Any]:
+    return effective_configuration(runs_dir=args.runs_dir, backend=args.backend, depth=args.depth)
 
 
 def main(argv: list[str] | None = None) -> int:
