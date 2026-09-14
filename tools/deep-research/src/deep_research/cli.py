@@ -114,6 +114,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     manifest.set_defaults(handler=_cmd_manifest)
 
+    skill = verbs.add_parser(
+        "skill",
+        help="this tool as an Agent Skill, for a host that consumes skills (deterministic)",
+        description=(
+            "Render this tool as an Agent Skill -- YAML frontmatter plus markdown -- "
+            "which a host can write straight into a skills directory and an agent can "
+            "read as it reads any other skill. `--help` is written for a person and "
+            "leaves an agent to infer the contract from English; this states the same "
+            "contract in the shape hosts already have machinery for. Deterministic."
+        ),
+    )
+    skill.set_defaults(handler=_cmd_skill)
+
     config = verbs.add_parser(
         "config",
         help="the effective settings, and which tier each came from (deterministic)",
@@ -180,6 +193,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _cmd_manifest(_args: argparse.Namespace) -> dict[str, Any]:
     return deep_research.manifest().to_dict()
+
+
+def _cmd_skill(_args: argparse.Namespace) -> dict[str, Any]:
+    return {"skill": deep_research.skill()}
 
 
 def _cmd_research(args: argparse.Namespace) -> dict[str, Any]:

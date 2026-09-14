@@ -156,3 +156,68 @@ __all__ = [
     "sources",
     "verdicts",
 ]
+
+
+def skill() -> str:
+    """This tool rendered as an Agent Skill, for a host that consumes skills.
+
+    The same contract `--help` states, arranged for a reader deciding whether
+    and how to CALL something rather than whether to install it.
+    """
+    from research_core.skill import render_skill
+
+    return render_skill(
+        manifest(),
+        verbs={
+            "check-claims": "assess claims against evidence, one verdict per claim",
+            "verdicts": "a run's verdicts, filterable by verdict",
+            "estimate": "what a check will cost and how long, BEFORE spending",
+            "check": "whether this host has what the tool needs, and what each gap costs you",
+            "config": "the effective settings and which tier each came from",
+            "list": "runs in the runs directory, newest first",
+            "status": "one run's state, stage progress and usage",
+            "read": "a bounded slice of a run's prose; says if it is partial",
+            "sources": "a run's citations as structured data",
+            "render": "re-shape a stored run: markdown, json, bibliography",
+            "classify": "sort URLs into academic, news, docs or other",
+            "manifest": "this tool's own manifest",
+        },
+        model_backed=("check-claims",),
+        result_shape=(
+            'One JSON document on stdout. Success is {"result": ...}; failure is'
+            '{"error": {"code", "message", "remedy"}} with a non-zero exit. The `tally`'
+            "travels inline because it is small and it IS the answer; the per-claim "
+            "detail stays on disk. VERDICT MEANINGS MATTER HERE: `supported` and "
+            "`refuted` mean the evidence says so; `unverifiable` means the claim was "
+            "CHECKED and no adequate evidence was found either way -- it is never "
+            "reported as `refuted`, and you must not read it as one. `opinion` means "
+            "the claim is not checkable against evidence at all. A claim the tool could "
+            "not check for a mechanical reason FAILS the run rather than being filed "
+            "under `unverifiable`."
+        ),
+        navigation=(
+            "`verdicts <id>` returns every verdict as data, and `--verdict refuted` "
+            "filters to the ones a caller usually acts on. Each verdict carries the "
+            "claim, the reasoning and the source ids it rests on, so you can audit any "
+            "single one without reading the rest. Evidence is not gathered here: pass "
+            "`--from-run <id>` to use a deep-research run that already has sources, "
+            "which is the point of a shared runs directory."
+        ),
+        examples=(
+            (
+                "Check claims against evidence another run already gathered:",
+                (
+                    "fact-check check-claims --from-run dr-70ce2d29 \\\n --claim 'CRDTs "
+                    "converge without coordination.' \\\n --claim 'CRDTs are the best data "
+                    "structure.'"
+                ),
+            ),
+            (
+                "Look at only the claims the evidence contradicted:",
+                "fact-check verdicts fc-7c26fe85 --verdict refuted",
+            ),
+        ),
+    )
+
+
+CAPABILITIES["skill"] = skill
