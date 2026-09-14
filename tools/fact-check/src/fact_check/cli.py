@@ -144,6 +144,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
     config.set_defaults(handler=_cmd_config)
 
+    checking = verbs.add_parser(
+        "check-claims",
+        help="check claims against evidence -- MODEL-BACKED, spends tokens",
+        description=(
+            "Assess each claim against evidence and return one verdict per "
+            "claim. Model-backed: it consumes tokens and fails saying so when no "
+            "provider is configured rather than guessing. Evidence is not "
+            "gathered here -- pass --from-run to use a run that already has it, "
+            "which is the point of a shared runs directory. `unverifiable` is a "
+            "real verdict meaning checked-and-no-adequate-evidence; it is never "
+            "reported as `refuted`, and a claim the tool could not check for a "
+            "mechanical reason fails the run rather than being quietly recorded "
+            "as unverifiable."
+        ),
+    )
+    checking.add_argument("--claim", action="append", metavar="TEXT", help="a claim; repeatable")
+    checking.add_argument("--claims-file", metavar="PATH", help="one claim per line")
+    checking.add_argument(
+        "--from-run", metavar="ID", help="use this run's evidence instead of gathering"
+    )
+    checking.add_argument(
+        "--strict",
+        action="store_true",
+        help="treat every claim as complex: slower, more expensive, and `estimate` says so",
+    )
+    checking.add_argument("--runs-dir", metavar="PATH")
+    checking.add_argument("--timeout-ms", type=int, metavar="MS")
+    checking.add_argument("--inline", dest="inline", action="store_true", default=None)
+    checking.add_argument("--no-inline", dest="inline", action="store_false")
+    checking.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
+    checking.set_defaults(handler=_cmd_check_claims)
+
     register_common_verbs(verbs, prog=PROG, package="fact_check", include_verdicts=True)
 
     return parser
@@ -151,6 +183,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _cmd_manifest(_args: argparse.Namespace) -> dict[str, Any]:
     return fact_check.manifest().to_dict()
+
+
+def _cmd_check_claims(args: argparse.Namespace) -> dict[str, Any]:
+    return fact_check.check_claims(
+        claim=args.claim,
+        claims_file=args.claims_file,
+        from_run=args.from_run,
+        strict=args.strict,
+        runs_dir=args.runs_dir,
+        timeout_ms=args.timeout_ms,
+        inline=args.inline,
+        quiet=args.quiet,
+    )
 
 
 def _cmd_config(args: argparse.Namespace) -> dict[str, Any]:

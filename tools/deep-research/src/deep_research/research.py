@@ -21,6 +21,7 @@ from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
 from research_core.errors import NoEvidence, SmartToolError
 from research_core.reasoning import Reasoner
+from research_core.staging import AttemptsExhausted
 from research_core.urls import classify_url
 from research_core.writer import RunWriter, new_run_id
 
@@ -292,7 +293,7 @@ def research(
         writer.finish_stage("report")
 
         record = writer.complete()
-    except stages.AttemptsExhausted as exc:
+    except AttemptsExhausted as exc:
         # Loudly, carrying every attempt. Returning the least-bad draft would
         # hand back a partial answer nobody could tell apart from a good one.
         writer.write_json("attempts.json", {exc.stage: [a.to_dict() for a in exc.attempts]})

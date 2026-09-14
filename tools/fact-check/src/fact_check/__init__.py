@@ -19,6 +19,8 @@ from typing import Any
 
 from research_core import Manifest, api, load_manifest
 
+from fact_check.checking import check_claims
+
 __version__ = "0.1.0"
 
 PACKAGE = "fact_check"
@@ -130,6 +132,7 @@ CAPABILITIES: dict[str, Any] = {
     "sources": sources,
     "render": render,
     "verdicts": verdicts,
+    "check-claims": check_claims,
     "classify": classify,
     "estimate": estimate,
 }
@@ -141,6 +144,7 @@ __all__ = [
     "Manifest",
     "__version__",
     "check",
+    "check_claims",
     "classify",
     "config",
     "estimate",
