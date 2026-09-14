@@ -22,6 +22,7 @@ from research_core import (
     emit,
     emit_error,
 )
+from research_core.skill import add_help_flags
 from research_core.verbs import register as register_common_verbs
 
 import deep_research
@@ -100,7 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
         description=_DESCRIPTION,
         epilog=_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        # Built without argparse's help so `-h` and `--help` can differ: argparse
+        # binds both spellings to one action, and they answer different readers.
+        add_help=False,
     )
+    add_help_flags(parser, skill=deep_research.skill)
     verbs = parser.add_subparsers(dest="verb", metavar="<verb>", required=True)
 
     manifest = verbs.add_parser(

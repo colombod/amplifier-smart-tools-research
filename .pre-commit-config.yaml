@@ -1,0 +1,19 @@
+# Run: uv tool install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      # A large file here is almost always a run directory committed by accident:
+      # evidence accumulates on disk by design and belongs nowhere near git.
+      - id: check-added-large-files
+        args: [--maxkb=512]

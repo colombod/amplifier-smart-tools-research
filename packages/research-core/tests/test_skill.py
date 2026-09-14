@@ -102,3 +102,35 @@ def test_the_verb_table_matches_what_the_library_actually_exposes(tool):
         if verb == "skill":
             continue
         assert f"`{verb}`" in text, f"{verb} is a capability but absent from the skill"
+
+
+@pytest.mark.parametrize("tool", TOOLS)
+def test_dash_h_and_double_help_answer_different_readers(tool, capsys):
+    """`-h` is the terse summary; `--help` is the skill.
+
+    Adopted from David Koleczek's Smart Tool Creator after measuring our own
+    choice and finding it worse. We had made `skill` a verb, reasoning a host
+    would find it in the verb list -- but a host that does not know the tool
+    reaches for `--help` first, and ours answered that with prose an agent
+    could not extract result-interpretation from.
+    """
+    import importlib
+
+    cli = importlib.import_module(f"{tool}.cli")
+
+    for flag, expected in (("-h", "usage:"), ("--help", "---")):
+        with pytest.raises(SystemExit) as exit_info:
+            cli.build_parser().parse_args([flag])
+        assert exit_info.value.code == 0, f"{flag} must exit 0"
+        out = capsys.readouterr().out
+        assert out.startswith(expected), f"{flag} printed the wrong document"
+
+    # And they must genuinely differ -- one action bound to both spellings is
+    # the argparse default this exists to undo.
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["-h"])
+    terse = capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["--help"])
+    skill_text = capsys.readouterr().out
+    assert terse != skill_text

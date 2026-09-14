@@ -19,6 +19,8 @@ deciding whether to install it.
 
 from __future__ import annotations
 
+import argparse
+from collections.abc import Callable
 from typing import Any
 
 #: What an agent most needs and a person mostly knows already: which calls are
@@ -123,3 +125,48 @@ def render_skill(
             lines += [f"{_wrap(intent)}", "", "```bash", command, "```", ""]
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+class SkillHelpAction(argparse.Action):
+    """`--help` prints the tool's skill; `-h` keeps the terse human summary.
+
+    Adopted from David Koleczek's Smart Tool Creator after measuring our own
+    choice and finding it worse. We had made `skill` a verb, reasoning that a
+    host would find it in the verb list -- but a host that does not know the
+    tool at all reaches for `--help` first, and ours answered that with prose.
+    Our own A/B is the evidence: an agent given that prose could not say what
+    `confidence` meant; one given the skill quoted the rule and planned around
+    it.
+
+    Two builders reached the `-h` / `--help` split independently, which is a
+    better argument for it than either of us makes alone.
+    """
+
+    def __init__(self, option_strings, dest, skill: Callable[[], str], **kwargs):
+        super().__init__(option_strings, dest, nargs=0, **kwargs)
+        self._skill = skill
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(self._skill())
+        parser.exit()
+
+
+def add_help_flags(parser: argparse.ArgumentParser, *, skill: Callable[[], str]) -> None:
+    """Wire `-h` to the terse summary and `--help` to the skill.
+
+    The parser must be built with `add_help=False`, because argparse binds both
+    spellings to one action and we want them to differ.
+    """
+    parser.add_argument(
+        "-h",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="terse summary for a person: the verbs, a line each",
+    )
+    parser.add_argument(
+        "--help",
+        action=SkillHelpAction,
+        skill=skill,
+        default=argparse.SUPPRESS,
+        help="this tool's skill, written for an agent driving it",
+    )
