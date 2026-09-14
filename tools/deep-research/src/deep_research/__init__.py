@@ -6,6 +6,8 @@ nothing here requires a credential to import.
 
 from research_core import Manifest, load_manifest
 
+from deep_research.research import research
+
 __version__ = "0.1.0"
 
 PACKAGE = "deep_research"
@@ -16,4 +18,4 @@ def manifest() -> Manifest:
     return load_manifest(PACKAGE)
 
 
-__all__ = ["PACKAGE", "Manifest", "__version__", "manifest"]
+__all__ = ["PACKAGE", "Manifest", "__version__", "manifest", "research"]

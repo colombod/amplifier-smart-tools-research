@@ -136,6 +136,40 @@ def build_parser() -> argparse.ArgumentParser:
     )
     config.set_defaults(handler=_cmd_config)
 
+    research = verbs.add_parser(
+        "research",
+        help="run the research workflow -- MODEL-BACKED, spends tokens",
+        description=(
+            "Research a question and leave the evidence on disk. Model-backed: it "
+            "consumes tokens, may answer differently on a second run, and fails "
+            "saying so when no backend is configured rather than returning a "
+            "lesser answer. Progress is written to stderr as it runs AND kept in "
+            "the run's own event log, so a caller who was not watching can still "
+            "reconstruct what happened."
+        ),
+    )
+    research.add_argument("--query", required=True, metavar="TEXT")
+    research.add_argument("--depth", choices=("low", "medium", "high"))
+    research.add_argument("--max-sources", type=int, metavar="N")
+    research.add_argument("--backend", metavar="NAME")
+    research.add_argument("--runs-dir", metavar="PATH")
+    research.add_argument("--timeout-ms", type=int, metavar="MS")
+    research.add_argument(
+        "--inline",
+        dest="inline",
+        action="store_true",
+        default=None,
+        help="return the whole report in the envelope, whatever its size",
+    )
+    research.add_argument(
+        "--no-inline",
+        dest="inline",
+        action="store_false",
+        help="always return a pointer, never the report itself",
+    )
+    research.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
+    research.set_defaults(handler=_cmd_research)
+
     register_common_verbs(verbs, prog=PROG, include_verdicts=False)
 
     return parser
@@ -143,6 +177,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _cmd_manifest(_args: argparse.Namespace) -> dict[str, Any]:
     return deep_research.manifest().to_dict()
+
+
+def _cmd_research(args: argparse.Namespace) -> dict[str, Any]:
+    return deep_research.research(
+        args.query,
+        depth=args.depth,
+        backend=args.backend,
+        max_sources=args.max_sources,
+        runs_dir=args.runs_dir,
+        timeout_ms=args.timeout_ms,
+        inline=args.inline,
+        quiet=args.quiet,
+    )
 
 
 def _cmd_config(args: argparse.Namespace) -> dict[str, Any]:
