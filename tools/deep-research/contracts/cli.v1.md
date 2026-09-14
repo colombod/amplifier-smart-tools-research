@@ -285,6 +285,8 @@ failed run says so in `run.json`.
   detached mode would need, so adding it later changes no existing contract.
 - **Resuming or continuing a run** — refining a completed run without starting over.
 - **Automatic reaping** of old runs. Today nothing reaps; `list` shows what is there.
-- **Attractor-orchestrated stages** instead of staged turns.
+- **Resume of a failed run** — the run directory already holds the stage record, so the
+  shape is there. When added, resume refuses loudly on a mismatched or already-completed
+  run rather than silently restarting.
 - **Cross-run synthesis** — answering from several accumulated runs at once, which the
   shared runs directory makes possible but v1 does not attempt.
