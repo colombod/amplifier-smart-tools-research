@@ -20,6 +20,7 @@ deciding whether to install it.
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -147,7 +148,11 @@ class SkillHelpAction(argparse.Action):
         self._skill = skill
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print(self._skill())
+        # write, not print: the document already ends in a newline, and print
+        # would add a second. That one byte is the difference between `--help`
+        # and the committed `skills/<name>/SKILL.md` being the SAME document,
+        # which is the whole point of shipping both.
+        sys.stdout.write(self._skill())
         parser.exit()
 
 

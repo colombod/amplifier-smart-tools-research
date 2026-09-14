@@ -134,3 +134,57 @@ def test_dash_h_and_double_help_answer_different_readers(tool, capsys):
         cli.build_parser().parse_args(["--help"])
     skill_text = capsys.readouterr().out
     assert terse != skill_text
+
+
+@pytest.mark.parametrize(
+    "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
+)
+def test_the_committed_skill_file_matches_what_the_library_returns(tool, slug):
+    """`skills/<name>/SKILL.md` on disk must equal `skill()`.
+
+    The file exists so a host that discovers skills by SCANNING a repository --
+    `npx skills add <owner>/<repo>`, or anything walking the tree -- finds this
+    tool at all. Generated at runtime only, it was invisible to every one of
+    them: we had the better content and the worse distribution, and content
+    nobody can find is not content.
+
+    A generated file committed to git is a duplication, and duplications rot.
+    THIS TEST is the load-bearing part, not the file: regenerate with
+    `python -c "import <pkg>; ..."` -- or just read the failure, which says so.
+    """
+    import importlib
+    from pathlib import Path
+
+    expected = importlib.import_module(tool).skill()
+    path = Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md"
+    assert path.exists(), f"{path} is missing -- regenerate it from {tool}.skill()"
+    assert path.read_text(encoding="utf-8") == expected, (
+        f"{path} has drifted from {tool}.skill(). Regenerate it; do not hand-edit."
+    )
+
+
+@pytest.mark.parametrize(
+    "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
+)
+def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, capsys):
+    """`--help` and `skills/<name>/SKILL.md` must be the SAME document.
+
+    Two ways to get a tool's skill -- run `--help`, or let a host install the
+    file -- and if they differ by so much as a byte, a caller who compares them
+    has to work out which one is authoritative. They were briefly off by one
+    trailing newline, because `print()` adds one to a string that already ends
+    in a newline. Nobody would have noticed by reading.
+    """
+    import importlib
+    from pathlib import Path
+
+    cli = importlib.import_module(f"{tool}.cli")
+    with pytest.raises(SystemExit) as exit_info:
+        cli.build_parser().parse_args(["--help"])
+    assert exit_info.value.code == 0
+
+    printed = capsys.readouterr().out
+    on_disk = (Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert printed == on_disk, "--help and the installed SKILL.md have diverged"

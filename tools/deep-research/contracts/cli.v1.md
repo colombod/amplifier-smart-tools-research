@@ -308,8 +308,22 @@ pure stream cannot offer.
 
 ## 5. `--help`
 
-`-h` is the summary; `--help` is complete. Both exit 0 with every provider variable
-scrubbed from the environment. `--help` answers three questions in order:
+**`-h` and `--help` answer different readers.** Both exit 0 with every provider variable
+scrubbed from the environment.
+
+`-h` is the terse summary for a person: the verbs, a line each.
+
+`--help` prints the tool as an [Agent Skill](https://agentskills.io/specification) — YAML
+frontmatter carrying `name` and `description`, then a markdown body. A host can write it
+straight into a skills directory. The `skill` verb returns the same document, for a caller
+that would rather ask by name than by flag.
+
+*Changed in 0.2.0. Before, `--help` printed prose. A caller that parsed that prose will need
+updating; one that simply displayed it gets a better document. We measured the difference
+before making it: given the prose, an agent could not say what `confidence` meant; given the
+skill, it quoted the rule and planned around a low value.*
+
+The skill answers three questions in order:
 
 1. **How to use the tool.** Every verb, what it is for, and which are model-backed.
 2. **How to use the result you get back.** What `brief`, `report`, `sources` and `path`

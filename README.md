@@ -32,8 +32,19 @@ Both pull the shared `research-core` automatically. Python 3.11+.
 
 ```bash
 deep-research check          # what's configured, what isn't, and what you lose without it
-deep-research --help         # the verbs, how to use a result, how to navigate a big one
+deep-research -h             # terse summary for a person: the verbs, a line each
+deep-research --help         # the tool's skill, written for an agent driving it
 ```
+
+**`-h` and `--help` answer different readers, on purpose.** `-h` is the usual verb summary.
+`--help` prints the tool as an [Agent Skill](https://agentskills.io/specification) — YAML
+frontmatter plus markdown, covering which verbs spend money, how to read a result and what
+each field means, and how to navigate a large one. A host can write it straight into a skills
+directory; `deep-research skill` returns the same document if you would rather ask by name.
+
+We measured that difference before adopting it: given only the prose help, an agent could not
+say what a result's `confidence` field meant; given the skill, it quoted the rule and planned
+around a low one.
 
 `check` works on a machine with no credentials at all and tells you exactly what each
 missing one would unlock. Nothing else in this README requires you to have configured
