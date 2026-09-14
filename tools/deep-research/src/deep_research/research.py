@@ -20,8 +20,11 @@ from research_core import runs as _runs
 from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
 from research_core.errors import SmartToolError
+from research_core.reasoning import Reasoner
 from research_core.urls import classify_url
 from research_core.writer import RunWriter, new_run_id
+
+from deep_research import stages
 
 STAGES = ("scope", "gather", "synthesise", "report")
 
@@ -30,17 +33,58 @@ STAGES = ("scope", "gather", "synthesise", "report")
 INLINE_BYTE_THRESHOLD = 8_000
 
 
-def _backend_for(name: str, *, model: str | None) -> ResearchBackend:
+def _backend_for(name: str, *, provider: str | None, model: str | None) -> ResearchBackend:
     if name == "perplexity":
         from research_core.backends.perplexity import PerplexityBackend
 
         return PerplexityBackend(model=model)
+    if name == "agent":
+        from research_core.backends.agent import AgentBackend
+
+        return AgentBackend(provider=provider, model=model)
     from research_core.errors import UsageError
 
     raise UsageError(
         f"There is no backend {name!r}.",
-        "Backends: perplexity. Set it with --backend, the config file, or RESEARCH_BACKEND.",
+        "Backends: perplexity, agent. Set one with --backend, the config file, "
+        "or RESEARCH_BACKEND.",
     )
+
+
+def _reasoner_for(
+    reasoner: Reasoner | None,
+    *,
+    provider: str | None,
+    model: str | None,
+    timeout_ms: int,
+) -> Reasoner:
+    """The reasoning seam. A supplied reasoner is how a test drives the whole
+    pipeline with no provider and no tokens spent."""
+    if reasoner is not None:
+        return reasoner
+    from research_core.reasoning import AgentReasoner
+
+    return AgentReasoner(provider=provider, model=model, timeout_ms=timeout_ms)
+
+
+def _gather(engine: ResearchBackend, query: str, budget: Budget, *, scope, on_event):
+    """Call a backend, passing the extras only to those that accept them.
+
+    The two backends genuinely differ: one owns its own search loop and takes a
+    question, the other runs inside a turn we watch and can use the scope and
+    report progress. Rather than force a lowest-common-denominator signature on
+    both, the caller adapts -- which is exactly the asymmetry the open question
+    about unifying these seams has to decide what to do with.
+    """
+    import inspect
+
+    parameters = inspect.signature(engine.gather).parameters
+    extra: dict[str, Any] = {}
+    if "scope" in parameters:
+        extra["scope"] = str(scope.get("question") or "")
+    if "on_event" in parameters:
+        extra["on_event"] = on_event
+    return engine.gather(query, budget, **extra)
 
 
 def number_sources(evidence: Evidence) -> list[dict[str, Any]]:
@@ -135,6 +179,8 @@ def research(
     inline: bool | None = None,
     quiet: bool = False,
     stream: TextIO | None = None,
+    reasoner: Reasoner | None = None,
+    max_attempts: int | None = None,
 ) -> dict[str, Any]:
     """Run the research workflow and return a brief plus a pointer to the evidence.
 
@@ -151,12 +197,23 @@ def research(
     engine: ResearchBackend = (
         backend
         if not isinstance(backend, str) and backend is not None
-        else _backend_for(settings["backend"], model=settings["model"])
+        else _backend_for(
+            settings["backend"], provider=settings["provider"], model=settings["model"]
+        )
     )
+    thinker = _reasoner_for(
+        reasoner,
+        provider=settings["provider"],
+        model=settings["model"],
+        timeout_ms=settings["timeout_ms"],
+    )
+    attempts_allowed = max_attempts or settings["max_attempts"]
 
-    # Refuse BEFORE anything is created or sent. A refusal must not leave a run
-    # directory behind, and must never reach the point of building a prompt.
+    # Refuse BEFORE anything is created or sent. BOTH seams are checked here:
+    # discovering halfway through that the reasoning stages cannot run would mean
+    # having already paid for the evidence.
     engine.preflight()
+    thinker.preflight()
 
     budget = Budget(
         depth=settings["depth"],
@@ -178,14 +235,19 @@ def research(
     )
 
     try:
+
+        def progress(event: dict[str, Any]) -> None:
+            writer.event(event.pop("type", "progress"), **event)
+
         writer.start_stage("scope")
-        # The scope turn arrives with the agent backend. Today the question is
-        # passed through unchanged, and the stage records that honestly.
-        scoped = query
-        writer.finish_stage("scope", scoped=False)
+        scoped = stages.scope(thinker, query, max_attempts=attempts_allowed, on_event=progress)
+        writer.write_json("scope.json", scoped.value)
+        writer.record_usage(scoped.usage)
+        writer.finish_stage("scope", attempts=len(scoped.attempts), scoped=True)
+        sharpened = str(scoped.value.get("question") or query)
 
         writer.start_stage("gather")
-        evidence = engine.gather(scoped, budget)
+        evidence = _gather(engine, sharpened, budget, scope=scoped.value, on_event=progress)
         writer.write_raw("gather-01.json", getattr(evidence, "raw", None) or evidence.to_dict())
         sources = number_sources(evidence)
         writer.write_json(
@@ -203,16 +265,54 @@ def research(
 
         writer.start_stage("synthesise")
         body = rewrite_citations(evidence.text, sources)
-        writer.finish_stage("synthesise", synthesised=False)
+        written = stages.synthesise(
+            thinker,
+            sharpened,
+            sources,
+            body,
+            max_attempts=attempts_allowed,
+            on_event=progress,
+        )
+        writer.write_json(
+            "attempts.json",
+            {
+                "scope": [a.to_dict() for a in scoped.attempts],
+                "synthesise": [a.to_dict() for a in written.attempts],
+            },
+        )
+        writer.record_usage(written.usage)
+        writer.finish_stage("synthesise", attempts=len(written.attempts), synthesised=True)
 
         writer.start_stage("report")
-        report = f"# {query}\n\n{body.strip()}\n"
-        brief = summarise(body)
+        report = str(written.value["report"]).strip() + "\n"
+        # An h1 title, not merely any heading. A synthesis that opens straight at
+        # "## 1." has sections but no title, and a reader opening the file has
+        # nothing telling them what question it answers.
+        if not report.lstrip().startswith("# "):
+            report = f"# {sharpened}\n\n{report}"
+        brief = str(written.value["brief"]).strip()
         writer.write_file(_runs.REPORT_FILE, report)
         writer.write_file(_runs.BRIEF_FILE, brief + "\n")
+        writer.set(confidence=written.value.get("confidence"))
         writer.finish_stage("report")
 
         record = writer.complete()
+    except stages.AttemptsExhausted as exc:
+        # Loudly, carrying every attempt. Returning the least-bad draft would
+        # hand back a partial answer nobody could tell apart from a good one.
+        writer.write_json("attempts.json", {exc.stage: [a.to_dict() for a in exc.attempts]})
+        writer.fail(
+            stage=exc.stage,
+            code="attempts_exhausted",
+            message=str(exc),
+            remedy=(
+                "Every attempt is kept in attempts.json with the reason it was "
+                "rejected. Raise max_attempts if the model was close, or look at "
+                "the rejections -- repeated identical ones usually mean the "
+                "evidence cannot support the question as asked."
+            ),
+        )
+        raise SmartToolError(str(exc), "See attempts.json in the run directory.") from exc
     except SmartToolError as exc:
         # The run keeps everything gathered before the failure. A failed run that
         # threw its evidence away would make a retry cost twice.
