@@ -1,0 +1,10 @@
+{
+  "schema": "research-sources/v1", "run_id": "dr-eval0002",
+  "sources": [
+    {"id": "s1", "url": "https://arxiv.org/abs/2101.00001", "title": "Measured overhead of state-based CRDTs", "category": "academic", "snippet": "Reports 3x memory overhead versus a last-write-wins register under the authors' workload."},
+    {"id": "s2", "url": "https://arxiv.org/abs/2101.00002", "title": "CRDT overhead reconsidered", "category": "academic", "snippet": "Reports under 1.2x memory overhead, attributing earlier figures to an unoptimised encoding."},
+    {"id": "s3", "url": "https://engineering.example.com/crdt-postmortem", "title": "Why we removed CRDTs", "category": "other", "snippet": "One team's account of reverting a CRDT-based feature after memory growth in production."},
+    {"id": "s4", "url": "https://redis.io/docs/about/", "title": "Redis documentation", "category": "docs", "snippet": "Describes active-active geo-distribution built on conflict-free replicated data types."},
+    {"id": "s5", "url": "https://blog.example.com/distributed-systems-weekly", "title": "Distributed systems weekly, issue 44", "category": "other", "snippet": "A newsletter round-up mentioning CRDTs among several consistency topics, with no measurements."}
+  ]
+}

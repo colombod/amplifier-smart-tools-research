@@ -43,8 +43,12 @@ FIXTURES = HERE / "fixtures"
 CRITICAL_CONFUSION = ("unverifiable", "refuted")
 
 
-def load_fixtures() -> dict[str, Any]:
-    return json.loads((FIXTURES / "claims.json").read_text(encoding="utf-8"))
+def load_fixtures(name: str = "claims") -> dict[str, Any]:
+    path = FIXTURES / f"{name}.json"
+    if not path.is_file():
+        available = sorted(p.stem for p in FIXTURES.glob("claims*.json"))
+        raise SystemExit(f"no fixture set {name!r}; available: {', '.join(available)}")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def seed_runs_dir(runs_dir: Path, evidence_run: str) -> None:
@@ -166,10 +170,12 @@ def score(claims: list[dict[str, Any]], verdicts: list[dict[str, Any]]) -> dict[
     }
 
 
-def run_pass(mode: str, *, model: str | None, provider: str | None) -> dict[str, Any]:
+def run_pass(
+    mode: str, *, model: str | None, provider: str | None, fixture: str = "claims"
+) -> dict[str, Any]:
     import fact_check
 
-    fixtures = load_fixtures()
+    fixtures = load_fixtures(fixture)
     claims = fixtures["claims"]
 
     with tempfile.TemporaryDirectory() as scratch:
@@ -195,6 +201,7 @@ def run_pass(mode: str, *, model: str | None, provider: str | None) -> dict[str,
     result = score(claims, found)
     result["pass"] = {
         "mode": mode,
+        "fixture": fixture,
         "at": started.isoformat(),
         "seconds": round(elapsed, 1),
         "claim_count": len(claims),
@@ -210,7 +217,10 @@ def run_pass(mode: str, *, model: str | None, provider: str | None) -> dict[str,
 def render(result: dict[str, Any]) -> str:
     lines = []
     info = result["pass"]
-    lines.append(f"mode={info['mode']}  claims={info['claim_count']}  {info['seconds']}s")
+    lines.append(
+        f"fixture={info['fixture']}  mode={info['mode']}  "
+        f"claims={info['claim_count']}  {info['seconds']}s"
+    )
     if info["mode"] == "live":
         usage = info.get("usage") or {}
         lines.append(
@@ -244,19 +254,26 @@ def main(argv: list[str] | None = None) -> int:
         default="oracle",
         help="oracle and adversary spend nothing; live costs money",
     )
+    parser.add_argument(
+        "--fixture",
+        default="claims",
+        help="which fixture set: claims (clean) or claims-contradiction (the sources "
+        "disagree). Recorded with the scores, because a score is only meaningful "
+        "against the set that produced it.",
+    )
     parser.add_argument("--model", help="recorded with the scores")
     parser.add_argument("--provider", help="recorded with the scores")
     parser.add_argument("--out", metavar="DIR", help="write the result document here")
     parser.add_argument("--json", action="store_true", help="emit JSON on stdout")
     args = parser.parse_args(argv)
 
-    result = run_pass(args.mode, model=args.model, provider=args.provider)
+    result = run_pass(args.mode, model=args.model, provider=args.provider, fixture=args.fixture)
 
     if args.out:
         directory = Path(args.out).expanduser()
         directory.mkdir(parents=True, exist_ok=True)
         stamp = result["pass"]["at"].replace(":", "").replace("-", "")[:15]
-        path = directory / f"{args.mode}-{stamp}.json"
+        path = directory / f"{args.fixture}-{args.mode}-{stamp}.json"
         path.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
         print(f"written: {path}", file=sys.stderr)
 

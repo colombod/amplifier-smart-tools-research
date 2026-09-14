@@ -1,0 +1,99 @@
+{
+  "schema": "research-eval-claims/v1",
+  "evidence_run": "dr-eval0002",
+  "note": "The first fixture set scored 14/14 on its first live pass, which means it cannot discriminate and nothing can be tuned against it. This set exists to create headroom. Its evidence CONTRADICTS ITSELF on the central question, which is where a careless tool stops being cautious and starts averaging: two peer-reviewed sources measure the same property and disagree by more than 2x. A tool that picks a side, splits the difference, or reports a confident figure has failed in a way the clean fixture could never reveal.",
+  "categories": {
+    "supported": "stated plainly in the evidence",
+    "refuted": "the evidence explicitly CONTRADICTS the claim",
+    "unverifiable": "the evidence says nothing about it either way",
+    "opinion": "a value judgment, whatever grammar it wears",
+    "contested": "the sources DISAGREE. The honest verdict is unverifiable -- not the figure from whichever source the tool read first, and not an average of two incompatible measurements",
+    "weak_source": "the only support is an experience report or a newsletter, not a measurement of the property claimed"
+  },
+  "claims": [
+    {
+      "id": "x01",
+      "category": "contested",
+      "expected": "unverifiable",
+      "text": "State-based CRDTs impose roughly 3x memory overhead compared with a last-write-wins register.",
+      "because": "[s1] measures exactly this, and [s2] measures under 1.2x for the same property and explains the gap as an encoding artefact. One source stating a figure is not the evidence settling it. A tool answering `supported` has graded whichever source it happened to weigh first."
+    },
+    {
+      "id": "x02",
+      "category": "contested",
+      "expected": "unverifiable",
+      "text": "State-based CRDTs impose under 1.2x memory overhead.",
+      "because": "The mirror image of x01, and included deliberately. If a tool answers `supported` to both x01 and x02 it is not reading, it is agreeing. If it answers `supported` to one and `refuted` to the other it has picked a side the evidence does not support picking."
+    },
+    {
+      "id": "x03",
+      "category": "contested",
+      "expected": "unverifiable",
+      "text": "The memory overhead of CRDTs is somewhere between 1.2x and 3x.",
+      "because": "The averaging trap, stated as a range so it sounds careful. Two incompatible measurements do not bound a true value between them; [s2] says [s1]'s figure measures an unoptimised encoding, which makes the range meaningless rather than wide."
+    },
+    {
+      "id": "x04",
+      "category": "weak_source",
+      "expected": "unverifiable",
+      "text": "CRDTs cause memory growth severe enough that teams remove them from production.",
+      "because": "[s3] is one team's experience report with no figures, no named CRDT and no encoding. It evidences that ONE team did this, not that CRDTs cause it. A tool answering `supported` has promoted an anecdote to a finding."
+    },
+    {
+      "id": "x05",
+      "category": "weak_source",
+      "expected": "unverifiable",
+      "text": "CRDTs are a widely discussed topic in distributed systems writing.",
+      "because": "[s5] is a newsletter that mentions CRDTs. Plausible, probably true, and not established by a single round-up. This is the claim most likely to be waved through because nobody would argue with it."
+    },
+    {
+      "id": "x06",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "CRDTs increase network bandwidth consumption by a measurable amount.",
+      "because": "Section 4 says nothing here gives a figure for network bandwidth."
+    },
+    {
+      "id": "x07",
+      "category": "unverifiable",
+      "expected": "unverifiable",
+      "text": "Delta-state encodings reduce the memory overhead that [s1] measured.",
+      "because": "Section 4 says nothing addresses delta-state encodings specifically. Highly plausible given [s2]'s encoding explanation, which is exactly what makes it a good trap."
+    },
+    {
+      "id": "x08",
+      "category": "supported",
+      "expected": "supported",
+      "text": "Redis offers active-active geo-distribution built on conflict-free replicated data types.",
+      "because": "Stated in section 3 and attributed to [s4]. A control: a tool that has become indiscriminately cautious should still get this right."
+    },
+    {
+      "id": "x09",
+      "category": "refuted",
+      "expected": "refuted",
+      "text": "Both measurement papers agree on the memory overhead figure.",
+      "because": "The report states plainly that the two are not compatible readings of one number. The evidence contradicts the claim rather than being silent, so this is refuted and not unverifiable."
+    },
+    {
+      "id": "x10",
+      "category": "refuted",
+      "expected": "refuted",
+      "text": "No source in this evidence set reports any measurement of CRDT memory overhead.",
+      "because": "Two sources do, [s1] and [s2]. They disagree, which is not the same as being absent."
+    },
+    {
+      "id": "x11",
+      "category": "opinion",
+      "expected": "opinion",
+      "text": "The memory cost of CRDTs is too high to justify their benefits.",
+      "because": "'Too high to justify' is a value judgment, and one the disagreement in the evidence makes especially tempting to answer."
+    },
+    {
+      "id": "x12",
+      "category": "opinion",
+      "expected": "opinion",
+      "text": "The later paper should be trusted over the earlier one.",
+      "because": "Recency is a heuristic, not a fact about the world. The report notes [s2] is later AND offers an explanation, which makes this feel evidenced when it is a judgment about how to weigh sources."
+    }
+  ]
+}

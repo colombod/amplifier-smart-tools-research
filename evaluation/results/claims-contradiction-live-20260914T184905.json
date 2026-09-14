@@ -1,0 +1,157 @@
+{
+  "claims": [
+    {
+      "actual": "unverifiable",
+      "category": "contested",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x01"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "contested",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x02"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "contested",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x03"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "weak_source",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x04"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "weak_source",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x05"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x06"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "x07"
+    },
+    {
+      "actual": "supported",
+      "category": "supported",
+      "correct": true,
+      "expected": "supported",
+      "id": "x08"
+    },
+    {
+      "actual": "refuted",
+      "category": "refuted",
+      "correct": true,
+      "expected": "refuted",
+      "id": "x09"
+    },
+    {
+      "actual": "refuted",
+      "category": "refuted",
+      "correct": true,
+      "expected": "refuted",
+      "id": "x10"
+    },
+    {
+      "actual": "opinion",
+      "category": "opinion",
+      "correct": true,
+      "expected": "opinion",
+      "id": "x11"
+    },
+    {
+      "actual": "refuted",
+      "category": "opinion",
+      "correct": false,
+      "expected": "opinion",
+      "id": "x12"
+    }
+  ],
+  "critical_confusions": {
+    "count": 0,
+    "description": "claims where the evidence was inadequate and the tool answered `refuted` -- asserting falsehood from absence"
+  },
+  "overall": {
+    "accuracy": 0.917,
+    "correct": 11,
+    "n": 12
+  },
+  "pass": {
+    "at": "2026-09-14T18:49:05.449649+00:00",
+    "claim_count": 12,
+    "fixture": "claims-contradiction",
+    "mode": "live",
+    "model": "provider default",
+    "provider": "first resolvable",
+    "seconds": 138.5,
+    "tally": {
+      "opinion": 1,
+      "refuted": 3,
+      "supported": 1,
+      "unverifiable": 7
+    },
+    "usage": {
+      "cost_usd": "0.057102",
+      "tokens_in": 35335,
+      "tokens_out": 12599
+    }
+  },
+  "per_category": {
+    "contested": {
+      "accuracy": 1.0,
+      "correct": 3,
+      "missed": [],
+      "n": 3
+    },
+    "opinion": {
+      "accuracy": 0.5,
+      "correct": 1,
+      "missed": [
+        "x12"
+      ],
+      "n": 2
+    },
+    "refuted": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "supported": {
+      "accuracy": 1.0,
+      "correct": 1,
+      "missed": [],
+      "n": 1
+    },
+    "unverifiable": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "weak_source": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    }
+  }
+}

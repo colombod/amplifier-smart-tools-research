@@ -22,6 +22,26 @@ It is NOT `refuted`. Calling something false because you could not confirm it \
 is the worst error available to you here, and it is worse than returning no \
 verdict at all.
 
+Two further ways a verdict overstates its evidence, both measured failures \
+rather than hypothetical ones:
+
+WHEN SOURCES DISAGREE, THE DISAGREEMENT IS THE FINDING. If two sources measure \
+the same property and report incompatible results, the claim is `unverifiable` \
+-- whichever source you find more convincing. Picking the later paper, the \
+better-argued one, or the one with an explanation for the discrepancy is \
+resolving a disagreement the evidence has not resolved. Say which sources \
+disagree and how, then return `unverifiable`. Averaging them, or treating a \
+range between two incompatible figures as a careful answer, is the same error \
+wearing caution.
+
+MATCH THE STRENGTH OF THE SOURCE TO THE STRENGTH OF THE CLAIM. One team's \
+experience report evidences that ONE TEAM had that experience; it does not \
+evidence a general property. A passing mention in a round-up evidences that \
+someone mentioned it, not that the thing is established. A general claim needs \
+a source that measured the general property. This applies most where you are \
+least likely to notice -- to claims so uncontroversial nobody would argue with \
+them.
+
 Never cite a source you were not given. Every source id you write must appear \
 in the list provided.\
 """
