@@ -21,7 +21,7 @@ from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
 from research_core.errors import NoEvidence, SmartToolError
 from research_core.reasoning import Reasoner
-from research_core.staging import AttemptsExhausted
+from research_core.staging import AttemptsExhausted, StageResult
 from research_core.urls import classify_url
 from research_core.writer import RunWriter, new_run_id
 
@@ -162,6 +162,7 @@ def research(
     stream: TextIO | None = None,
     reasoner: Reasoner | None = None,
     max_attempts: int | None = None,
+    scope: bool = True,
 ) -> dict[str, Any]:
     """Run the research workflow and return a brief plus a pointer to the evidence.
 
@@ -221,11 +222,21 @@ def research(
             writer.event(event.pop("type", "progress"), **event)
 
         writer.start_stage("scope")
-        scoped = stages.scope(thinker, query, max_attempts=attempts_allowed, on_event=progress)
-        writer.write_json("scope.json", scoped.value)
-        writer.record_usage(scoped.usage)
-        writer.finish_stage("scope", attempts=len(scoped.attempts), scoped=True)
-        sharpened = str(scoped.value.get("question") or query)
+        if scope:
+            scoped = stages.scope(thinker, query, max_attempts=attempts_allowed, on_event=progress)
+            writer.write_json("scope.json", scoped.value)
+            writer.record_usage(scoped.usage)
+            writer.finish_stage("scope", attempts=len(scoped.attempts), scoped=True)
+            sharpened = str(scoped.value.get("question") or query)
+        else:
+            # The caller's question, asked as they asked it. A turn is not free,
+            # and sharpening can narrow a search that would have found more on
+            # the original wording -- so whether it helps is an empirical
+            # question, and this is the other arm of it.
+            scoped = StageResult(value={"question": query}, attempts=[])
+            writer.write_json("scope.json", {"question": query, "scoped": False})
+            writer.finish_stage("scope", attempts=0, scoped=False)
+            sharpened = query
 
         writer.start_stage("gather")
         evidence = engine.gather(

@@ -150,7 +150,12 @@ def judge(
 
 
 def run_pass(
-    mode: str, *, model: str | None, provider: str | None, backend: str | None
+    mode: str,
+    *,
+    model: str | None,
+    provider: str | None,
+    backend: str | None,
+    scope: bool = True,
 ) -> dict[str, Any]:
     import deep_research
     from research_core.errors import SmartToolError
@@ -163,7 +168,12 @@ def run_pass(
 
     with tempfile.TemporaryDirectory() as scratch:
         for question in questions:
-            kwargs: dict[str, Any] = {"runs_dir": scratch, "quiet": True, "depth": "low"}
+            kwargs: dict[str, Any] = {
+                "runs_dir": scratch,
+                "quiet": True,
+                "depth": "low",
+                "scope": scope,
+            }
             if mode in ("oracle", "adversary"):
                 back, reasoner = scripted(question, wrong=(mode == "adversary"))
                 kwargs.update(backend=back, reasoner=reasoner)
@@ -213,6 +223,8 @@ def run_pass(
             "model": model or os.environ.get("RESEARCH_MODEL") or "provider default",
             "provider": provider or os.environ.get("RESEARCH_PROVIDER") or "first resolvable",
             "backend": backend or ("fixture" if mode != "live" else "default"),
+            # Which arm this is. A score is only comparable against the same arm.
+            "scope_stage": "on" if scope else "off",
             "spend": {
                 "cost_usd": round(spend["cost_usd"], 6),
                 "tokens_in": spend["tokens_in"],
@@ -238,7 +250,8 @@ def render(result: dict[str, Any]) -> str:
     info = result["pass"]
     spend = info["spend"]
     lines = [
-        f"mode={info['mode']}  questions={info['question_count']}  {info['seconds']}s",
+        f"mode={info['mode']}  scope={info['scope_stage']}  "
+        f"questions={info['question_count']}  {info['seconds']}s",
     ]
     if info["mode"] == "live":
         lines.append(
@@ -265,19 +278,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--mode", choices=("oracle", "adversary", "live"), default="oracle")
     parser.add_argument("--backend", help="live only: perplexity or agent")
+    parser.add_argument(
+        "--no-scope",
+        dest="scope",
+        action="store_false",
+        help="ask the caller's question as written, skipping the sharpening turn",
+    )
     parser.add_argument("--model")
     parser.add_argument("--provider")
     parser.add_argument("--out", metavar="DIR")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
-    result = run_pass(args.mode, model=args.model, provider=args.provider, backend=args.backend)
+    result = run_pass(
+        args.mode,
+        model=args.model,
+        provider=args.provider,
+        backend=args.backend,
+        scope=args.scope,
+    )
 
     if args.out:
         directory = Path(args.out).expanduser()
         directory.mkdir(parents=True, exist_ok=True)
         stamp = result["pass"]["at"].replace(":", "").replace("-", "")[:15]
-        path = directory / f"research-{args.mode}-{stamp}.json"
+        arm = "scope-on" if args.scope else "scope-off"
+        path = directory / f"research-{args.mode}-{arm}-{stamp}.json"
         path.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
         print(f"written: {path}", file=sys.stderr)
 

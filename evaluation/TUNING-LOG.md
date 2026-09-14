@@ -184,3 +184,51 @@ That is a real price and worth stating: **honesty about absence is not free.**
 One pass. A model changes underneath you without telling you, and a fixture set of six
 questions with two traps is a narrow instrument. What this shows is that the failure was
 reachable by prompt — not that it is gone.
+
+---
+
+## 005 — Does the scope stage help? On well-formed questions: no, and it doubles the bill
+
+The most falsifiable claim in the design, finally run both ways. `research(scope=False)`
+asks the caller's question as written, skipping the sharpening turn.
+
+**Fixture:** `questions` · both arms live, same code, same day
+
+| | scope ON | scope OFF |
+|---|---|---|
+| score | **6/6** | **6/6** |
+| spend | $0.629427 | **$0.313071** |
+| wall clock | 550s | **267s** |
+| tokens | 106742 / 46716 | 71314 / 19530 |
+| dangling citations | 0 | 0 |
+
+**Same score. Half the money, half the time.** Per-question confidence was equivalent —
+q01 and q02 swapped `medium`/`high` between arms in opposite directions, which is noise, not
+signal. Both arms caught both hallucination traps at `low`.
+
+Source counts moved but not in a way that changed any verdict: scope-off gathered 15 sources
+for q04 against 30 with scope on, and still reached the same conclusion. **More sources did
+not buy a better answer** — which is its own finding about this tool's `depth` knob.
+
+### What this does NOT show, and it matters
+
+**Every question in the fixture is already well-formed.** Sharpening a well-posed question is
+exactly where you would expect sharpening to add nothing. The case the scope stage exists
+for — a vague question like *"tell me about CRDTs"* — **is not in the set at all.**
+
+So the honest claim is narrower than "the scope stage is useless":
+
+> On well-formed questions, the scope stage costs roughly 2x in money and time and produces
+> no measurable improvement.
+
+That is still actionable — it is the common case for a tool called from code, where the
+caller usually has a specific question — but it is not a verdict on the stage.
+
+### Recommended, not yet done
+
+Add two or three deliberately vague questions to the fixture and re-run both arms. If scope
+does not earn its cost there either, it should default off and become opt-in. Until then,
+`scope=False` is available to any caller who already knows what they are asking.
+
+**N=1 per arm.** Run-to-run variance is unmeasured, and a 2x cost difference is far larger
+than any plausible variance — but the score equality is a single observation.
