@@ -340,7 +340,7 @@ def test_a_failure_mid_gather_keeps_the_run_and_says_where(tmp_path):
         def preflight(self) -> str:
             return "scripted"
 
-        def gather(self, query, budget):
+        def gather(self, query, budget, *, scope="", on_event=None):
             raise SmartToolError("The backend fell over.", "Try again later.")
 
     with pytest.raises(SmartToolError):
@@ -483,3 +483,36 @@ def test_a_gather_that_found_nothing_is_refused_not_dressed_up_as_complete(tmp_p
     assert record["status"] == "failed"
     assert record["failure"]["code"] == "no_evidence"
     assert not (run / "report.md").exists()
+
+
+def test_every_backend_accepts_the_same_call(tmp_path):
+    """The caller must never have to ask an implementation what it accepts.
+
+    This used to be done with inspect.signature at the call site -- a special
+    case wearing a polite hat. Every implementation now takes scope and
+    on_event, and the ones with no use for them ignore them honestly.
+    """
+    import inspect
+
+    from research_core.backends.agent import AgentBackend
+    from research_core.backends.perplexity import PerplexityBackend
+
+    for implementation in (
+        PerplexityBackend(),
+        AgentBackend(),
+        ScriptedBackend(sample_evidence()),
+        UnconfiguredBackend(),
+    ):
+        parameters = inspect.signature(implementation.gather).parameters
+        assert "scope" in parameters, type(implementation).__name__
+        assert "on_event" in parameters, type(implementation).__name__
+
+
+def test_the_backend_receives_the_scope_the_reasoner_produced(tmp_path):
+    backend = ScriptedBackend(sample_evidence())
+    reasoner = ScriptedReasoner(
+        json.dumps({"question": "A sharpened question?"}),
+        json.dumps({"brief": "b", "report": "## 1. A\n\nr", "confidence": "low"}),
+    )
+    run_research(tmp_path, backend=backend, reasoner=reasoner, query="vague?")
+    assert backend.scopes == ["A sharpened question?"]

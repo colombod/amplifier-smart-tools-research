@@ -82,8 +82,21 @@ class PerplexityBackend:
         key, _ = resolve_credential("perplexity")
         return Perplexity(api_key=key)
 
-    def gather(self, query: str, budget: Budget) -> Evidence:
-        """One research call, parsed into structure rather than prose."""
+    def gather(
+        self,
+        query: str,
+        budget: Budget,
+        *,
+        scope: str = "",
+        on_event: Any = None,
+    ) -> Evidence:
+        """One research call, parsed into structure rather than prose.
+
+        ``scope`` and ``on_event`` are honest no-ops here, not stubs. The service
+        takes a question and owns its own search loop, so there is nothing to
+        pass a scope to; and it is one blocking request, so there is nothing to
+        report while it runs.
+        """
         self.preflight()
         steps = DEPTH_STEPS.get(budget.depth, DEPTH_STEPS["medium"])
         effort = DEPTH_EFFORT.get(budget.depth, "medium")

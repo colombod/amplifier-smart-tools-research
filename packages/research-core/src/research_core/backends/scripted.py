@@ -22,12 +22,14 @@ class ScriptedBackend:
         self._evidence = list(evidence)
         self.questions: list[str] = []
         self.budgets: list[Budget] = []
+        self.scopes: list[str] = []
 
     def preflight(self) -> str:
         return "scripted"
 
-    def gather(self, query: str, budget: Budget) -> Evidence:
+    def gather(self, query: str, budget: Budget, *, scope: str = "", on_event=None) -> Evidence:
         self.questions.append(query)
+        self.scopes.append(scope)
         self.budgets.append(budget)
         if not self._evidence:
             return Evidence(text="", sources=[], backend=self.name)
@@ -50,7 +52,7 @@ class UnconfiguredBackend:
             "Set PERPLEXITY_API_KEY and run again.",
         )
 
-    def gather(self, query: str, budget: Budget) -> Evidence:
+    def gather(self, query: str, budget: Budget, *, scope: str = "", on_event=None) -> Evidence:
         raise AssertionError(
             "preflight must refuse before a prompt is ever built or a request made"
         )

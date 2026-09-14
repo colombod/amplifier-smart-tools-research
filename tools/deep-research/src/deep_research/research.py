@@ -67,26 +67,6 @@ def _reasoner_for(
     return AgentReasoner(provider=provider, model=model, timeout_ms=timeout_ms)
 
 
-def _gather(engine: ResearchBackend, query: str, budget: Budget, *, scope, on_event):
-    """Call a backend, passing the extras only to those that accept them.
-
-    The two backends genuinely differ: one owns its own search loop and takes a
-    question, the other runs inside a turn we watch and can use the scope and
-    report progress. Rather than force a lowest-common-denominator signature on
-    both, the caller adapts -- which is exactly the asymmetry the open question
-    about unifying these seams has to decide what to do with.
-    """
-    import inspect
-
-    parameters = inspect.signature(engine.gather).parameters
-    extra: dict[str, Any] = {}
-    if "scope" in parameters:
-        extra["scope"] = str(scope.get("question") or "")
-    if "on_event" in parameters:
-        extra["on_event"] = on_event
-    return engine.gather(query, budget, **extra)
-
-
 def number_sources(evidence: Evidence) -> list[dict[str, Any]]:
     """Give each source a stable id and a category, on our side of the seam.
 
@@ -247,7 +227,12 @@ def research(
         sharpened = str(scoped.value.get("question") or query)
 
         writer.start_stage("gather")
-        evidence = _gather(engine, sharpened, budget, scope=scoped.value, on_event=progress)
+        evidence = engine.gather(
+            sharpened,
+            budget,
+            scope=str(scoped.value.get("question") or ""),
+            on_event=progress,
+        )
         writer.write_raw("gather-01.json", getattr(evidence, "raw", None) or evidence.to_dict())
         sources = number_sources(evidence)
         writer.write_json(

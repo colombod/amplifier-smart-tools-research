@@ -16,6 +16,7 @@ research service, one over an embedded agent with web tools.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -72,6 +73,18 @@ class ResearchBackend(Protocol):
     ``preflight`` must refuse BEFORE any prompt is built or any request is made,
     and must never fall back to a degraded answer. A research result that quietly
     was not researched is worse than no result.
+
+    THE INVARIANT, and the reason this is not the same protocol as Reasoner: a
+    backend is AUTHORISED TO INTRODUCE NEW EVIDENCE into a run. Its result type
+    carries sources, and everything downstream exists to record what it brought.
+    A Reasoner is authorised only to reason over evidence already recorded, and
+    its result type carries none -- which is the premise the citation check rests
+    on. A synthesis that cites a source the run does not have is rejected, and
+    that check is only meaningful because the synthesising turn could not have
+    found it. Merging the two protocols would give the result an optional
+    `sources` field, and that field is exactly the route by which a synthesis
+    quietly introduces a citation nobody gathered. See
+    docs/DESIGN-NOTE-one-abstraction.md.
     """
 
     name: str
@@ -80,6 +93,20 @@ class ResearchBackend(Protocol):
         """Confirm this backend can run, or raise. Returns the credential tier."""
         ...
 
-    def gather(self, query: str, budget: Budget) -> Evidence:
-        """Acquire evidence for ``query`` within ``budget``."""
+    def gather(
+        self,
+        query: str,
+        budget: Budget,
+        *,
+        scope: str = "",
+        on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> Evidence:
+        """Acquire evidence for ``query`` within ``budget``.
+
+        ``scope`` and ``on_event`` are accepted by every implementation and
+        ignored by those with no use for them. An implementation that owns its
+        own search loop has nothing to do with either, and saying so by ignoring
+        an argument is cheaper than making the caller inspect signatures to find
+        out -- which is what it used to do.
+        """
         ...
