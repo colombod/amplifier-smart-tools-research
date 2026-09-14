@@ -21,6 +21,10 @@ from research_core.staging import StageRejected, StageResult, run_stage
 
 from deep_research import prompts
 
+#: The only values `confidence` may take. A caller branching on it needs
+#: a closed set, not whatever adjective a model reached for.
+CONFIDENCE = ("low", "medium", "high")
+
 # -- the stages --------------------------------------------------------------
 
 
@@ -72,6 +76,23 @@ def synthesise(
                     f"no {required}",
                     finding=f'Your document must carry a non-empty "{required}".',
                 )
+
+        # Confidence was mentioned in a repair hint but never REQUIRED, so a
+        # reply that omitted it passed validation and the field landed as null.
+        # A research result whose confidence is absent reads, to every consumer
+        # that checks it, exactly like one that was never asked -- and this
+        # tool's whole promise is that the confidence means something.
+        # Found by the first live pass of the research evaluation, on an
+        # answerable question with 15 sources.
+        if document.get("confidence") not in CONFIDENCE:
+            raise StageRejected(
+                f"confidence {document.get('confidence')!r} is not one of {CONFIDENCE}",
+                finding=(
+                    f'Your document must carry "confidence", exactly one of: '
+                    f"{', '.join(CONFIDENCE)}. Say how far the evidence you were "
+                    "given actually supports the answer you wrote."
+                ),
+            )
 
         cited = citation_ids(f"{document['brief']}\n{document['report']}")
         dangling = [marker for marker in cited if marker not in known]

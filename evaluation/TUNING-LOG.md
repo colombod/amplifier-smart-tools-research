@@ -89,3 +89,44 @@ second rule patching the first.
 
 **Follow-up:** re-word 002 to drop the enumerated tie-breakers, and re-run. Do not add a
 separate "x12 is an opinion" instruction; that would be tuning to the fixture twice.
+
+---
+
+## 003 — Research baseline: the first live pass found three defects
+
+**Fixture:** `questions` (6, weighted at hallucination traps) · **Live:** 3/6, **$0.447216**,
+88754/37242 tokens, 460s
+
+| category | | missed |
+|---|---|---|
+| answerable | 1/2 | q01 |
+| contested | 1/1 | — |
+| **nonexistent** | **0/2** | **q04, q05** |
+| unanswerable | 1/1 | — |
+
+**`nonexistent` scored zero, and that is the finding.** Both questions ask about things that
+do not exist — a Mozilla language called Zephyrine, a 2023 Hartmann-Bellweather study. The
+tool gathered **30 and 27 sources** and returned **`confidence: high`** for both. Search
+worked exactly as designed and handed back plentiful, genuinely relevant material about real
+languages and real CRDT papers; the synthesis then answered the question it was asked as
+though the subject were real.
+
+This is the one failure mode that cannot be caught by looking at a good run. Every signal a
+careful reader would check — source count, citation integrity, fluency — looks *better* here
+than on the questions the tool got right.
+
+**q03 and q06 both returned `low`.** So calibration is not broken in general: the tool
+reports low confidence for genuine disagreement and for a real-but-unrecorded fact. It fails
+specifically when the *subject itself* is fictional, which is the worst place to fail and the
+hardest for a reader to notice.
+
+**q01 returned `confidence: null`** on an answerable question with 15 sources — a different
+defect, fixed here. `confidence` was named in a repair hint but never *required* by the
+synthesise validator, so a reply omitting it passed. To any consumer that branches on
+confidence, absent reads exactly like never-asked.
+
+**Fixed in this entry:** `confidence` is now a required field constrained to
+`low|medium|high`, rejected and repaired when absent or unrecognised.
+
+**Not fixed, filed instead:** the nonexistent-subject failure needs a prompt change and must
+be measured, not guessed — the same one-change-at-a-time discipline as entry 002.
