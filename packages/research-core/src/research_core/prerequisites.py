@@ -72,9 +72,43 @@ def _credential_detector(surface: str) -> Callable[[], tuple[str, str]]:
 #: match the `requires[].name` values in SMART_TOOL.md; a test asserts that they
 #: do, in both manifests, so the declaration and the detection cannot drift
 #: apart unnoticed.
+def _ai_provider_detector() -> tuple[str, str]:
+    """A provider is satisfied only if a turn could actually run.
+
+    This detector reported `satisfied` on a credential alone while every turn
+    failed at mount time for want of a client library -- the exact false
+    all-clear the unknown-never-satisfied rule elsewhere in this module exists
+    to prevent, one level down. A prerequisite check must answer "can this
+    work", not "is there a key".
+    """
+    found = status("model_provider")
+    if not found.present:
+        return ABSENT, found.detail
+
+    from research_core.engine import (
+        available_providers,
+        client_library_for,
+        credentialled_providers,
+    )
+
+    usable = available_providers()
+    if usable:
+        return SATISFIED, f"{found.detail}, client library present for {usable[0]}"
+
+    with_credentials = credentialled_providers()
+    if with_credentials:
+        missing = sorted({client_library_for(p) or p for p in with_credentials})
+        return (
+            ABSENT,
+            f"{found.detail}, but no client library is installed "
+            f"({', '.join(missing)}); the engine ships none of its own",
+        )
+    return ABSENT, found.detail
+
+
 DETECTORS: dict[str, Callable[[], tuple[str, str]]] = {
     "perplexity": _credential_detector("perplexity"),
-    "ai-provider": _credential_detector("model_provider"),
+    "ai-provider": _ai_provider_detector,
 }
 
 

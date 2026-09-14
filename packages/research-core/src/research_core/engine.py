@@ -33,6 +33,31 @@ WORKSPACE = "amplifier-research"
 #: Tried in order when the caller does not name one.
 PROVIDER_PREFERENCE = ("anthropic", "openai", "gemini", "azure-openai")
 
+#: A provider needs BOTH a credential and its client library. The engine's own
+#: resolution answers only the first question -- it enumerates providers whose
+#: credentials are present, whether or not a turn could actually run -- and the
+#: engine ships with no provider client library at all, so the gap is the normal
+#: case rather than an edge one. Mapping the second question is therefore ours.
+PROVIDER_CLIENTS: dict[str, str] = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "openai-chatgpt": "openai",
+    "azure-openai": "openai",
+    "github-copilot": "openai",
+    "gemini": "google.genai",
+}
+
+#: What each tool module needs before it can load. The engine validates a module
+#: by importing it, logs the failure, and then CARRIES ON WITHOUT IT -- so a
+#: research agent silently loses its ability to search and answers from memory
+#: instead. Found by a live run that reported status complete with zero sources.
+#: Like PROVIDER_CLIENTS, this mapping is ours to keep because the engine ships
+#: none of these dependencies and offers no extra that would.
+TOOL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "tool-web": ("aiohttp",),
+    "tool-search": ("aiohttp",),
+}
+
 #: The tools a research gather is allowed. The engine's default plan carries far
 #: more -- filesystem, bash, delegation - and a research run has no business
 #: with any of them. We FILTER rather than clear, which is the one deliberate
@@ -139,13 +164,68 @@ class _Display:
             self._on_event({"type": "engine_error", "message": event.get("message")})
 
 
-def available_providers() -> list[str]:
-    """Which providers have usable credentials, as the engine itself sees it."""
+def client_library_for(provider: str) -> str | None:
+    """The client library a provider needs, if we know of one."""
+    return PROVIDER_CLIENTS.get(provider)
+
+
+def client_library_present(provider: str) -> bool:
+    """Whether a provider's client library can actually be imported.
+
+    ``importlib.util.find_spec`` rather than an import: asking whether a module
+    exists must not execute it, and importing a provider SDK to find out would
+    be a side effect in a function whose whole job is to answer a question.
+    """
+    import importlib.util
+
+    module = PROVIDER_CLIENTS.get(provider)
+    if module is None:
+        # Unknown provider: we cannot vouch for it, and saying so beats both
+        # guessing yes and refusing outright.
+        return True
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def missing_tool_requirements(tools: Sequence[str]) -> dict[str, list[str]]:
+    """Which of ``tools`` cannot load here, and what each is missing."""
+    import importlib.util
+
+    missing: dict[str, list[str]] = {}
+    for tool in tools:
+        absent = []
+        for requirement in TOOL_REQUIREMENTS.get(tool, ()):
+            try:
+                if importlib.util.find_spec(requirement) is None:
+                    absent.append(requirement)
+            except (ImportError, ValueError):
+                absent.append(requirement)
+        if absent:
+            missing[tool] = absent
+    return missing
+
+
+def credentialled_providers() -> list[str]:
+    """Providers whose credentials resolve, which is not the same as usable."""
     try:
         symbols = _load()
     except NoProviderError:
         return []
     return list(symbols["enumerate_resolvable_providers"]())
+
+
+def available_providers() -> list[str]:
+    """Providers that could actually run a turn: credential AND client library.
+
+    The distinction is load-bearing and was found the hard way. The engine
+    reported five resolvable providers on a machine where not one client library
+    was installed; preflight passed on the credential, and the turn then died at
+    mount time with "No module named 'anthropic'". A preflight that checks the
+    credential answers a different question from the one the caller asked.
+    """
+    return [p for p in credentialled_providers() if client_library_present(p)]
 
 
 def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
@@ -159,11 +239,26 @@ def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
             )
         return override
     if not resolvable:
+        # Say which of the two halves is missing. "No provider configured" when
+        # the credential is right there and the library is not sends someone to
+        # check the wrong thing.
+        with_credentials = credentialled_providers()
+        if with_credentials:
+            missing = sorted({client_library_for(p) or p for p in with_credentials})
+            raise NoProviderError(
+                "Credentials resolve for "
+                f"{', '.join(with_credentials)}, but none of their client "
+                f"libraries is installed ({', '.join(missing)}).",
+                f"Install one: pip install {missing[0]}. The agent engine does "
+                "not ship a provider client of its own, so a credential alone "
+                "is not enough to run a turn. Every deterministic verb keeps "
+                "working without either.",
+            )
         raise NoProviderError(
             "No AI provider is configured.",
             "Set one of ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, "
-            "GEMINI_API_KEY or AZURE_OPENAI_API_KEY. Every deterministic verb "
-            "keeps working without one.",
+            "GEMINI_API_KEY or AZURE_OPENAI_API_KEY, and install its client "
+            "library. Every deterministic verb keeps working without one.",
         )
     for preferred in PROVIDER_PREFERENCE:
         if preferred in resolvable:
@@ -201,6 +296,26 @@ async def _run_turn_async(
         prepared.mount_plan["providers"] = []
         symbols["inject_provider"](prepared, chosen, model_override=model)
         symbols["inject_routing_matrix"](prepared, chosen)
+
+        # Refuse rather than run a crippled turn. The engine would mount what it
+        # can and proceed, which for a research gather means an agent with no
+        # search quietly answering from memory -- the failure is invisible in
+        # the result and expensive in trust.
+        if tools:
+            missing = missing_tool_requirements(tools)
+            if missing:
+                detail = "; ".join(
+                    f"{tool} needs {', '.join(reqs)}" for tool, reqs in missing.items()
+                )
+                everything = sorted({r for reqs in missing.values() for r in reqs})
+                raise EngineUnavailable(
+                    f"The tools this turn needs cannot load here: {detail}.",
+                    f"Install them: pip install {' '.join(everything)}. The "
+                    "engine logs a tool that fails to load and then continues "
+                    "without it, so this is refused here instead -- an agent "
+                    "that cannot search will answer from memory and return no "
+                    "sources.",
+                )
 
         # Filter, never clear: keeping the plan's own entries is what leaves the
         # web tools mounted for a gather, and an empty tuple is how a reasoning

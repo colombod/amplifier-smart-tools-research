@@ -64,6 +64,13 @@ class RunsDirUnusableError(SmartToolError):
     exit_code = 1
 
 
+class NoEvidence(SmartToolError):
+    """A run that was supposed to gather evidence gathered none."""
+
+    code = "no_evidence"
+    exit_code = 1
+
+
 class NoProviderError(SmartToolError):
     """A model-backed capability was asked for with no backend configured.
 

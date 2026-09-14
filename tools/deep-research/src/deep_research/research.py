@@ -19,7 +19,7 @@ from typing import Any, TextIO
 from research_core import runs as _runs
 from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
-from research_core.errors import SmartToolError
+from research_core.errors import NoEvidence, SmartToolError
 from research_core.reasoning import Reasoner
 from research_core.urls import classify_url
 from research_core.writer import RunWriter, new_run_id
@@ -259,6 +259,16 @@ def research(
             },
         )
         writer.count(sources=len(sources))
+        if not sources:
+            # Refuse rather than degrade. A run with no evidence dressed up as a
+            # complete research result is the most expensive thing this tool
+            # could return: it looks exactly like a good one.
+            raise NoEvidence(
+                "The gather stage returned no sources, so there is nothing to base an answer on.",
+                "Check `check` -- a backend whose tools failed to load will "
+                "answer from memory and cite nothing. Try --backend perplexity, "
+                "or a question with a published answer.",
+            )
         if evidence.usage:
             writer.record_usage(evidence.usage)
         writer.finish_stage("gather", sources=len(sources))

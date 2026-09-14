@@ -322,12 +322,12 @@ def test_usage_accumulates_across_the_backend_and_every_turn(tmp_path):
 def test_a_cost_the_backend_did_not_report_is_null_not_zero(tmp_path):
     # A silent 0.00 would be a claim, and a false one.
     evidence = Evidence(
-        text="A finding.",
-        sources=[],
+        text="A finding [1].",
+        sources=[Source(url="https://arxiv.org/abs/1", title="One")],
         usage={"tokens_in": 10, "tokens_out": 5},
         backend="scripted",
     )
-    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence), cites=[])
+    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence), cites=["s1"])
     # The reasoning turns reported a cost even though the backend did not, so
     # the run's total is not null -- but nothing was invented for the backend.
     assert envelope["usage"]["cost_usd"] is not None
@@ -454,8 +454,32 @@ def test_a_raw_response_is_stored_as_data_not_as_a_repr_string(tmp_path):
         def model_dump_json(self, indent=None):
             return json.dumps({"id": "resp_1", "output": []}, indent=indent)
 
-    evidence = Evidence(text="A finding.", sources=[], backend="scripted")
+    evidence = Evidence(
+        text="A finding [1].",
+        sources=[Source(url="https://arxiv.org/abs/1", title="One")],
+        backend="scripted",
+    )
     object.__setattr__(evidence, "raw", ModelLike())
-    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence))
+    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence), cites=["s1"])
     raw = load_run(tmp_path / "runs", envelope["run_id"]).path / "raw" / "gather-01.json"
     assert json.loads(raw.read_text())["id"] == "resp_1"
+
+
+def test_a_gather_that_found_nothing_is_refused_not_dressed_up_as_complete(tmp_path):
+    # The live agent run returned status complete with zero sources, because its
+    # search tool had failed to load and it answered from memory. A run with no
+    # evidence presented as a research result is the most expensive thing this
+    # tool could return: it looks exactly like a good one.
+    from research_core import NoEvidence
+
+    empty = Evidence(text="From memory, probably 2015.", sources=[], backend="scripted")
+    with pytest.raises(NoEvidence) as excinfo:
+        run_research(tmp_path, backend=ScriptedBackend(empty), cites=[])
+    assert "no sources" in str(excinfo.value)
+    assert excinfo.value.remedy
+
+    run = next((tmp_path / "runs").iterdir())
+    record = json.loads((run / "run.json").read_text())
+    assert record["status"] == "failed"
+    assert record["failure"]["code"] == "no_evidence"
+    assert not (run / "report.md").exists()

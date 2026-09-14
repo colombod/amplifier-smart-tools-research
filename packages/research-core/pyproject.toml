@@ -20,7 +20,21 @@ perplexity = ["perplexityai>=0.27.0"]
 # Heavy and git-only: it pulls amplifier-foundation, the Rust-backed
 # amplifier-core, and an ASGI stack this tool never uses. Named as an extra so
 # the weight is a visible decision rather than a silent one.
-agent = ["amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@main"]
+agent = [
+  "amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@main",
+  # The engine declares NO provider client library and has no extras offering
+  # one, so a credential alone cannot run a turn. Found by a live run that
+  # preflighted clean and then died at mount time with "No module named
+  # 'anthropic'". One default client ships so the agent path works out of the
+  # box; the others are opt-in below.
+  "anthropic>=0.40",
+  # tool-web and tool-search need this and the engine does not bring it. Without
+  # it they fail validation, the engine logs it and continues, and a research
+  # agent answers from memory with no sources.
+  "aiohttp>=3.9",
+]
+agent-openai = ["openai>=1.50"]
+agent-gemini = ["google-genai>=0.8"]
 
 [tool.hatch.metadata]
 # Required for the direct git reference in the agent extra.
