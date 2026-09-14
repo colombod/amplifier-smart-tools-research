@@ -134,6 +134,39 @@ def _text_of(response: Any) -> str:
     return "\n".join(parts)
 
 
+def _field(obj: Any, name: str) -> Any:
+    """Read a field from an SDK object or a plain dict, indifferently."""
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj.get(name)
+    return getattr(obj, name, None)
+
+
+def _tool_calls_of(usage: Any, cost_block: Any) -> dict[str, dict[str, Any]]:
+    """What the service searched and fetched, and what each cost.
+
+    Two sources agree here and either may be absent, so take what is present:
+    `tool_calls_details` carries invocation counts, `tool_calls_cost_details`
+    carries per-kind cost.
+    """
+    details = _field(usage, "tool_calls_details") or {}
+    costs = _field(cost_block, "tool_calls_cost_details") or {}
+    names = set()
+    for holder in (details, costs):
+        if isinstance(holder, dict):
+            names |= set(holder.keys())
+    calls: dict[str, dict[str, Any]] = {}
+    for name in sorted(names):
+        entry = _field(details, name) or {}
+        cost = _field(costs, name)
+        calls[name] = {
+            "invocations": int(_field(entry, "invocation") or 0),
+            "cost_usd": str(cost) if cost is not None else None,
+        }
+    return calls
+
+
 def _sources_of(response: Any) -> list[Source]:
     """Citations, from all three places the service reports them, deduplicated.
 
@@ -187,13 +220,28 @@ def parse_response(response: Any, *, max_sources: int | None = None) -> Evidence
     usage = getattr(response, "usage", None)
     accounting: dict[str, Any] = {}
     if usage is not None:
-        tokens_in = int(getattr(usage, "input_tokens", 0) or 0)
-        tokens_out = int(getattr(usage, "output_tokens", 0) or 0)
+        tokens_in = int(_field(usage, "input_tokens") or 0)
+        tokens_out = int(_field(usage, "output_tokens") or 0)
         accounting = {"tokens_in": tokens_in, "tokens_out": tokens_out}
-        cost = getattr(response, "cost_usd", None) or getattr(usage, "cost_usd", None)
-        # A cost we were not told is reported as unknown. A silent 0.00 would be
-        # a claim, and a false one.
-        accounting["cost_usd"] = str(cost) if cost is not None else None
+
+        # The service reports cost in detail, under usage.cost. We previously
+        # looked for a flat `cost_usd` that does not exist on this shape, found
+        # nothing, and recorded None -- so every Perplexity call was invisible
+        # in our accounting while the caller was genuinely being billed. Tokens
+        # and credits are spend whether or not a number is attached.
+        cost_block = _field(usage, "cost") or {}
+        total = _field(cost_block, "total_cost")
+        accounting["cost_usd"] = str(total) if total is not None else None
+        accounting["currency"] = _field(cost_block, "currency") or "USD"
+
+        # What the service DID on our behalf, and what each kind of call cost.
+        # This is the Perplexity equivalent of the agent backend's tool events:
+        # the searches and fetches are the work, and a caller comparing the two
+        # backends should be able to see both.
+        calls = _tool_calls_of(usage, cost_block)
+        if calls:
+            accounting["calls"] = calls
+            accounting["call_count"] = sum(c["invocations"] for c in calls.values())
 
     error = getattr(response, "error", None)
     if error is not None:

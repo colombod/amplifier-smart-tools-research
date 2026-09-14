@@ -257,7 +257,27 @@ def research(
             )
         if evidence.usage:
             writer.record_usage(evidence.usage)
-        writer.finish_stage("gather", sources=len(sources))
+
+        # What the backend actually DID, reported the same way for both.
+        # The agent backend streams a tool event per call; a research service
+        # runs its own loop and tells us afterwards. Either way a caller paying
+        # for searches and fetches should be able to see them, so the service's
+        # own accounting is replayed as the same kind of event.
+        calls = evidence.usage.get("calls") or {}
+        for name, detail in calls.items():
+            progress(
+                {
+                    "type": "tool",
+                    "name": name,
+                    "status": "complete",
+                    "invocations": detail.get("invocations"),
+                    "cost_usd": detail.get("cost_usd"),
+                    "reported_by": "backend",
+                }
+            )
+        if calls:
+            writer.count(sources=len(sources), backend_calls=evidence.usage.get("call_count"))
+        writer.finish_stage("gather", sources=len(sources), calls=calls or None)
 
         writer.start_stage("synthesise")
         body = rewrite_citations(evidence.text, sources)

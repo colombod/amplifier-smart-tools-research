@@ -92,7 +92,7 @@ mistakes are the ones that ship.
 | | Perplexity backend | Agent backend / reasoner |
 |---|---|---|
 | **Who owns the search loop** | the service does; we hand over a question and see no steps | we do; we choose the mounted tools and see each call |
-| **Is cost reportable?** | **no** — measured: `cost_usd` came back `null` on live runs, the service does not tell us | **yes** — measured: `$0.041082` for a live run, real token accounting |
+| **How spend is reported** | **afterwards, in detail** — `usage.cost.total_cost` plus a per-call breakdown: `{fetch_url: 0.00967, search_web: 0.0025}` | **as it happens** — a tool event per call, plus token accounting |
 | **Turn-level control** | `depth` maps to a step ceiling, and that is the whole lever | mounted tools, per-turn timeout, approval policy, filtered mount plan |
 | **Progress during the call** | none; one blocking request | tool events mid-turn, in principle |
 | **What it may introduce** | new sources | nothing — reasons over what it is given |
@@ -101,10 +101,18 @@ A single abstraction would have to express all five as optional capabilities. At
 the abstraction is a union of two things with a flag for each difference, which is a longer
 way of writing two types.
 
-The first two rows are the ones that would hurt most if hidden. A caller that cannot tell
-whether `cost_usd: null` means *free* or *unreported* has been misled about its own
-spending — and our answer to that today is that `null` means unreported, said out loud,
-which only works because the tool knows which implementation ran.
+**A correction, because this row used to say the opposite and was wrong.** It read "cost is
+not reportable" for Perplexity, on the strength of `cost_usd` coming back `null` on live
+runs. In fact the service reports cost in *more* detail than the agent does — `usage.cost`
+carries input, output, cache and per-tool-call figures with a currency. We were reading a
+flat `cost_usd` field that does not exist on that shape, finding nothing, and recording
+`null`. **Every Perplexity call was invisible in our own accounting while the caller was
+being billed.** The bug was ours; the finding derived from it was false.
+
+What survives is the real difference: **when** spend becomes knowable. The agent reports per
+call as it happens; the service owns its own loop and reports once, afterwards, with a
+breakdown. Both are now replayed as the same kind of tool event, so a caller can see the
+work either way.
 
 ## The strongest argument against this recommendation
 
@@ -193,7 +201,19 @@ authority rather than interface** — what an implementation is permitted to int
 the caller's world, not what arguments it takes. An interface specification that describes
 only the call shape will produce tools that compile and lie.
 
-Our second finding is narrower and concrete: **cost is not uniformly reportable.** One of
-our two implementations cannot tell us what a call cost. Any provider interface should make
-"unknown" a first-class value rather than letting `0.00` stand in for it, and should let a
-caller discover which it is dealing with before spending.
+Our second finding is narrower, and it is a correction of something we believed for most
+of this project: **we reported that one backend could not tell us what a call cost. That was
+our bug, not its limitation.** Perplexity reports cost in more detail than our agent does; we
+were reading a field that does not exist on its response shape and recording `null`.
+
+Two things follow, and the second is the one worth a spec's attention. A provider interface
+should still make "unknown" first-class rather than letting `0.00` stand in for it — but it
+should also recognise that **the interesting variable is WHEN spend becomes knowable**, not
+whether. An agent can report per call as it goes; a service that owns its own loop can only
+report afterwards. An interface that models only a final total cannot express live spend,
+and one that models only a stream cannot express a service that answers in one shot.
+
+The practical lesson is sharper than either: **an integration should verify it can read a
+provider's accounting, the same way it verifies it can read the answer.** We had a test
+asserting `null` meant "unreported" — it passed, for a year's worth of the project's life,
+on a value produced by our own parsing bug.
