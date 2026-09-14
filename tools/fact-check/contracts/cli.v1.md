@@ -4,11 +4,16 @@ What a caller may rely on. Anything not written here is not promised.
 
 **Shared with `deep-research`** — identical, not merely similar, because both tools are
 built on `research-core`: the success/error envelope, the exit-code set, the runs
-directory and its resolution order, the run-artifact format, the progress convention,
-the `--help` contract, and the deterministic verbs `manifest`, `check`, `estimate`,
+directory and its resolution order, the four-tier configuration model and its separate
+credential resolution, the run-artifact format, the progress convention, the `--help`
+contract, and the deterministic verbs `config`, `manifest`, `check`, `estimate`,
 `classify`, `list`, `status`, `read`, `sources`, `render`. See
 `tools/deep-research/contracts/cli.v1.md` §1–§7 for all of it; this document specifies
 only what differs.
+
+Configuration is shared in the strongest sense: both tools read the **same** config file
+and the same credentials file, so a deployment configures the pair once. Only the
+`RESEARCH_CONFIG` override and the settings themselves are common; nothing is per-tool.
 
 **Why this is a separate tool.** Fact-checking is not a shallower research run. It
 starts from claims rather than a question, it fans out per claim, and its result is a

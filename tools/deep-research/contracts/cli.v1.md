@@ -93,11 +93,13 @@ it. The envelope is bounded; the evidence is addressable.
 
 `run_id` is `dr-` plus eight hex characters. Stable for the life of the directory.
 
-**Runs directory resolution**, first match wins:
+**Runs directory resolution**, first match wins — the same four tiers every setting uses
+(§2a):
 
 1. `--runs-dir PATH`
-2. `$RESEARCH_RUNS_DIR`
-3. `$XDG_STATE_HOME/amplifier-research/runs`, falling back to
+2. `runs_dir` in the config file
+3. `$RESEARCH_RUNS_DIR`
+4. `$XDG_STATE_HOME/amplifier-research/runs`, falling back to
    `~/.local/state/amplifier-research/runs`
 
 Pointing several callers at one directory is supported and intended: results
@@ -107,10 +109,76 @@ deletes it. `list` shows what is there.
 
 ---
 
+## 2a. Configuration
+
+Every setting resolves through four tiers, most explicit first:
+
+| Tier | Example |
+|---|---|
+| 1. explicit argument | `--runs-dir /shared/evidence` |
+| 2. config file | `runs_dir = "/shared/evidence"` |
+| 3. environment variable | `RESEARCH_RUNS_DIR=/shared/evidence` |
+| 4. built-in default | `$XDG_STATE_HOME/amplifier-research/runs` |
+
+The config file is `~/.config/amplifier-research/config.toml`, and its location is
+overridable by `RESEARCH_CONFIG`. **It sits above the environment**: a deployment that
+wrote a config file is entitled to have it honoured, while an environment variable can
+arrive by accident from a parent process.
+
+Configurable: `runs_dir`, `backend`, `depth`, `provider`, `model`, `max_read_lines`,
+`max_attempts`, `timeout_ms`.
+
+**Absent, null and wrong-type are three different things.** Absent falls through quietly.
+An explicit `null` is a legal "no opinion" — it falls through and says so. A value of the
+wrong type, or a config file that cannot be read, is **fatal**: `config_invalid`, exit 2.
+A caller with a config file present is entitled to have it honoured or to be told plainly
+that it is broken, never to be silently handed a default.
+
+**Credentials are separate and the environment wins.**
+
+| Tier | Source |
+|---|---|
+| 1 | `PERPLEXITY_API_KEY`, `ANTHROPIC_API_KEY`, … |
+| 2 | `~/.config/amplifier-research/credentials.toml`, mode `0600` |
+| 3 | the model provider's own resolution |
+
+The credentials file is opt-in and kept out of the settings file, so a config may be
+shared or committed. It is **refused if its permissions are not 0600**. A credential value
+never appears in any output, log line, event record or error message; only the tier it
+resolved from is ever reported.
+
+---
+
 ## 3. Verbs
 
 Model-backed verbs are marked. Every other verb runs with **no backend configured** and
 requires no credentials of any kind.
+
+### `config` — deterministic
+
+`deep-research config [--format json|table]`
+
+The effective settings and, for each, **which tier it came from**:
+
+```json
+{"result": {"settings": {
+  "runs_dir":  {"value": "/shared/evidence", "source": "config-file",
+                "detail": "runs_dir in /home/u/.config/amplifier-research/config.toml"},
+  "depth":     {"value": "medium", "source": "default"},
+  "backend":   {"value": "perplexity", "source": "environment",
+                "detail": "RESEARCH_BACKEND"}
+ },
+ "config_path": "/home/u/.config/amplifier-research/config.toml",
+ "config_path_exists": true,
+ "credentials": {"perplexity": "environment", "model_provider": "absent"},
+ "ignored": ["RESEARCH_DEPTH was set but --depth was given on this invocation"]
+}}
+```
+
+Reporting the source is the point. Four tiers with no way to ask which one won is a
+debugging liability, not a feature. Anything seen and deliberately not honoured is
+reported as seen and not honoured, rather than vanishing. Credentials report only the
+tier they resolved from — never a value, never a prefix, never a length.
 
 ### `manifest` — deterministic
 
@@ -253,6 +321,8 @@ most likely to call it.
 |---|---|---|
 | `usage` | 2 | unknown verb or bad arguments |
 | `refused` | 2 | the request was understood and declined; the message says why |
+| `config_invalid` | 2 | the config file is unreadable, or a setting is the wrong type |
+| `credentials_insecure` | 2 | the credentials file exists but its permissions are not 0600 |
 | `no_provider` | 3 | a model-backed verb with no backend configured |
 | `backend_error` | 1 | the backend was reached and failed |
 | `run_not_found` | 1 | no such run id in this runs directory |

@@ -65,7 +65,78 @@ Three properties follow, and all three are consequences rather than features:
 The runs directory is configurable because sharing it is the point — several callers, or
 several machines, pointed at one accumulating evidence store. Nothing reaps it.
 
-## 4. Two credential surfaces
+## 4. Configuration
+
+Two concerns, deliberately kept apart: **settings**, which say how the tool should
+behave, and **credentials**, which are secrets.
+
+### Settings resolution
+
+Every setting resolves the same way, most explicit first:
+
+```
+1. an explicit argument        --runs-dir, --backend, --depth, or the library kwarg
+2. the config file             ~/.config/amplifier-research/config.toml
+3. an environment variable     RESEARCH_RUNS_DIR, RESEARCH_BACKEND, ...
+4. the built-in default
+```
+
+The config file's own location is overridable by `RESEARCH_CONFIG`, so a deployment or a
+test can pin it without touching the user's own.
+
+**The config file sits above the environment, not below it.** That is the tmux-fleet
+precedent and the reasoning is worth keeping: a deployment that wrote a config file is
+entitled to have it honoured, while an environment variable can arrive by accident from a
+parent process. An explicit argument still beats both, because it is the only tier the
+caller typed on purpose *this time*.
+
+Settings a caller may set: the runs directory, the default depth, the backend, the
+provider and model, the read ceiling, the attempt budget, and timeouts.
+
+### Absent, null, and wrong-type are three different things
+
+- **Absent** — fall through to the next tier, quietly.
+- **Explicitly null** — a legal "no opinion". Fall through, and *say so* in the
+  provenance.
+- **Present but wrong type, or unreadable** — **fatal**. A caller with a config file is
+  entitled to have it honoured or to be told plainly that it is broken. Silently
+  substituting the default is how someone ends up confidently writing runs into the wrong
+  directory.
+
+This trichotomy is lifted from tmux-fleet, which pays for it with a dedicated error type
+and refuses rather than degrading.
+
+### Provenance is reportable
+
+Resolution does not just return a value; it returns **which tier won and why**. The
+`config` verb prints the effective settings with the source of each, and `check` reports
+the same for anything it probes. An ambient variable that was seen and deliberately *not*
+honoured is reported as seen and not honoured, rather than vanishing.
+
+Without this, a config layer is a debugging liability: four tiers and no way to ask which
+one won.
+
+### Credentials
+
+Separate, and not the config file's job by default. Resolution:
+
+```
+1. an environment variable     PERPLEXITY_API_KEY, ANTHROPIC_API_KEY, ...
+2. a credentials file          ~/.config/amplifier-research/credentials.toml, mode 0600
+3. the engine's own resolution for the model provider
+```
+
+Note the inversion: for **credentials** the environment comes first, because that is the
+ecosystem norm and what every host already injects. Both reference smart tools state
+plainly that they store no credentials of their own; we support a credentials file
+because asking is reasonable, but it is opt-in, kept out of the settings file so a config
+can be shared or committed, and **refused if its permissions are not 0600**.
+
+A credential value never appears in any output, any log line, any event record, or any
+error message. What a credential *resolution* may report is the tier it came from, never
+the value.
+
+### Two credential surfaces
 
 | Surface | Purpose | Absent |
 |---|---|---|
@@ -73,7 +144,9 @@ several machines, pointed at one accumulating evidence store. Nothing reaps it.
 | a model provider | the agent backend and the reasoning stages | model-backed verbs refuse |
 
 Both are declared in `SMART_TOOL.md` `requires`, both optional, each stating exactly what
-is lost without it. **Neither is needed for any deterministic verb.**
+is lost without it. **Neither is needed for any deterministic verb** — and the config
+layer itself must never require a credential to load, or every deterministic verb starts
+paying for a secret it does not use.
 
 Preflight refuses *before* a prompt is built. Absence is a loud `no_provider` naming the
 variable and the remedy. It never degrades to a lesser deterministic answer — a research
