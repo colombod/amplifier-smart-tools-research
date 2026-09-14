@@ -70,6 +70,9 @@ class TurnResult:
     usage: dict[str, Any] = field(default_factory=dict)
     provider: str = ""
     model: str | None = None
+    #: Tool calls the engine reported during this turn. Zero, on a turn that
+    #: asked for tools, means the turn ran without them.
+    tool_calls: int = 0
 
 
 def _load():
@@ -127,9 +130,18 @@ class _Display:
     def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_event = on_event
         self.usage: dict[str, Any] = {}
+        #: How many tool calls the engine actually reported. This is the ONLY
+        #: evidence available that the tools we asked for really mounted and
+        #: really ran. There is no post-boot window in which to check: the engine
+        #: holds a PreparedBundle, not a session, and the coordinator that owns
+        #: the mount registry does not exist until a turn creates one. So the
+        #: post-condition can only be observed from the outcome.
+        self.tool_calls = 0
 
     async def emit(self, event: dict[str, Any]) -> None:
         kind = event.get("type", "")
+        if kind == "tool/started":
+            self.tool_calls += 1
         if kind == "usage":
             self.usage = {
                 "tokens_in": event.get("inputTokens"),
@@ -251,39 +263,6 @@ def preflight(*, provider: str | None = None) -> str:
     return select_provider(available_providers(), override=provider)
 
 
-def _tools_that_did_not_mount(engine: Any, requested: Sequence[str]) -> list[str]:
-    """Which requested tools are absent from the live mount registry.
-
-    Fails loud rather than silently skipping when the registry cannot be
-    reached: a verification that quietly does nothing is worse than none,
-    because it reads like a guarantee.
-    """
-    coordinator = None
-    for path in ("session.coordinator", "coordinator", "_session.coordinator"):
-        probe: Any = engine
-        for part in path.split("."):
-            probe = getattr(probe, part, None)
-            if probe is None:
-                break
-        if probe is not None:
-            coordinator = probe
-            break
-    if coordinator is None:
-        raise EngineUnavailable(
-            "Cannot verify which tools mounted: no coordinator on the engine.",
-            "The engine's shape changed. Until the check is updated, a turn "
-            "cannot be trusted to have the tools it asked for.",
-        )
-
-    mounted = (getattr(coordinator, "mount_points", None) or {}).get("tools") or {}
-    names = (
-        set(mounted.keys())
-        if hasattr(mounted, "keys")
-        else {getattr(m, "module", getattr(m, "name", str(m))) for m in mounted}
-    )
-    return [t for t in requested if t not in names]
-
-
 async def _run_turn_async(
     prompt: str,
     *,
@@ -392,6 +371,7 @@ async def _run_turn_async(
             "cost_usd": str(cost) if cost is not None else None,
         },
         provider=chosen,
+        tool_calls=display.tool_calls,
         model=model,
     )
 

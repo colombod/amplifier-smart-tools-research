@@ -78,6 +78,30 @@ class AgentBackend:
             timeout_ms=budget.timeout_ms,
             on_event=on_event,
         )
+        # THE POST-CONDITION, and the only one available. Asking for tools is not
+        # getting them: the engine logs a module that fails to load and carries
+        # on without it, and there is no window in which to check -- the engine
+        # holds a PreparedBundle, and the coordinator that owns the mount
+        # registry does not exist until a turn creates one. So the only honest
+        # evidence that search happened is that search happened.
+        #
+        # This matters far more than the telemetry it was found through. A
+        # research agent with no tools does not fail. It answers from memory and
+        # returns URLs it never opened, which reached sources.json and passed
+        # every downstream check because a source was PRESENT. One live run
+        # said, in its own words, "No live access to the two listed sources"
+        # while two sat in the record.
+        if result.tool_calls == 0:
+            from research_core.errors import NoEvidence
+
+            raise NoEvidence(
+                "The agent completed without calling a single tool, so nothing "
+                "was searched or fetched.",
+                "Any sources it named would be recalled, not gathered. This is "
+                "usually a tool that failed to load -- the engine's stderr names "
+                "the missing dependency. Run `check`, or use --backend perplexity.",
+            )
+
         return parse_agent_reply(result.text, usage=result.usage, max_sources=budget.max_sources)
 
     def _build_prompt(self, query: str, budget: Budget, scope: str) -> str:
