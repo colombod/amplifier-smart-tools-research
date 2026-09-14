@@ -1,0 +1,19 @@
+[project]
+name = "research-core"
+# Static on purpose. A dynamic version makes the conformance rule
+# manifest-version-matches-package SKIP rather than fail, so the check would be
+# lost silently.
+version = "0.1.0"
+description = "Shared core for the research smart tools: manifest, envelope, errors, run artifacts."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/research_core"]

@@ -1,0 +1,29 @@
+[project]
+name = "fact-check"
+# Must match the version in src/fact_check/SMART_TOOL.md.
+version = "0.1.0"
+description = "Checks claims against evidence and returns a verdict per claim, with the sources each rests on."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # A direct git reference, not a relative path. This distribution must be
+    # installable on its own from git, and a path dependency cannot resolve then.
+    "research-core @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
+]
+
+[project.scripts]
+fact-check = "fact_check.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fact_check"]
+
+[tool.uv.sources]
+# Development only. Ignored when this distribution is installed from git.
+research-core = { path = "../../packages/research-core", editable = true }

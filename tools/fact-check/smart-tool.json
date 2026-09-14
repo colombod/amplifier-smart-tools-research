@@ -1,0 +1,5 @@
+{
+  "manifest": "src/fact_check/SMART_TOOL.md",
+  "cli_argv": ["fact-check"],
+  "deterministic_smoke": ["manifest"]
+}

@@ -1,0 +1,5 @@
+{
+  "manifest": "src/deep_research/SMART_TOOL.md",
+  "cli_argv": ["deep-research"],
+  "deterministic_smoke": ["manifest"]
+}

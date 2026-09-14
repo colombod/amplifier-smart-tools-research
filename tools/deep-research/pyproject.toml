@@ -1,0 +1,34 @@
+[project]
+name = "deep-research"
+# Must match the version in src/deep_research/SMART_TOOL.md. A tool that
+# publishes different versions in its package metadata and its manifest has two
+# answers to a question that has one.
+version = "0.1.0"
+description = "Answers a research question with evidence: multi-source research, synthesised, with citations a caller can act on."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # A direct git reference, not a relative path. Every smart tool must install
+    # from a git repository, and a path dependency cannot be resolved when this
+    # one distribution root is installed on its own.
+    "research-core @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=packages/research-core",
+]
+
+[project.scripts]
+deep-research = "deep_research.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# Required for the direct git reference above.
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deep_research"]
+
+[tool.uv.sources]
+# Development only. Ignored when this distribution is installed from git, which
+# is what the dependency above is for.
+research-core = { path = "../../packages/research-core", editable = true }
