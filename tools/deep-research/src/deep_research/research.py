@@ -72,6 +72,10 @@ def rewrite_citations(text: str, sources: list[dict[str, Any]]) -> str:
     IS rather than invented into an id -- the dangling-citation check is what
     should notice it, and silently renaming it would hide exactly the failure
     that check exists to catch.
+
+    Both `[1]` and `[web:1]` are recognised. The second form is what the research
+    service actually emits, which a recorded fixture did not reveal and one live
+    call did.
     """
     count = len(sources)
 
@@ -81,7 +85,7 @@ def rewrite_citations(text: str, sources: list[dict[str, Any]]) -> str:
             return f"[s{number}]"
         return match.group(0)
 
-    return re.sub(r"\[(\d+)\]", replace, text)
+    return re.sub(r"\[(?:web:)?(\d+)\]", replace, text)
 
 
 def summarise(text: str, *, max_lines: int = 6) -> str:
@@ -94,6 +98,30 @@ def summarise(text: str, *, max_lines: int = 6) -> str:
     """
     lines = [line for line in text.strip().splitlines() if line.strip()]
     return "\n".join(lines[:max_lines]).strip()
+
+
+def _next_commands(run_id: str, report: str) -> dict[str, str]:
+    """The navigation block, built from what this run actually contains.
+
+    A hint that does not work is worse than no hint: it teaches a caller a
+    command, the command fails, and the caller stops trusting the block. So the
+    section form is only offered when the report really has numbered sections --
+    a short report does not, and the plain read is what works there.
+    """
+    has_sections = any(
+        line.startswith("## ") and line[3:].split(".")[0].strip().isdigit()
+        for line in report.splitlines()
+    )
+    read = (
+        f"deep-research read {run_id} --sections 1-3"
+        if has_sections
+        else f"deep-research read {run_id}"
+    )
+    return {
+        "read_report": read,
+        "list_sources": f"deep-research sources {run_id}",
+        "render": f"deep-research render {run_id} --format bibliography",
+    }
 
 
 def research(
@@ -210,11 +238,7 @@ def research(
         "report_bytes": report_bytes,
         "inline": bool(show_inline),
         "usage": record.get("usage"),
-        "next": {
-            "read_report": f"deep-research read {writer.run_id} --sections 1-3",
-            "list_sources": f"deep-research sources {writer.run_id}",
-            "render": f"deep-research render {writer.run_id} --format bibliography",
-        },
+        "next": _next_commands(writer.run_id, report),
     }
     if show_inline:
         envelope["report"] = report

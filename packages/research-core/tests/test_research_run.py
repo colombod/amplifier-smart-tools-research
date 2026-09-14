@@ -275,3 +275,74 @@ def test_the_deterministic_verbs_read_a_run_this_pipeline_wrote(tmp_path):
     assert read_part(run, lines=3)["completeness"]["returned_lines"] == 3
     assert sources_of(run, category="academic")["count"] == 1
     assert "## Academic" in render(run, fmt="bibliography")
+
+
+# -- regressions from the first live call ------------------------------------
+#
+# Three defects that only a real call could surface. Every one of them passed a
+# scripted test suite and failed against the actual service, which is the whole
+# argument for spending the money once.
+
+
+def test_the_services_web_prefixed_markers_are_rewritten(tmp_path):
+    # The service emits [web:1], not [1]. The original regex matched neither the
+    # real markers nor anything else, so every citation in a live report stayed
+    # unrewritten and the dangling check had nothing to check.
+    evidence = Evidence(
+        text="Released in 2012 [web:1], stable in 2015 [web:2].",
+        sources=[
+            Source(url="https://arxiv.org/abs/1", title="One"),
+            Source(url="https://example.com/two", title="Two"),
+        ],
+        backend="scripted",
+    )
+    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence))
+    report = (load_run(tmp_path / "runs", envelope["run_id"]).path / "report.md").read_text()
+    assert "[s1]" in report and "[s2]" in report
+    assert "[web:" not in report
+
+
+def test_a_web_marker_past_the_source_list_is_still_left_alone(tmp_path):
+    evidence = Evidence(
+        text="A claim [web:7].",
+        sources=[Source(url="https://arxiv.org/abs/1", title="One")],
+        backend="scripted",
+    )
+    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence))
+    report = (load_run(tmp_path / "runs", envelope["run_id"]).path / "report.md").read_text()
+    assert "[web:7]" in report
+
+
+def test_the_next_block_only_offers_sections_when_there_are_sections(tmp_path):
+    # The live run promised `read <id> --sections 1-3` for a three-line report.
+    # Running it exited 2. A navigation hint that does not work is worse than
+    # none, because the caller stops trusting the whole block.
+    short = Evidence(text="One short finding.", sources=[], backend="scripted")
+    envelope = run_research(tmp_path, backend=ScriptedBackend(short))
+    assert envelope["next"]["read_report"] == f"deep-research read {envelope['run_id']}"
+
+
+def test_every_command_in_the_next_block_actually_runs(tmp_path):
+    # Asserted against the real verb table rather than by eye.
+    from deep_research.cli import main
+
+    short = Evidence(text="One short finding.", sources=[], backend="scripted")
+    envelope = run_research(tmp_path, backend=ScriptedBackend(short))
+    for command in envelope["next"].values():
+        argv = command.split()[1:] + ["--runs-dir", str(tmp_path / "runs")]
+        assert main(argv) == 0, command
+
+
+def test_a_raw_response_is_stored_as_data_not_as_a_repr_string(tmp_path):
+    # json.dumps(default=str) turned a whole SDK response into one repr string,
+    # so raw/ was neither verbatim nor replayable -- defeating both reasons it
+    # exists.
+    class ModelLike:
+        def model_dump_json(self, indent=None):
+            return json.dumps({"id": "resp_1", "output": []}, indent=indent)
+
+    evidence = Evidence(text="A finding.", sources=[], backend="scripted")
+    object.__setattr__(evidence, "raw", ModelLike())
+    envelope = run_research(tmp_path, backend=ScriptedBackend(evidence))
+    raw = load_run(tmp_path / "runs", envelope["run_id"]).path / "raw" / "gather-01.json"
+    assert json.loads(raw.read_text())["id"] == "resp_1"

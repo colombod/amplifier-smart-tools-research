@@ -176,11 +176,36 @@ class RunWriter:
         return self.write_file(name, json.dumps(document, indent=2, sort_keys=True) + "\n")
 
     def write_raw(self, name: str, payload: Any) -> Path:
-        """Keep a backend response verbatim, for audit and for replay in tests."""
-        try:
-            text = json.dumps(payload, indent=2, sort_keys=True, default=str)
-        except (TypeError, ValueError):
-            text = repr(payload)
+        """Keep a backend response verbatim, for audit and for replay in tests.
+
+        An SDK response is usually a model object rather than a plain dict, and
+        json.dumps(default=str) turns the whole thing into one repr string --
+        which is neither verbatim nor replayable, and so defeats the only two
+        reasons this file exists. Ask the object for its own serialisation first.
+        """
+        text: str | None = None
+        for method in ("model_dump_json", "to_json"):
+            serialise = getattr(payload, method, None)
+            if callable(serialise):
+                try:
+                    text = serialise(indent=2) if method == "model_dump_json" else serialise()
+                    break
+                except (TypeError, ValueError):
+                    text = None
+        if text is None:
+            for method in ("model_dump", "to_dict", "dict"):
+                convert = getattr(payload, method, None)
+                if callable(convert):
+                    try:
+                        text = json.dumps(convert(), indent=2, sort_keys=True, default=str)
+                        break
+                    except (TypeError, ValueError):
+                        text = None
+        if text is None:
+            try:
+                text = json.dumps(payload, indent=2, sort_keys=True, default=str)
+            except (TypeError, ValueError):
+                text = repr(payload)
         return self.write_file(f"{RAW_DIR}/{name}", text)
 
     def record_usage(self, usage: dict[str, Any]) -> None:
