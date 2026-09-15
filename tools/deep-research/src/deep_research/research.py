@@ -130,6 +130,94 @@ def summarise(text: str, *, max_lines: int = 6) -> str:
     return "\n".join(lines[:max_lines]).strip()
 
 
+def _size_of(path: Path) -> int | None:
+    """Bytes on disk, or None if it is not there. Never a guess.
+
+    A fabricated size is worse than an honest absence: the whole point of a
+    ladder is that a caller can refuse to fetch something enormous, and it can
+    only do that if the numbers are real.
+    """
+    try:
+        if path.is_dir():
+            return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+        return path.stat().st_size
+    except OSError:
+        return None
+
+
+def _ladder_and_affordances(
+    run_id: str, run_path: Path, report: str, source_count: int
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The rungs above the proxy, with their real sizes, and the verbs to climb.
+
+    The brief is the proxy: written by the agent to stand alone, and small
+    enough to hand to a caller that will read nothing else. Everything above it
+    is opt-in, and a caller decides what to pull knowing what it costs in bytes
+    BEFORE pulling it -- which is the difference between navigation and a guess.
+    """
+    rungs = [
+        ("brief", "the answer, standalone -- you already have it", run_path / "brief.md"),
+        ("report", "the full synthesis with numbered sections", run_path / "report.md"),
+        (
+            "sources",
+            f"all {source_count} citations as filterable data",
+            run_path / "sources.json",
+        ),
+        ("raw", "the backend's own replies, verbatim, for audit", run_path / "raw"),
+    ]
+    ladder = [
+        {
+            "rung": name,
+            "does": does,
+            "bytes": _size_of(path),
+            "cost_usd": "0.00",
+            "ready": path.exists(),
+        }
+        for name, does, path in rungs
+    ]
+
+    has_sections = any(
+        line.startswith("## ") and line[3:].split(".")[0].strip().isdigit()
+        for line in report.splitlines()
+    )
+    affordances = [
+        free(
+            "read",
+            "a bounded slice of the report; always says whether the view is "
+            "partial and by how much",
+            command=(
+                f"deep-research read {run_id} --sections 1-3"
+                if has_sections
+                else f"deep-research read {run_id} --lines 40"
+            ),
+            call=f"deep_research.read({run_id!r}, lines=40)",
+            returns="text",
+            bytes=_size_of(run_path / "report.md"),
+        ),
+        free(
+            "sources",
+            f"the {source_count} citations as data, filterable by category",
+            command=f"deep-research sources {run_id} --category academic",
+            call=f"deep_research.sources({run_id!r}, category='academic')",
+            bytes=_size_of(run_path / "sources.json"),
+        ),
+        free(
+            "render",
+            "reshape this run without re-running it: markdown, json, bibliography",
+            command=f"deep-research render {run_id} --format bibliography",
+            call=f"deep_research.render({run_id!r}, format='bibliography')",
+            returns="text",
+        ),
+        free(
+            "status",
+            "this run's stages, usage and liveness",
+            command=f"deep-research status {run_id}",
+            call=f"deep_research.status({run_id!r})",
+        ),
+    ]
+    return ladder, [a.to_dict() for a in affordances]
+
+
 def _next_commands(run_id: str, report: str) -> dict[str, str]:
     """The navigation block, built from what this run actually contains.
 
@@ -418,6 +506,12 @@ def research(
         "usage": record.get("usage"),
         "next": _next_commands(writer.run_id, report),
     }
+    # The rungs above the proxy, and the verbs to climb them. `next` stays: it is
+    # a documented contract term and a caller may be parsing it, so removing it
+    # would be a breaking change for a cosmetic gain.
+    ladder, affordances = _ladder_and_affordances(writer.run_id, writer.path, report, len(sources))
+    envelope["ladder"] = ladder
+    envelope["affordances"] = affordances
     if show_inline:
         envelope["report"] = report
     if dangling:

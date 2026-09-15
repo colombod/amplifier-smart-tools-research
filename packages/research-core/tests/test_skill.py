@@ -188,3 +188,16 @@ def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, c
         encoding="utf-8"
     )
     assert printed == on_disk, "--help and the installed SKILL.md have diverged"
+
+
+def test_the_brief_is_bounded_because_it_is_the_proxy():
+    """The brief is what a caller with no context budget gets. Six lines, stated.
+
+    A bound nothing checks is a hope. This asserts the prompt still carries the
+    limit, because the whole ladder rests on the bottom rung being small enough
+    to hand to anyone.
+    """
+    from deep_research import prompts
+
+    assert "Six lines at most" in prompts.SYNTHESISE
+    assert "IS the answer" in prompts.SYNTHESISE

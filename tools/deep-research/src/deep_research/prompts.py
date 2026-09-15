@@ -121,8 +121,14 @@ navigate it without reading all of it. Lead with what the evidence supports. \
 Give disagreement its own section when there is any. End with what remains \
 unsettled and what would settle it.
 
-Then write a brief: the answer in under six lines, for a reader who will read \
-nothing else. State the confidence and why.
+Then write the brief. THIS IS THE MOST IMPORTANT THING YOU WRITE. Most callers \
+will read it and nothing else, and a caller with a limited context window may be \
+unable to afford the report at all -- so the brief is not a summary of the answer, \
+it IS the answer, standing alone.
+
+Six lines at most. Everything above it stays available and costs nothing to \
+fetch, so a caller who wants more can climb; your job is to make sure the one \
+who does not climb is still correctly informed. State the confidence and why.
 
 Return ONLY a JSON document:
 

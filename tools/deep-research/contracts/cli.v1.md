@@ -356,6 +356,39 @@ most likely to call it.
 A capability never silently returns the portion that worked. Partial is failure, and a
 failed run says so in `run.json`.
 
+### The result is a proxy, and the rungs above it are declared
+
+*Added in 0.4.0.* A successful `research` envelope carries two new fields beside `next`.
+
+`ladder` names what exists above the brief, with **real sizes read from disk** — never
+estimated, `null` when unknown, because a caller can only refuse to fetch something enormous
+if the number is true:
+
+```json
+"ladder": [
+  {"rung": "brief",   "does": "the answer, standalone -- you already have it",
+   "bytes": 24,  "cost_usd": "0.00", "ready": true},
+  {"rung": "report",  "does": "the full synthesis with numbered sections",
+   "bytes": 65,  "cost_usd": "0.00", "ready": true},
+  {"rung": "sources", "does": "all 2 citations as filterable data",
+   "bytes": 404, "cost_usd": "0.00", "ready": true},
+  {"rung": "raw",     "does": "the backend's own replies, verbatim, for audit",
+   "bytes": 294, "cost_usd": "0.00", "ready": true}
+]
+```
+
+`affordances` are the verbs to climb, in the same shape a refusal carries, each with a CLI
+form **and** a library form. Every one is `$0.00` and needs no credential.
+
+**The brief is the proxy.** The synthesis prompt now states that explicitly: most callers read
+it and nothing else, and a caller with a limited context window may be unable to afford the
+report at all — so the brief is not a summary of the answer, it *is* the answer, standing
+alone, in six lines at most.
+
+**`next` is unchanged and still supported.** It is a documented contract term and a caller may
+be parsing it; removing it would be a breaking change for a cosmetic gain. `affordances` is
+the typed form of the same intent, and new callers should prefer it.
+
 ### Every refusal carries a way onward
 
 *Added in 0.3.0.* An error envelope may carry `affordances`: named next moves, each with a
