@@ -1,7 +1,7 @@
 ---
 smart_tool_format: 1
 name: fact-check
-version: 0.2.0
+version: 0.3.0
 description: >
   Checks claims against evidence and returns a verdict per claim -- supported, refuted,
   unverifiable or opinion -- with the sources each verdict rests on. Reach for it when

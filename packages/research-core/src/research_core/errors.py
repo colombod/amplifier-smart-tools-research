@@ -7,6 +7,8 @@ empty result.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class SmartToolError(RuntimeError):
     """Base for every deliberate failure."""
@@ -14,10 +16,24 @@ class SmartToolError(RuntimeError):
     code = "failed"
     exit_code = 1
 
-    def __init__(self, message: str, remedy: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        remedy: str,
+        affordances: list[Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.remedy = remedy
+        # A refusal is a response, and a response owes the caller a next move.
+        # Hypermedia learned this the expensive way with `204 No Content`: a
+        # response carrying no representation carries no way onward, and strands
+        # the client at exactly the moment it most needs direction. Ours did the
+        # same -- an error envelope and nothing else.
+        #
+        # A library caller reads these off the exception; a CLI caller reads them
+        # off the envelope. Same list, both paths.
+        self.affordances: list[Any] = list(affordances or [])
 
 
 class UsageError(SmartToolError):

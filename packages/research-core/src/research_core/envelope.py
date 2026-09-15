@@ -49,10 +49,23 @@ def emit(result: Any) -> None:
     _write({"result": result})
 
 
-def emit_error(code: str, message: str, remedy: str) -> None:
+def emit_error(
+    code: str,
+    message: str,
+    remedy: str,
+    affordances: list[Any] | None = None,
+) -> None:
     """Write the error envelope.
 
     ``remedy`` is not optional. A caller should never have to infer what to do
     next from prose or from an empty result.
+
+    ``affordances`` are the typed form of the same obligation: a refusal is a
+    response, and a response with no way onward strands its caller. That was
+    hypermedia's `204 No Content` mistake, and it was ours until this argument
+    existed.
     """
-    _write({"error": {"code": code, "message": message, "remedy": remedy}})
+    error: dict[str, Any] = {"code": code, "message": message, "remedy": remedy}
+    if affordances:
+        error["affordances"] = [a.to_dict() if hasattr(a, "to_dict") else a for a in affordances]
+    _write({"error": error})

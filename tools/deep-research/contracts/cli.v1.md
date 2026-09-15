@@ -356,6 +356,32 @@ most likely to call it.
 A capability never silently returns the portion that worked. Partial is failure, and a
 failed run says so in `run.json`.
 
+### Every refusal carries a way onward
+
+*Added in 0.3.0.* An error envelope may carry `affordances`: named next moves, each with a
+CLI form, a library form, what it returns, what it costs, and whether it needs a credential.
+
+```json
+{"error": {"code": "no_evidence", "message": "...", "remedy": "...",
+  "affordances": [
+    {"name": "check",  "does": "what this host resolves...",
+     "command": "deep-research check", "call": "deep_research.check()",
+     "returns": "json", "cost_usd": "0.00", "needs_credentials": false},
+    {"name": "status", "does": "this run's stages and where it stopped...",
+     "command": "deep-research status dr-e1f19ba2",
+     "call": "deep_research.status('dr-e1f19ba2')", ...}]}}
+```
+
+A library caller reads the same list off the exception (`exc.affordances`); neither path is
+second-class, because the library is the tool.
+
+**Why this is a contract term and not a courtesy.** Hypermedia learned it expensively with
+`204 No Content`: a response carrying no representation carries no way onward, and strands
+the caller exactly when it most needs direction. Ours did the same. Every affordance offered
+on a refusal is free and needs no credential — a caller that has just been refused may be on
+a host with nothing configured, and offering it something it cannot run is offering it
+nothing.
+
 ---
 
 ## 7. Guarantees

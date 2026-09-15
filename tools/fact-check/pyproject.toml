@@ -1,7 +1,7 @@
 [project]
 name = "fact-check"
 # Must match the version in src/fact_check/SMART_TOOL.md.
-version = "0.2.0"
+version = "0.3.0"
 description = "Checks claims against evidence and returns a verdict per claim, with the sources each rests on."
 readme = "README.md"
 requires-python = ">=3.11"

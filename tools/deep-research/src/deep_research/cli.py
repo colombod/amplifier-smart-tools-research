@@ -226,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = args.handler(args)
     except SmartToolError as exc:
-        emit_error(exc.code, exc.message, exc.remedy)
+        emit_error(exc.code, exc.message, exc.remedy, exc.affordances)
         return exc.exit_code
     except Exception as exc:  # noqa: BLE001 - the envelope is the contract
         emit_error(

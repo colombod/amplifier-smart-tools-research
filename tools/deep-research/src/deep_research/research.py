@@ -17,6 +17,7 @@ import re
 from typing import Any, TextIO
 
 from research_core import runs as _runs
+from research_core.affordances import free
 from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
 from research_core.errors import NoEvidence, SmartToolError
@@ -265,6 +266,33 @@ def research(
                 "Check `check` -- a backend whose tools failed to load will "
                 "answer from memory and cite nothing. Try --backend perplexity, "
                 "or a question with a published answer.",
+                # A refusal is a response, and a response owes the caller a next
+                # move. This one already knows a great deal: which host it ran
+                # on, which run directory it wrote to, and that a run record
+                # exists even though the answer does not.
+                affordances=[
+                    free(
+                        "check",
+                        "what this host resolves, and what each missing piece "
+                        "would unlock -- the usual cause of an empty gather",
+                        command="deep-research check",
+                        call="deep_research.check()",
+                    ),
+                    free(
+                        "status",
+                        "this run's stages and where it stopped; the run record "
+                        "survives the refusal",
+                        command=f"deep-research status {writer.run_id}",
+                        call=f"deep_research.status({writer.run_id!r})",
+                    ),
+                    free(
+                        "list",
+                        "earlier runs in this runs directory, which may already "
+                        "hold evidence for this question",
+                        command="deep-research list",
+                        call="deep_research.list_runs()",
+                    ),
+                ],
             )
         if evidence.usage:
             writer.record_usage(evidence.usage)
