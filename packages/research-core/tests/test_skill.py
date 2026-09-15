@@ -201,3 +201,24 @@ def test_the_brief_is_bounded_because_it_is_the_proxy():
 
     assert "Six lines at most" in prompts.SYNTHESISE
     assert "IS the answer" in prompts.SYNTHESISE
+
+
+def test_the_skill_documents_every_flag_our_own_messages_advertise():
+    """We told an agent to use `--sections` and never said how.
+
+    Found by measurement, not review: an agent given only the skill hit a
+    partial read, followed the completeness note exactly as written, and could
+    not do what the note told it to do. Advertising a capability with no way to
+    reach it is worse than not mentioning it -- the caller is left holding
+    advice it cannot follow.
+    """
+    import deep_research
+
+    skill = " ".join(deep_research.skill().split())
+    assert "--sections" in skill, "our completeness note names it; the skill must teach it"
+    assert "1-3" in skill, "the syntax has to be shown, not implied"
+    # And how a caller learns which sections exist at all.
+    assert "`sections` list" in skill
+
+    # The other half: sizing a read without a throwaway call.
+    assert "status" in skill and "line count" in skill

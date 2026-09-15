@@ -62,18 +62,24 @@ Never swallow a whole run. Every response -- INCLUDING A REFUSAL -- carries
 `affordances`: named next moves, each with a CLI form, a library form, what it returns,
 what it costs, and whether it needs a credential. They are all $0.00 and all
 credential-free, so an agent on an unconfigured host can still explore a result someone
-else paid for. `read <id> --lines N` returns a bounded slice and ALWAYS carries a
-completeness block: when a view is partial it says so and how much was left out, and an
-over-ceiling request is refused rather than silently truncated -- so never present a
-slice as the whole. `sources <id> --category academic` returns citations as filterable
-data. `render <id> --format bibliography` reshapes a stored run without re-running it.
-FOR A LONG RUN, use `--detach`. It returns in under a second with part one: the run id,
-where the rest will appear, and an explicit `not_yet_true` list -- read that before
-treating an accepted request as an answer. Then ask `status <id>` and read
-`liveness.state`: `growing` means wait `poll_again_in_seconds` and ask again, `final`
-means the work is done, and `abandoned` means the process is gone and nothing more is
-coming, so whatever reached disk is all there will be. Poll `liveness.state`, never the
-stage names.
+else paid for. A successful run also carries a `ladder` -- brief, report, sources, raw
+-- with each rung's REAL size in bytes, so you can decide what to pull before pulling
+it. SIZE THE READ FIRST. `status <id>` is free and lists every artifact with its bytes
+and line count, so you never need a throwaway read to discover how long a report is.
+Then `read <id> --lines N` for a bounded slice, or `read <id> --sections 1-3` for
+specific numbered sections -- a single section like `2` or a range like `1-3`. A read
+response carries a `sections` list naming the number and title of everything it
+returned, which is how you learn what sections exist. EVERY read carries a completeness
+block: when a view is partial it says so and by how much, and an over-ceiling request is
+refused rather than silently truncated -- so never present a slice as the whole.
+`sources <id> --category academic` returns citations as filterable data. `render <id>
+--format bibliography` reshapes a stored run without re-running it. FOR A LONG RUN, use
+`--detach`. It returns in under a second with part one: the run id, where the rest will
+appear, and an explicit `not_yet_true` list -- read that before treating an accepted
+request as an answer. Then ask `status <id>` and read `liveness.state`: `growing` means
+wait `poll_again_in_seconds` and ask again, `final` means the work is done, and
+`abandoned` means the process is gone and nothing more is coming. Poll `liveness.state`,
+never the stage names.
 
 ## What it needs
 

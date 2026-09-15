@@ -244,7 +244,28 @@ def status_of(run: Run) -> dict[str, Any]:
         # Growing, final, or gone -- the question a rejoining caller is actually
         # asking, answered without making it infer anything from stage names.
         "liveness": liveness_of(run),
+        # How big the artifacts are, so a caller can size a read BEFORE making
+        # one. Without this the only way to learn a report's length was to read
+        # part of it and look at the completeness block -- a throwaway call to
+        # discover how to make the real one.
+        "artifacts": _artifacts_of(run),
     }
+
+
+def _artifacts_of(run: Run) -> list[dict[str, Any]]:
+    """What exists in this run, how big it is, and how to ask for it."""
+    out: list[dict[str, Any]] = []
+    for name in ("brief.md", "report.md", "sources.json", "verdicts.json"):
+        path = run.file(name)
+        if not path.exists():
+            continue
+        try:
+            raw = path.read_text(encoding="utf-8")
+            size, lines = path.stat().st_size, len(raw.splitlines())
+        except OSError:
+            continue
+        out.append({"name": name, "bytes": size, "lines": lines})
+    return out
 
 
 def _completeness(returned: int, total: int, ceiling: int, what: str) -> dict[str, Any]:
