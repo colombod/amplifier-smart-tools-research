@@ -1,0 +1,40 @@
+{
+  "schema": "research-vague-fixture/v1",
+  "note": "The population entry 006 could not see. Every question in questions.json was hand-written to be CLEAR, CONSTRAINED, COMPLETE and CONCRETE -- which is precisely where the scope stage, whose whole job is to make a question those four things, can add least. These are questions a person actually types.",
+
+  "scoring_criterion": {
+    "decided_before": "any live run on this fixture, recorded here so it cannot be chosen after seeing which arm won",
+    "why_the_usual_scorer_will_not_do": "Our categories -- answerable, contested, nonexistent, unanswerable -- all assume a determinate right answer. A vague question has none, so 'correct' has to mean something else or mean nothing.",
+    "what_we_score_instead": "A BLIND PAIRWISE COMPARISON. For each question, both arms produce a brief. A judge that is NOT told which arm produced which brief, and is NOT told what the experiment is about, picks the one that better serves the person who asked -- or says they are equivalent. Arm labels are stripped and presentation order is randomised per question.",
+    "why_blind_pairwise": "We have a hypothesis (scope should help here) and a stake in it. An absolute rubric we wrote would encode that stake. A blind judge choosing between two real outputs cannot favour an arm it cannot identify.",
+    "what_the_judge_is_asked": "Which brief better serves someone who asked this question -- is it clearer about what it took the question to mean, better grounded, and more useful to act on? Or are they equivalent?",
+    "the_specific_failure_this_targets": "The characteristic failure of a vague question is answering a DIFFERENT question than the one meant, silently. A brief that states the interpretation it chose lets the asker catch that; one that does not, hides it.",
+    "mechanical_checks_alongside": [
+      "dangling citations -- must be zero in both arms, as everywhere else",
+      "source count -- reported, not scored, because more sources is not obviously better on a vague question",
+      "cost and wall-clock per run -- the thing scope must earn"
+    ],
+    "what_would_make_this_inconclusive": "If the judge calls most pairs equivalent, that IS the result: scope changes the cost and not the output a reader can tell apart. We record that rather than re-running with a rubric that can separate them."
+  },
+
+  "questions": [
+    {
+      "id": "v01",
+      "text": "Tell me about CRDTs.",
+      "why_vague": "No question at all -- a topic. Every one of the four properties is missing: unbounded in scope, no deliverable named, no context for why the asker cares, and no way to tell a good answer from a long one.",
+      "what_a_good_answer_would_do": "Choose an interpretation and SAY it chose one."
+    },
+    {
+      "id": "v02",
+      "text": "Should we use Rust?",
+      "why_vague": "Carries an implied context the asker never supplied -- for what, replacing what, with which team, under what constraints. The pronoun 'we' is doing work nobody can see.",
+      "what_a_good_answer_would_do": "Name the missing context rather than quietly inventing a scenario and answering that."
+    },
+    {
+      "id": "v03",
+      "text": "What's going on with WASM?",
+      "why_vague": "Unbounded in time and domain. 'Going on' could mean the standard, the runtimes, adoption, or the tooling, and a 2019 answer and a 2026 answer are both defensible readings of it.",
+      "what_a_good_answer_would_do": "Bound the timeframe and the facet, and say which it bounded to."
+    }
+  ]
+}

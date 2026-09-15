@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from research_core import CredentialsInsecureError, all_status, resolve_credential
 from research_core.credentials import CREDENTIALS_PATH_ENV_VAR, SURFACES
@@ -82,10 +84,35 @@ def test_no_status_anywhere_carries_the_value_or_its_shape(isolated, monkeypatch
     # which account.
     monkeypatch.setenv("PERPLEXITY_API_KEY", SECRET)
     write_credentials(isolated, f'model_provider = "{SECRET}"\n')
-    rendered = repr({name: status.to_dict() for name, status in all_status().items()})
-    assert SECRET not in rendered
-    assert SECRET[:6] not in rendered
-    assert str(len(SECRET)) not in rendered
+    documents = {name: status.to_dict() for name, status in all_status().items()}
+
+    # The VALUE must not appear anywhere at all, paths included -- a config file
+    # path containing the secret would be its own disaster.
+    assert SECRET not in repr(documents)
+
+    # A PREFIX is a leak wherever it appears, including in provenance.
+    assert SECRET[:6] not in repr(documents)
+
+    # The LENGTH check needs one exclusion, and the reason is worth keeping.
+    # `detail` carries provenance -- either an env var name or the PATH of the
+    # credentials file -- and a filesystem path contains arbitrary digits. This
+    # secret is 21 characters, and a run landing in `pytest-2108` failed on the
+    # `21` inside pytest's directory counter. The test had been passing by luck,
+    # which is worse than failing: a green run meant nothing, and the one time it
+    # went red it was reporting on a temp directory rather than on a secret.
+    #
+    # So: scan every value for the length, but skip values that are paths, which
+    # structurally cannot be derived from a secret's shape.
+    def _is_path(value: object) -> bool:
+        return isinstance(value, str) and os.sep in value
+
+    shape_bearing = repr(
+        {
+            name: {k: v for k, v in document.items() if not _is_path(v)}
+            for name, document in documents.items()
+        }
+    )
+    assert str(len(SECRET)) not in shape_bearing
 
 
 def test_every_surface_reports_a_status(isolated):

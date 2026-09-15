@@ -291,3 +291,86 @@ honest state: the cost is now measured and documented, and the caller can act on
 Two or three deliberately vague questions — *"tell me about CRDTs"* — added to the fixture,
 both arms re-run. If scope does not earn its cost **there**, it should default off. That
 fixture does not exist yet and this entry does not pretend otherwise.
+
+---
+
+## 007 — The scope stage on the questions it was actually built for
+
+Entry 006 measured the scope stage cleanly and **could not decide anything**, because all six
+fixture questions were hand-written to be sharp. A stage whose job is to make a question CLEAR,
+CONSTRAINED, COMPLETE and CONCRETE cannot show value on a fixture that is already all four.
+
+So we built the missing population: `evaluation/fixtures/vague-questions.json`.
+
+> *"Tell me about CRDTs."* · *"Should we use Rust?"* · *"What's going on with WASM?"*
+
+### The scorer was written down before any run
+
+Our categories — answerable, contested, nonexistent, unanswerable — all assume a determinate
+right answer. A vague question has none. So the criterion, recorded **in the fixture file
+before the first live call**, is a **blind pairwise comparison**: both arms produce a brief, a
+judge that is not told which arm produced which picks the one that better serves the asker, or
+says they are equivalent.
+
+Why blind pairwise rather than a rubric: we had a hypothesis and a stake in it. A rubric we
+wrote would encode that stake. A judge choosing between two real outputs cannot favour an arm
+it cannot identify.
+
+### The cost
+
+| q | arm | seconds | cost | sources | confidence |
+|---|---|---|---|---|---|
+| v01 | on | 156 | $0.1555 | 30 | high |
+| v01 | off | 80 | $0.0984 | 15 | high |
+| v02 | on | 123 | $0.1213 | 15 | medium |
+| v02 | off | 80 | $0.0982 | 15 | **low** |
+| v03 | on | 175 | $0.1716 | 28 | medium |
+| v03 | off | 81 | $0.1055 | 27 | medium |
+| **ON mean** | | **151** | **$0.1494** | | |
+| **OFF mean** | | **80** | **$0.1007** | | |
+
+Scope costs **+$0.049 per question (+48%)** and roughly **+71 seconds (+89%)**.
+
+### The judgment, and it was run twice on purpose
+
+**Round 1** — order randomised. The judge picked **3 of 3** the same way. Unsealing the key
+showed the winner was **scope-on** every time.
+
+But the randomiser had, by chance, placed scope-on in position **B** in all three pairs. A
+judge with a positional preference would produce exactly that result. The blinding held; the
+**counterbalancing** did not.
+
+**Round 2** — same pairs, positions deliberately **inverted**, scope-on now in position A
+throughout, judged by a fresh session with no memory of the first.
+
+> **Round 1: 3–0 for scope-on (position B). Round 2: 3–0 for scope-on (position A).**
+> **6 for 6 across both positions.**
+
+The judge's reasons were substantive, not stylistic. On *"Should we use Rust?"* it preferred the
+brief that said **"none of them contains a project-specific benchmark or head-to-head comparison
+that could settle 'should we use Rust' for any actual team"** and then reframed the answer as a
+conditional decision process — that is the scope stage's whole purpose, visible in the output.
+
+### What this settles, and what it does not
+
+**Settled:** the scope stage earns its cost on vague questions and does not on sharp ones. Two
+fixtures, two clean results, opposite directions.
+
+```
+sharp questions   +37% money  +69% time   no measurable difference   (entry 006)
+vague questions   +48% money  +89% time   wins blind 6/6             (entry 007)
+```
+
+**Not settled:** three questions, one judge model, one run per arm per question. The effect is
+consistent and the reasons are legible, but this is not a large sample and we are not claiming
+one.
+
+### What changed
+
+**The default stays ON**, and now for a measured reason rather than an unexamined one: a caller
+who does not know whether its question is sharp is better served by paying.
+
+**`--no-scope` is now a CLI flag.** It existed only as a library argument, so the one population
+we have *proven* benefits from turning scope off — a caller with an already-sharp question — had
+no way to do it from the command line. Its help text carries both halves of the measurement, so
+the decision is at the point of use rather than in this file.
