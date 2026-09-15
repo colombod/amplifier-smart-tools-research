@@ -10,6 +10,8 @@ Nothing in this module needs a credential, reaches a network, or touches a model
 from __future__ import annotations
 
 import json
+import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -142,6 +144,86 @@ def load_run(runs_dir: str | Path, run_id: str) -> Run:
     return Run(run_id=record.get("run_id", run_id), path=path, record=record)
 
 
+#: What a caller actually needs to know when it rejoins a detached run. Not the
+#: stage names -- those are detail -- but whether waiting longer is worth it.
+GROWING = "growing"
+FINAL = "final"
+ABANDONED = "abandoned"
+
+
+def liveness_of(run: Run) -> dict[str, Any]:
+    """Is this run still working, finished, or gone?
+
+    The one distinction that makes detaching safe. A run record says "running"
+    until its own process writes otherwise, and a process that dies never writes
+    anything -- so without this check every crashed run reads as busy, forever.
+    A caller polling it would wait for a result that is never coming, which is
+    strictly worse than having blocked in the first place.
+
+    PID REUSE is the known hole: the operating system may hand our recorded pid
+    to an unrelated process, and this would then report `growing` for a run that
+    is dead. It is a much smaller hole than having no check at all, and we say so
+    rather than implying more certainty than we have. A pid from another host is
+    not checked at all, and reports `unknown` instead of guessing.
+    """
+    status = run.status
+    if status in ("complete", "failed"):
+        return {
+            "state": FINAL,
+            "why": f"the run finished with status {status!r}",
+            "poll_again_in_seconds": None,
+        }
+
+    pid = run.record.get("pid")
+    host = run.record.get("host")
+    if host and host != socket.gethostname():
+        return {
+            "state": "unknown",
+            "why": (
+                f"this run was started on {host!r} and we are on "
+                f"{socket.gethostname()!r}, so its process cannot be checked from here"
+            ),
+            "poll_again_in_seconds": 30,
+        }
+    if not isinstance(pid, int):
+        return {
+            "state": "unknown",
+            "why": "the run record carries no pid, so liveness cannot be established",
+            "poll_again_in_seconds": 30,
+        }
+
+    if _process_alive(pid):
+        return {
+            "state": GROWING,
+            "why": f"process {pid} is alive and the run has not finished",
+            "poll_again_in_seconds": 10,
+        }
+    return {
+        "state": ABANDONED,
+        "why": (
+            f"the run record says {status!r} but process {pid} is gone, so nothing "
+            "is going to finish it. Whatever reached disk is all there will be."
+        ),
+        "poll_again_in_seconds": None,
+    }
+
+
+def _process_alive(pid: int) -> bool:
+    """Signal 0 asks the kernel about a pid without disturbing it."""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # It exists; it just is not ours to signal. Alive is the honest answer.
+        return True
+    except OSError:
+        return False
+    return True
+
+
 def status_of(run: Run) -> dict[str, Any]:
     """State, stage progress and usage. Safe to poll."""
     stages = run.record.get("stages") or []
@@ -159,6 +241,9 @@ def status_of(run: Run) -> dict[str, Any]:
         "duration_ms": run.record.get("duration_ms"),
         "failure": run.record.get("failure"),
         "path": str(run.path),
+        # Growing, final, or gone -- the question a rejoining caller is actually
+        # asking, answered without making it infer anything from stage names.
+        "liveness": liveness_of(run),
     }
 
 

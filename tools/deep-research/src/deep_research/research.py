@@ -14,6 +14,9 @@ runs at import time.
 from __future__ import annotations
 
 import re
+import socket
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, TextIO
 
 from research_core import runs as _runs
@@ -24,6 +27,7 @@ from research_core.errors import NoEvidence, SmartToolError
 from research_core.reasoning import Reasoner
 from research_core.staging import AttemptsExhausted, StageResult
 from research_core.urls import classify_url
+from research_core.writer import SCHEMA as RUN_SCHEMA
 from research_core.writer import RunWriter, new_run_id
 
 from deep_research import stages
@@ -164,6 +168,8 @@ def research(
     reasoner: Reasoner | None = None,
     max_attempts: int | None = None,
     scope: bool = True,
+    run_id: str | None = None,
+    detach: bool = False,
 ) -> dict[str, Any]:
     """Run the research workflow and return a brief plus a pointer to the evidence.
 
@@ -176,6 +182,23 @@ def research(
         timeout_ms=timeout_ms,
         backend=backend if isinstance(backend, str) else None,
     )
+
+    if detach:
+        # Hand back part one and get out of the way. The work continues in a
+        # child process writing to the same run directory, which was always the
+        # durable state -- detaching names what was already there rather than
+        # building something new.
+        return _detach(
+            query,
+            run_id=run_id or new_run_id("dr"),
+            settings=settings,
+            depth=depth,
+            backend=backend if isinstance(backend, str) else None,
+            max_sources=max_sources,
+            inline=inline,
+            max_attempts=max_attempts,
+            scope=scope,
+        )
 
     engine: ResearchBackend = (
         backend
@@ -207,7 +230,7 @@ def research(
 
     writer = RunWriter(
         runs_dir=settings["runs_dir"],
-        run_id=new_run_id("dr"),
+        run_id=run_id or new_run_id("dr"),
         tool="deep-research",
         query=query,
         depth=budget.depth,
@@ -411,3 +434,131 @@ def research(
             }
         ]
     return envelope
+
+
+def _detach(
+    query: str,
+    *,
+    run_id: str,
+    settings: dict[str, Any],
+    depth: str | None,
+    backend: str | None,
+    max_sources: int | None,
+    inline: bool | None,
+    max_attempts: int | None,
+    scope: bool,
+) -> dict[str, Any]:
+    """Start the work elsewhere and return what is true right now.
+
+    Part one of a sequence. It carries the identifier, where the rest will
+    appear, and -- the part that matters -- an explicit statement of what is NOT
+    yet true, so a caller cannot mistake an accepted request for an answer.
+
+    The child is spawned detached, with its own session, so it outlives the
+    caller. Its output goes to files in the run directory rather than to the
+    caller's terminal, because a background process writing to a shared stderr
+    is how a caller's own output gets corrupted by something it stopped watching.
+    """
+    import json as _json
+    import subprocess
+    import sys
+
+    runs_dir = Path(settings["runs_dir"]).expanduser()
+    run_path = runs_dir / run_id
+    run_path.mkdir(parents=True, exist_ok=True)
+
+    arguments = {
+        "query": query,
+        "run_id": run_id,
+        "runs_dir": str(runs_dir),
+        "depth": depth,
+        "backend": backend,
+        "max_sources": max_sources,
+        "inline": inline,
+        "max_attempts": max_attempts,
+        "scope": scope,
+        "quiet": True,
+    }
+    bootstrap = (
+        "import json,sys;import deep_research;deep_research.research(**json.loads(sys.argv[1]))"
+    )
+    with (run_path / "detached.log").open("wb") as log:
+        child = subprocess.Popen(  # noqa: S603
+            [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=str(runs_dir),
+        )
+
+    # Claim the run before the child gets there, so a caller that asks for status
+    # immediately finds a record rather than a gap. The child's RunWriter
+    # overwrites this with the same pid, because that pid IS the child.
+    now = datetime.now(UTC).isoformat()
+    (run_path / _runs.RUN_FILE).write_text(
+        _json.dumps(
+            {
+                "schema": RUN_SCHEMA,
+                "run_id": run_id,
+                "tool": "deep-research",
+                "status": "running",
+                "pid": child.pid,
+                "host": socket.gethostname(),
+                "query": query,
+                "depth": settings["depth"],
+                "backend": settings["backend"],
+                "created_at": now,
+                "updated_at": now,
+                "detached": True,
+                "stages": [{"name": n, "status": "not_started"} for n in STAGES],
+                "counts": {},
+                "usage": {},
+                "confidence": None,
+                "failure": None,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    return {
+        "run_id": run_id,
+        "accepted": True,
+        "detached": True,
+        "path": str(run_path),
+        "pid": child.pid,
+        # Said plainly, because an accepted request looks a great deal like an
+        # answer if nobody says otherwise.
+        "not_yet_true": [
+            "no evidence has been gathered",
+            "no report exists",
+            "no confidence has been assessed",
+            "the run may still fail",
+        ],
+        "poll_again_in_seconds": 10,
+        "affordances": [
+            a.to_dict()
+            for a in (
+                free(
+                    "status",
+                    "whether this run is growing, final, or abandoned -- ask "
+                    "this before anything else",
+                    command=f"deep-research status {run_id}",
+                    call=f"deep_research.status({run_id!r})",
+                ),
+                free(
+                    "read",
+                    "a bounded slice of the report, once one exists",
+                    command=f"deep-research read {run_id} --lines 40",
+                    call=f"deep_research.read({run_id!r}, lines=40)",
+                ),
+                free(
+                    "sources",
+                    "the citations, once gathering has finished",
+                    command=f"deep-research sources {run_id}",
+                    call=f"deep_research.sources({run_id!r})",
+                ),
+            )
+        ],
+    }

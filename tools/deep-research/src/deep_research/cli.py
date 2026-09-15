@@ -189,6 +189,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="always return a pointer, never the report itself",
     )
     research.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
+    research.add_argument(
+        "--detach",
+        action="store_true",
+        help=(
+            "return part one immediately and continue the work in the background. "
+            "The response says what is NOT yet true and names `status` as the way "
+            "to find out when it is. A run takes 60 to 550 seconds; blocking for "
+            "that is a choice, not an obligation."
+        ),
+    )
     research.set_defaults(handler=_cmd_research)
 
     register_common_verbs(verbs, prog=PROG, package="deep_research", include_verdicts=False)
@@ -214,6 +224,7 @@ def _cmd_research(args: argparse.Namespace) -> dict[str, Any]:
         timeout_ms=args.timeout_ms,
         inline=args.inline,
         quiet=args.quiet,
+        detach=args.detach,
     )
 
 

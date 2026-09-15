@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import socket
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -76,6 +77,14 @@ class RunWriter:
             "run_id": run_id,
             "tool": tool,
             "status": "running",
+            # Who is doing the work. A detached run's record says "running" until
+            # its process says otherwise -- and a process that dies never says
+            # anything. Without a pid there is no way to tell a run that is
+            # working from one whose process is gone, which is the silent-failure
+            # shape this project has hit four times and the single thing that
+            # would make detach worse than simply blocking.
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
             "query": query,
             "depth": depth,
             "backend": backend,
