@@ -196,12 +196,18 @@ def skill() -> str:
             "under `unverifiable`."
         ),
         navigation=(
-            "`verdicts <id>` returns every verdict as data, and `--verdict refuted` "
-            "filters to the ones a caller usually acts on. Each verdict carries the "
-            "claim, the reasoning and the source ids it rests on, so you can audit any "
-            "single one without reading the rest. Evidence is not gathered here: pass "
-            "`--from-run <id>` to use a deep-research run that already has sources, "
-            "which is the point of a shared runs directory."
+            "Never swallow a whole run. Every response -- INCLUDING A REFUSAL -- "
+            "carries `affordances`: named next moves, each with a CLI form, a library "
+            "form, what it returns, what it costs, and whether it needs a credential. "
+            "They are all $0.00 and all credential-free. `verdicts <id>` returns every "
+            "verdict as data and `--verdict refuted` filters to the ones a caller "
+            "usually acts on; each carries the claim, the reasoning and the source ids "
+            "it rests on, so you can audit one without reading the rest. `read <id> "
+            "--lines N` always carries a completeness block -- when a view is partial "
+            "it says so and by how much, so never present a slice as the whole. "
+            "Evidence is not gathered here: pass `--from-run <id>` to reuse a deep- "
+            "research run that already has sources, which is the point of a shared runs "
+            "directory."
         ),
         examples=(
             (

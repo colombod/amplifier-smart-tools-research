@@ -44,14 +44,37 @@ Everything else is a view over it.
 
 ```
 <runs-dir>/<run-id>/
-├── run.json          request, status, stage timings, backend, usage
+├── run.json          THE record: request, status, pid, host, stage timings, usage
+├── events.jsonl      append-only log, one JSON object per line
 ├── brief.md          the short answer
 ├── report.md         the full synthesis        (deep-research)
 ├── verdicts.json     one entry per claim       (fact-check)
 ├── sources.json      normalised, deduped, categorised citations
-├── events.jsonl      append-only stage record
+├── scope.json        the sharpened question, when the scope stage ran
+├── attempts.json     each stage's rejected drafts and why they were rejected
+├── detached.log      the child process's own output, when --detach was used
 └── raw/              backend responses, verbatim, for audit
+    └── gather-01.json
 ```
+
+### Naming, so a caller landing here knows what it is holding
+
+Three rules, and they are worth stating because a run directory is a public surface: a
+second tool reads it (`fact-check --from-run`), and so does any agent we hand a `path` to.
+
+| rule | |
+|---|---|
+| **The extension says HOW to read it** | `.json` one document · `.jsonl` one object per line, append-only · `.md` prose for a person or an agent · `.log` unstructured process output, no schema promised |
+| **The name says WHAT it is** | singular for the thing itself (`report.md`), plural for a collection (`sources.json`, `verdicts.json`) |
+| **A subdirectory says WHOSE it is** | `raw/` holds somebody else's bytes, verbatim. Anything at the top level is ours and has a shape we promise |
+
+Two consequences we hold to:
+
+- **`.log` is the only file with no schema.** Everything else is parseable, and a caller may
+  rely on that. If a thing needs to be read by code, it does not get a `.log` extension.
+- **`run.json` is the only file that is rewritten.** Everything else is append-only or
+  written once, so a reader racing a writer sees a whole earlier version rather than half of
+  a newer one.
 
 Three properties follow, and all three are consequences rather than features:
 
