@@ -1,0 +1,169 @@
+{
+  "claims": [
+    {
+      "actual": "supported",
+      "category": "supported",
+      "correct": true,
+      "expected": "supported",
+      "id": "c01"
+    },
+    {
+      "actual": "supported",
+      "category": "supported",
+      "correct": true,
+      "expected": "supported",
+      "id": "c02"
+    },
+    {
+      "actual": "refuted",
+      "category": "refuted",
+      "correct": true,
+      "expected": "refuted",
+      "id": "c03"
+    },
+    {
+      "actual": "refuted",
+      "category": "refuted",
+      "correct": true,
+      "expected": "refuted",
+      "id": "c04"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c05"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c06"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c07"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unverifiable",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c08"
+    },
+    {
+      "actual": "opinion",
+      "category": "opinion",
+      "correct": true,
+      "expected": "opinion",
+      "id": "c09"
+    },
+    {
+      "actual": "opinion",
+      "category": "opinion",
+      "correct": true,
+      "expected": "opinion",
+      "id": "c10"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "true_in_part",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c11"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "true_in_part",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c12"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unsupported_reason",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c13"
+    },
+    {
+      "actual": "unverifiable",
+      "category": "unsupported_reason",
+      "correct": true,
+      "expected": "unverifiable",
+      "id": "c14"
+    }
+  ],
+  "critical_confusions": {
+    "count": 0,
+    "description": "claims where the evidence was inadequate and the tool answered `refuted` -- asserting falsehood from absence"
+  },
+  "overall": {
+    "accuracy": 1.0,
+    "correct": 14,
+    "n": 14
+  },
+  "pass": {
+    "at": "2026-09-15T17:26:14.382916+00:00",
+    "claim_count": 14,
+    "fixture": "claims",
+    "mode": "live",
+    "model": "provider default",
+    "provider": "first resolvable",
+    "seconds": 129.9,
+    "tally": {
+      "opinion": 2,
+      "refuted": 2,
+      "supported": 2,
+      "unverifiable": 8
+    },
+    "usage": {
+      "cost_usd": "0.053388",
+      "tokens_in": 38417,
+      "tokens_out": 11796
+    }
+  },
+  "per_category": {
+    "opinion": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "refuted": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "supported": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "true_in_part": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "unsupported_reason": {
+      "accuracy": 1.0,
+      "correct": 2,
+      "missed": [],
+      "n": 2
+    },
+    "unverifiable": {
+      "accuracy": 1.0,
+      "correct": 4,
+      "missed": [],
+      "n": 4
+    }
+  }
+}

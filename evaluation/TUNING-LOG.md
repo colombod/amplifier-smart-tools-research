@@ -232,3 +232,62 @@ does not earn its cost there either, it should default off and become opt-in. Un
 
 **N=1 per arm.** Run-to-run variance is unmeasured, and a 2x cost difference is far larger
 than any plausible variance — but the score equality is a single observation.
+
+---
+
+## 006 — The scope stage, measured properly: 3 runs per arm
+
+Entry 005 saw a 2x gap at N=1 per arm and said the variance was unmeasured. Measured now.
+Six live runs, **interleaved** (on, off, on, off, on, off) so time-of-day drift in the
+upstream service hits both arms equally.
+
+| arm | seconds | cost | score | tokens in/out |
+|---|---|---|---|---|
+| on | 487.6 | $0.5431 | 6/6 | 101,508 / 41,486 |
+| on | 567.0 | $0.6290 | 6/6 | 97,205 / 48,526 |
+| on | 517.4 | $0.4669 | 6/6 | 91,306 / 39,058 |
+| **ON mean** | **524.0** | **$0.5463** | **6/6 ×3** | range 488–567s · $0.467–$0.629 |
+| off | 334.6 | $0.4318 | 6/6 | 79,313 / 26,610 |
+| off | 313.3 | $0.4150 | 6/6 | 72,942 / 26,194 |
+| off | 281.1 | $0.3520 | 6/6 | 82,164 / 21,678 |
+| **OFF mean** | **309.7** | **$0.3996** | **6/6 ×3** | range 281–335s · $0.352–$0.432 |
+
+**The scope stage costs +$0.147 and +214 seconds per run.** That is +37% money and +69%
+wall-clock.
+
+**The ranges do not overlap.** Slowest scope-off run: 335s. Fastest scope-on run: 488s. A
+**153-second gap** with nothing in it. Cost ranges separate too, narrowly ($0.432 vs $0.467).
+This is not run-to-run noise, which was the open question from entry 005.
+
+Accuracy: **6/6 in all six runs, both arms.** Zero dangling citations throughout.
+
+### The confound, stated before the conclusion
+
+**All six fixture questions were hand-written to be sharp.** The scope stage exists to make a
+question CLEAR, CONSTRAINED, COMPLETE and CONCRETE before evidence is gathered — so a fixture
+that is already all four is precisely where it can add least. This experiment cannot see the
+case the stage was built for.
+
+The supportable claim, and no wider:
+
+> **On well-formed questions, the scope stage costs ~37% more money and ~69% more wall-clock
+> and produces no measurable improvement — and the run-to-run ranges do not overlap, so this
+> is a real effect rather than variance.**
+
+"Scope does not pay" is a different and unsupported claim.
+
+### What did not change, and why
+
+**We are not flipping the default.** A tool called from code usually has a specific question,
+which argues for off; a tool called by a person or an agent relaying a person often does not,
+which argues for on. Deciding from a fixture that contains only the first case would be
+choosing the default that happens to suit our test set.
+
+`scope=False` is already available to any caller who knows what it is asking. That is the
+honest state: the cost is now measured and documented, and the caller can act on it.
+
+### The experiment that would settle it
+
+Two or three deliberately vague questions — *"tell me about CRDTs"* — added to the fixture,
+both arms re-run. If scope does not earn its cost **there**, it should default off. That
+fixture does not exist yet and this entry does not pretend otherwise.
