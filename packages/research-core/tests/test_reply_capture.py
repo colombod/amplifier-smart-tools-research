@@ -178,3 +178,22 @@ def test_a_caller_can_see_what_it_paid_for_work_that_was_thrown_away(tmp_path):
     assert float(usage["discarded_cost_usd"]) == pytest.approx(0.658962)
     # 63% of that run bought nothing, and the record now says so.
     assert float(usage["discarded_cost_usd"]) / float(usage["cost_usd"]) > 0.6
+
+
+def test_a_captured_reply_is_the_reply_and_not_a_json_string_literal(tmp_path):
+    """`raw/` promises "verbatim". json.dumps on a str is not verbatim.
+
+    The first capture shipped wrote `"```json\\n{\\n  \\"brief\\": ..."` -- the
+    reply wrapped in quotes with every newline escaped. Harmless for an SDK
+    object, ruinous here: the whole point is to read a REJECTED reply and see its
+    exact shape, and escaping is what hides the shape.
+    """
+    writer = _writer(tmp_path)
+    reply = '```json\n{\n  "brief": "line one\\nline two"\n}\n```'
+
+    path = writer.write_raw("synthesise-01-rejected.txt", reply)
+
+    assert path.read_text(encoding="utf-8") == reply, "a str must be written as itself"
+    assert not path.read_text(encoding="utf-8").startswith('"'), (
+        "the reply was JSON-encoded rather than written verbatim"
+    )

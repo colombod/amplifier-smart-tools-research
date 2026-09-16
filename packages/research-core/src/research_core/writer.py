@@ -193,6 +193,15 @@ class RunWriter:
         which is neither verbatim nor replayable, and so defeats the only two
         reasons this file exists. Ask the object for its own serialisation first.
         """
+        # PLAIN TEXT IS ALREADY VERBATIM. Falling through to json.dumps wrapped a
+        # model's reply in quotes and escaped every newline, so a file promising
+        # "the backend's own replies, verbatim" held a JSON string literal
+        # instead. Harmless for an SDK object; ruinous for the case this exists
+        # to serve, where the reply IS the evidence and its exact shape -- fenced
+        # or not, truncated or not -- is the thing being diagnosed.
+        if isinstance(payload, str):
+            return self.write_file(f"{RAW_DIR}/{name}", payload)
+
         text: str | None = None
         for method in ("model_dump_json", "to_json"):
             serialise = getattr(payload, method, None)
