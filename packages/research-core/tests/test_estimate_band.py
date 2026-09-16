@@ -76,3 +76,48 @@ def test_a_skipped_stage_is_not_listed_as_a_stage_of_the_run():
     assert len(without) == len(with_scope) - 1, (
         "skipping scope must remove exactly that stage and nothing else"
     )
+
+
+def test_a_writer_does_not_destroy_what_a_pre_claim_already_recorded(tmp_path):
+    """A detached parent claims the record before spawning the child.
+
+    The child's RunWriter used to write straight over it, so `detached: true`
+    survived for about a second and every detached run then recorded
+    `detached: None` -- the record lying about how the run had been performed.
+
+    The rule asserted here is GENERAL on purpose. This was the second time a
+    later writer quietly destroyed an earlier truth (the first was the stage
+    list), so any key the pre-claim carried that the writer does not define must
+    survive, not just the one field we happened to notice.
+    """
+    import json
+
+    from research_core.writer import RUN_FILE, RunWriter
+
+    run_path = tmp_path / "dr-preclaim01"
+    run_path.mkdir(parents=True)
+    (run_path / RUN_FILE).write_text(
+        json.dumps({"run_id": "dr-preclaim01", "detached": True, "claimed_by": "parent"}),
+        encoding="utf-8",
+    )
+
+    RunWriter(
+        runs_dir=tmp_path,
+        run_id="dr-preclaim01",
+        tool="deep-research",
+        query="q",
+        depth="low",
+        backend="perplexity",
+        stages=("gather",),
+        quiet=True,
+    )
+
+    record = json.loads((run_path / RUN_FILE).read_text(encoding="utf-8"))
+    assert record["detached"] is True, "the child destroyed the parent's detached flag"
+    assert record["claimed_by"] == "parent", (
+        "an unrecognised pre-claimed field was destroyed -- the rule must be "
+        "general, or the next one to be added dies the same way"
+    )
+    # And the writer's own fields still win where both define one.
+    assert record["run_id"] == "dr-preclaim01"
+    assert record["status"] == "running"

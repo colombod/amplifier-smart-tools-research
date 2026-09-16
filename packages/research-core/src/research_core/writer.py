@@ -99,6 +99,30 @@ class RunWriter:
             "failure": None,
             **(extra or {}),
         }
+
+        # PRESERVE WHAT SOMEONE ELSE ALREADY CLAIMED. A detached parent writes a
+        # record before spawning the child, so a caller polling immediately finds
+        # a run rather than a gap -- and then this constructor used to write
+        # straight over it. `detached: true` survived for about a second and was
+        # destroyed, so every detached run recorded `detached: None` and the
+        # record lied about how the run had been performed.
+        #
+        # The rule is general on purpose: any key the pre-claim carried that this
+        # record does not define is carried forward. This is the SECOND time a
+        # later writer quietly destroyed an earlier truth (the first was the
+        # stage list), so the fix protects the next pre-claimed field too rather
+        # than just naming this one.
+        existing = self.path / RUN_FILE
+        if existing.exists():
+            try:
+                claimed = json.loads(existing.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                claimed = {}
+            if isinstance(claimed, dict):
+                for key, value in claimed.items():
+                    if key not in self._record:
+                        self._record[key] = value
+
         self._flush_record()
         self.event("run", status="started", query=query, depth=depth, backend=backend)
 

@@ -45,6 +45,12 @@ this release under-reported what it spent.
   `scope.json` recorded the skip correctly, but nothing points an auditor there,
   and the prominent record was the misleading one. A skipped stage is no longer
   listed as a stage of the run.
+- **`run.json` recorded `detached: None` on every detached run.** The parent
+  claims the record before spawning the child so a caller polling immediately
+  finds a run rather than a gap; the child's `RunWriter` then wrote straight over
+  it. The flag survived about a second. `RunWriter` now carries forward any
+  pre-claimed key it does not itself define — general on purpose, because this
+  was the second time a later writer silently destroyed an earlier truth.
 - **`--detach` help said runs take "60 to 550 seconds".** Two measured runs took
   659 and 784. It now states the real range.
 
