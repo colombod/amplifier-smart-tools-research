@@ -87,6 +87,46 @@ deep-research sources dr-70ce2d29 --category academic
 deep-research render  dr-70ce2d29 --format bibliography
 ```
 
+## When the run is long
+
+A `--depth low` run takes about a minute. A `--depth high` one has taken **658 and 784
+seconds** in our own measurements. Many callers — CI steps, agent harnesses, anything with a
+per-call timeout — cannot block that long, and a killed call loses work you have already paid
+for.
+
+So don't block:
+
+```bash
+deep-research research --query "..." --depth high --detach
+# returns in under a second:
+#   {"result": {"run_id": "dr-82baa98f", "not_yet_true": ["brief", "report", "sources"], ...}}
+
+deep-research status dr-82baa98f     # deterministic, $0.00, no credentials
+```
+
+`status` carries `liveness.state`, and that is the field to read — never the stage names:
+
+| state | meaning |
+|---|---|
+| `growing` | still working |
+| `final` | done; the answer is there |
+| `abandoned` | the process is gone and nothing more is coming |
+
+**`abandoned` is terminal — stop polling.** Whatever reached disk before the process died is
+still readable with `read`, `sources` and `render`, so a dead run is usually salvageable rather
+than a total loss.
+
+### Shaping the wait is your job
+
+`poll_again_in_seconds` is a **hint about when new work will exist**, not an instruction to
+sleep that long inside one call. If your own per-call limit is shorter than the hint, that is
+yours to work around — and how you do it is your business. Two agent harnesses drove this tool
+through the same 120-second limit and solved it two different ways: one used short bounded
+loops, the other simply polled more often. Both were correct.
+
+**Polling more often than the hint is free.** `status` is deterministic, costs `$0.00` and
+needs no credential, so many short checks are exactly as correct as few long ones.
+
 ## Checking claims against what you already gathered
 
 ```bash

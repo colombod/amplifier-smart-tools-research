@@ -90,15 +90,21 @@ refused rather than silently truncated -- so never present a slice as the whole.
 `--detach`. It returns in under a second with part one: the run id, where the rest will
 appear, and an explicit `not_yet_true` list -- read that before treating an accepted
 request as an answer. Then ask `status <id>` and read `liveness.state`: `growing` means
-wait `poll_again_in_seconds` and ask again, `final` means the work is done, and
-`abandoned` means the process is gone and nothing more is coming. Poll `liveness.state`,
-never the stage names.CONTROLLING WHAT IT COSTS AND WHAT COMES BACK. `--no-scope` skips
-the question-sharpening stage. Measured both ways: on a question already clear and
-bounded a run costs ~37% MORE with scope than without -- so skipping it saves ~27% of
-the cost and ~41% of the wall-clock -- and changes nothing a blind judge could see; on a
-vague one it LOSES a blind comparison 6 for 6. THE TEST IS THE QUESTION, NOT WHO TYPED
-IT: pass `--no-scope` when the question already names its subject, its scope and what
-would answer it, so there is nothing left to sharpen -- a person can ask a question that
+the work is still happening, `final` means it is done, and `abandoned` means the process
+is gone and nothing more is coming. Poll `liveness.state`, never the stage names. THE
+WAIT IS YOURS TO SHAPE, and this is the part callers get wrong: `poll_again_in_seconds`
+is a HINT about when new work will exist, NOT an instruction to sleep that long inside
+one call. A run can outlast your own per-call limit -- ours have taken 658 and 784
+seconds -- so fitting the wait to your ceiling is your job, not this tool's, and how you
+do it is your business. Polling MORE often than the hint is free and safe: `status` is
+deterministic, costs $0.00 and needs no credential, so many short checks are as correct
+as few long ones.CONTROLLING WHAT IT COSTS AND WHAT COMES BACK. `--no-scope` skips the
+question-sharpening stage. Measured both ways: on a question already clear and bounded a
+run costs ~37% MORE with scope than without -- so skipping it saves ~27% of the cost and
+~41% of the wall-clock -- and changes nothing a blind judge could see; on a vague one it
+LOSES a blind comparison 6 for 6. THE TEST IS THE QUESTION, NOT WHO TYPED IT: pass
+`--no-scope` when the question already names its subject, its scope and what would
+answer it, so there is nothing left to sharpen -- a person can ask a question that
 sharp, and a program can emit a woolly one. If you cannot tell, leave it on; paying the
 extra 37% is the cheaper mistake. `estimate --no-scope` prices it for you rather than
 making you do the arithmetic; `--max-sources` is deliberately NOT modelled by estimate,
