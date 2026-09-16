@@ -223,10 +223,23 @@ def render_verb_skill(
 
     required, optional = [], []
     for action in subparser._actions:
-        flags = [o for o in action.option_strings if o.startswith("--")]
-        if not flags or flags[0] in ("--help",):
-            continue
         help_text = " ".join((action.help or "").split())
+
+        # POSITIONALS FIRST, and they are required by definition. Skipping them
+        # was a real defect: an agent driving `status` had to infer that it takes
+        # a run id from a worked example elsewhere, because this document listed
+        # only flags. A document that omits the one argument a verb cannot run
+        # without is worse than terse -- it is wrong.
+        if not action.option_strings:
+            if action.dest in ("help", "verb"):
+                continue
+            entry = f"- `{action.dest}` (positional)"
+            required.append(entry + (f" — {help_text}" if help_text else ""))
+            continue
+
+        flags = [o for o in action.option_strings if o.startswith("--")]
+        if not flags or flags[0] == "--help":
+            continue
         entry = f"- `{flags[0]}`" + (f" — {help_text}" if help_text else "")
         (required if action.required else optional).append(entry)
 
