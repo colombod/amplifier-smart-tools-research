@@ -192,6 +192,17 @@ def build_parser() -> argparse.ArgumentParser:
     checking.add_argument("--inline", dest="inline", action="store_true", default=None)
     checking.add_argument("--no-inline", dest="inline", action="store_false")
     checking.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
+    checking.add_argument(
+        "--detach",
+        action="store_true",
+        help=(
+            "return part one immediately and continue the work in the background. "
+            "The response says what is NOT yet true and names `status` as the way "
+            "to find out when it is. This verb makes ONE MODEL CALL PER CLAIM -- "
+            "its own estimate is 330 seconds for three claims and 959 for ten -- "
+            "so blocking is rarely what you want."
+        ),
+    )
     checking.set_defaults(handler=_cmd_check_claims)
 
     register_common_verbs(verbs, prog=PROG, package="fact_check", include_verdicts=True)
@@ -221,6 +232,7 @@ def _cmd_check_claims(args: argparse.Namespace) -> dict[str, Any]:
         timeout_ms=args.timeout_ms,
         inline=args.inline,
         quiet=args.quiet,
+        detach=args.detach,
     )
 
 

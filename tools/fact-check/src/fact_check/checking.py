@@ -12,14 +12,18 @@ another run already gathered is read rather than bought again.
 
 from __future__ import annotations
 
+import socket
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
 from research_core import runs as _runs
+from research_core.affordances import free
 from research_core.config import resolve_settings
 from research_core.errors import NoEvidence, SmartToolError, UsageError
 from research_core.reasoning import Reasoner
 from research_core.staging import AttemptsExhausted
+from research_core.writer import SCHEMA as RUN_SCHEMA
 from research_core.writer import RunWriter, new_run_id
 
 from fact_check import stages
@@ -79,6 +83,136 @@ def evidence_from_run(runs_dir: str, run_id: str) -> tuple[list[dict[str, Any]],
     return sources, findings, run_id
 
 
+def _detach(
+    *,
+    claims: list[str],
+    claim: list[str] | None,
+    claims_file: str | None,
+    from_run: str,
+    strict: bool,
+    settings: dict[str, Any],
+    inline: bool | None,
+    max_attempts: int | None,
+) -> dict[str, Any]:
+    """Start the work elsewhere and return what is true right now.
+
+    Part one of a sequence. It carries the identifier, where the rest will
+    appear, and -- the part that matters -- an explicit statement of what is NOT
+    yet true, so a caller cannot mistake an accepted request for an answer.
+
+    The child is spawned detached, with its own session, so it outlives the
+    caller. Its output goes to files in the run directory rather than to the
+    caller's terminal, because a background process writing to a shared stderr
+    is how a caller's own output gets corrupted by something it stopped watching.
+    """
+    import json as _json
+    import subprocess
+    import sys
+
+    runs_dir = Path(settings["runs_dir"]).expanduser()
+    run_id = new_run_id("fc")
+    run_path = runs_dir / run_id
+    run_path.mkdir(parents=True, exist_ok=True)
+
+    arguments = {
+        "claim": claim,
+        "claims_file": claims_file,
+        "from_run": from_run,
+        "strict": strict,
+        "runs_dir": str(runs_dir),
+        "timeout_ms": settings["timeout_ms"],
+        "inline": inline,
+        "max_attempts": max_attempts,
+        "quiet": True,
+        "run_id": run_id,
+    }
+    bootstrap = (
+        "import json,sys;import fact_check;fact_check.check_claims(**json.loads(sys.argv[1]))"
+    )
+    with (run_path / "detached.log").open("wb") as log:
+        child = subprocess.Popen(  # noqa: S603
+            [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=str(runs_dir),
+        )
+
+    # Claim the run before the child gets there, so a caller that asks for status
+    # immediately finds a record rather than a gap. The child's RunWriter
+    # overwrites this with the same pid, because that pid IS the child.
+    now = datetime.now(UTC).isoformat()
+    (run_path / _runs.RUN_FILE).write_text(
+        _json.dumps(
+            {
+                "schema": RUN_SCHEMA,
+                "run_id": run_id,
+                "tool": "fact-check",
+                "status": "running",
+                "pid": child.pid,
+                "host": socket.gethostname(),
+                "query": f"{len(claims)} claim(s)",
+                "depth": "strict" if strict else settings["depth"],
+                "backend": settings["backend"],
+                "created_at": now,
+                "updated_at": now,
+                "detached": True,
+                "stages": [{"name": n, "status": "not_started"} for n in STAGES],
+                "counts": {},
+                "usage": {},
+                "confidence": None,
+                "failure": None,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    return {
+        "run_id": run_id,
+        "accepted": True,
+        "detached": True,
+        "path": str(run_path),
+        "pid": child.pid,
+        "claim_count": len(claims),
+        "inherited_from": from_run,
+        # Said plainly, because an accepted request looks a great deal like an
+        # answer if nobody says otherwise.
+        "not_yet_true": [
+            "no claim has been assessed",
+            "no verdict exists",
+            "no confidence has been assessed",
+            "the run may still fail",
+        ],
+        "poll_again_in_seconds": 10,
+        "affordances": [
+            a.to_dict()
+            for a in (
+                free(
+                    "status",
+                    "whether this run is growing, final, or abandoned -- ask "
+                    "this before anything else",
+                    command=f"fact-check status {run_id}",
+                    call=f"fact_check.status({run_id!r})",
+                ),
+                free(
+                    "verdicts",
+                    "one verdict per claim, once they exist",
+                    command=f"fact-check verdicts {run_id}",
+                    call=f"fact_check.verdicts({run_id!r})",
+                ),
+                free(
+                    "read",
+                    "a bounded slice of the narrative, once one exists",
+                    command=f"fact-check read {run_id} --lines 40",
+                    call=f"fact_check.read({run_id!r}, lines=40)",
+                ),
+            )
+        ],
+    }
+
+
 def check_claims(
     *,
     claim: list[str] | None = None,
@@ -92,8 +226,17 @@ def check_claims(
     stream: TextIO | None = None,
     reasoner: Reasoner | None = None,
     max_attempts: int | None = None,
+    detach: bool = False,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
-    """Check claims against evidence, one verdict per claim."""
+    """Check claims against evidence, one verdict per claim.
+
+    ``detach`` returns part one immediately and continues in the background.
+    This verb makes ONE MODEL CALL PER CLAIM, so its own estimator predicts 330
+    seconds for three claims and 959 for ten -- both far past the per-call limit
+    of a typical agent harness, and that estimator is known to under-predict.
+    A caller that blocks on ten claims will be killed and billed.
+    """
     settings = resolve_settings(runs_dir=runs_dir, timeout_ms=timeout_ms)
     claims = read_claims(claim=claim, claims_file=claims_file)
     if not claims:
@@ -106,6 +249,21 @@ def check_claims(
             "No evidence to check against.",
             "Pass --from-run ID to use a run that already gathered evidence. "
             "`fact-check list` shows what is available.",
+        )
+
+    if detach:
+        # After the argument checks above and before any model contact, so a
+        # malformed request still fails in the caller's face rather than inside
+        # a child process nobody is watching.
+        return _detach(
+            claims=claims,
+            claim=claim,
+            claims_file=claims_file,
+            from_run=from_run,
+            strict=strict,
+            settings=settings,
+            inline=inline,
+            max_attempts=max_attempts,
         )
 
     thinker = reasoner
@@ -126,7 +284,10 @@ def check_claims(
 
     writer = RunWriter(
         runs_dir=settings["runs_dir"],
-        run_id=new_run_id("fc"),
+        # The detached parent already published this id and a caller may already
+        # be polling it. Minting a second one here would strand that caller on a
+        # record that never advances.
+        run_id=run_id or new_run_id("fc"),
         tool="fact-check",
         query=f"{len(claims)} claim(s)",
         depth="strict" if strict else settings["depth"],

@@ -87,7 +87,20 @@ what it does, whether it spends money, every flag and what it is FOR, and how to
 what comes back. `<verb> -h` is the terse flag table for a person. The split holds at
 every level: -h is always for a human who already knows the verb, --help is always the
 document for an agent deciding whether and how to call it. When you are about to call
-something and want more than this overview gives you, ask the verb directly.
+something and want more than this overview gives you, ask the verb directly.WHEN THE RUN
+IS LONG. This verb makes ONE MODEL CALL PER CLAIM, so its wall-clock scales with the
+claim count rather than being fixed. Measured: two claims took 42 seconds and $0.15. Our
+own estimator predicts 330 seconds for three claims and 959 for ten -- it is PESSIMISTIC
+here, where the same estimator is optimistic for research, so treat both as rough. If
+your per-call limit is tight or the claim list is long, pass `--detach`: it returns part
+one in about a second with the run id and an explicit `not_yet_true` list, and you
+rejoin with `status <id>`. `liveness.state` is `growing` while work continues, `final`
+when it is done, and `abandoned` when the process is gone and nothing more is coming --
+that last one is TERMINAL, so stop polling. Whatever reached disk before a death stays
+readable, so a dead run is usually salvageable rather than a total loss. THE WAIT IS
+YOURS TO SHAPE: `poll_again_in_seconds` is a hint about when new work will exist, not an
+instruction to sleep that long inside one call, and polling more often is free because
+`status` is deterministic and needs no credential.
 
 ## What it needs
 
