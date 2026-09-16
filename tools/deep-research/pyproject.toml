@@ -3,7 +3,7 @@ name = "deep-research"
 # Must match the version in src/deep_research/SMART_TOOL.md. A tool that
 # publishes different versions in its package metadata and its manifest has two
 # answers to a question that has one.
-version = "0.4.0"
+version = "0.5.0"
 description = "Answers a research question with evidence: multi-source research, synthesised, with citations a caller can act on."
 readme = "README.md"
 requires-python = ">=3.11"

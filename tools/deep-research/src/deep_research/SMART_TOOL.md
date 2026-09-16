@@ -1,7 +1,7 @@
 ---
 smart_tool_format: 1
 name: deep-research
-version: 0.4.0
+version: 0.5.0
 description: >
   Answers a research question with evidence: multi-source web research, synthesised into
   a short brief, backed by citations a caller can act on. Reach for it when a decision
