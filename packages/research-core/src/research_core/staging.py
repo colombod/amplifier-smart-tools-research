@@ -58,12 +58,23 @@ class StageResult:
         total_in = sum(int(a.usage.get("tokens_in") or 0) for a in self.attempts)
         total_out = sum(int(a.usage.get("tokens_out") or 0) for a in self.attempts)
         costs = [a.usage.get("cost_usd") for a in self.attempts if a.usage.get("cost_usd")]
+        rejected = [
+            a.usage.get("cost_usd")
+            for a in self.attempts
+            if not a.accepted and a.usage.get("cost_usd")
+        ]
         return {
             "tokens_in": total_in,
             "tokens_out": total_out,
             # Every attempt is charged for, including the rejected ones. Reporting
             # only the accepted attempt's cost would understate what the run spent.
             "cost_usd": str(sum(float(c) for c in costs)) if costs else None,
+            # And the total ALONE is not enough. "This cost $1.01" and "this cost
+            # $1.01, of which $0.66 was thrown away and retried" are different
+            # facts, and only the second lets a caller decide to do something.
+            "attempts": len(self.attempts),
+            "attempts_discarded": sum(1 for a in self.attempts if not a.accepted),
+            "discarded_cost_usd": str(sum(float(c) for c in rejected)) if rejected else None,
         }
 
 

@@ -20,6 +20,7 @@ import secrets
 import socket
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -219,14 +220,26 @@ class RunWriter:
 
     def record_usage(self, usage: dict[str, Any]) -> None:
         merged = dict(self._record.get("usage") or {})
-        for key in ("tokens_in", "tokens_out"):
+        for key in ("tokens_in", "tokens_out", "attempts", "attempts_discarded"):
             if usage.get(key) is not None:
                 merged[key] = merged.get(key, 0) + int(usage[key])
-        if usage.get("cost_usd") is not None:
-            merged["cost_usd"] = usage["cost_usd"]
-        elif "cost_usd" not in merged:
-            # Unknown, said out loud. A silent 0.00 would be a claim, and false.
-            merged["cost_usd"] = None
+
+        # COST ACCUMULATES. It used to be ASSIGNED here while tokens beside it
+        # accumulated, so a run reported whatever the LAST stage to record spent
+        # rather than its own total. Run dr-82baa98f reported $1.008705 -- exactly
+        # the synthesise stage, with scope's $0.031287 silently overwritten. Every
+        # run this tool ever reported under-stated what it cost.
+        #
+        # Two lines above sits a comment about not under-stating a run's cost. The
+        # reasoning was right for attempts within a stage and the code beside it
+        # was wrong across stages, which is why reading did not catch it: only
+        # summing attempts.json and comparing did.
+        for key in ("cost_usd", "discarded_cost_usd"):
+            if usage.get(key) is not None:
+                merged[key] = str(Decimal(str(merged.get(key) or "0")) + Decimal(str(usage[key])))
+            elif key not in merged:
+                # Unknown, said out loud. A silent 0.00 would be a claim, and false.
+                merged[key] = None
         self._record["usage"] = merged
         self._flush_record()
         self.event("usage", **merged)

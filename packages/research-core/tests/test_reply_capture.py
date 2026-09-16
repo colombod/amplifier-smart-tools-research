@@ -110,3 +110,71 @@ def test_capture_is_optional_so_a_library_caller_is_not_forced_to_take_it():
     assert run_stage("scope", reasoner, "prompt", validate=lambda document: document).value == {
         "ok": True
     }
+
+
+def _writer(tmp_path):
+    from research_core.writer import RunWriter
+
+    return RunWriter(
+        runs_dir=tmp_path,
+        run_id="dr-test0001",
+        tool="deep-research",
+        query="q",
+        depth="low",
+        backend="perplexity",
+        stages=("scope", "synthesise"),
+        quiet=True,
+    )
+
+
+def _usage_on_disk(tmp_path):
+    """Read run.json, because that is what a caller actually sees."""
+    return json.loads((tmp_path / "dr-test0001" / "run.json").read_text())["usage"]
+
+
+def test_cost_accumulates_across_stages_instead_of_being_overwritten(tmp_path):
+    """Every run this tool ever reported under-stated what it cost.
+
+    `record_usage` accumulated tokens and ASSIGNED cost, two lines apart, so a
+    run reported whatever the LAST stage to record had spent. Run dr-82baa98f
+    reported $1.008705 -- exactly the synthesise stage's three attempts summed,
+    with scope's $0.031287 silently overwritten.
+
+    Reading the code did not catch it. Summing attempts.json and comparing it to
+    the reported total did, which is the only reason we know.
+    """
+    writer = _writer(tmp_path)
+    writer.record_usage({"tokens_in": 100, "tokens_out": 10, "cost_usd": "0.031287"})
+    writer.record_usage({"tokens_in": 900, "tokens_out": 90, "cost_usd": "1.008705"})
+
+    usage = _usage_on_disk(tmp_path)
+    assert usage["tokens_in"] == 1000, "tokens always accumulated; that half was fine"
+    assert float(usage["cost_usd"]) == pytest.approx(1.039992), (
+        "a run's cost must be the SUM of its stages, not whichever recorded last"
+    )
+
+
+def test_a_caller_can_see_what_it_paid_for_work_that_was_thrown_away(tmp_path):
+    """ "Cost $1.01" and "cost $1.01, of which $0.66 was discarded" differ.
+
+    Only the second lets a caller act -- lower the depth, change the question, or
+    report that a stage is unreliable. The first reads like the price of the
+    answer.
+    """
+    writer = _writer(tmp_path)
+    writer.record_usage({"cost_usd": "0.031287", "attempts": 1, "attempts_discarded": 0})
+    writer.record_usage(
+        {
+            "cost_usd": "1.008705",
+            "attempts": 3,
+            "attempts_discarded": 2,
+            "discarded_cost_usd": "0.658962",
+        }
+    )
+
+    usage = _usage_on_disk(tmp_path)
+    assert usage["attempts"] == 4
+    assert usage["attempts_discarded"] == 2
+    assert float(usage["discarded_cost_usd"]) == pytest.approx(0.658962)
+    # 63% of that run bought nothing, and the record now says so.
+    assert float(usage["discarded_cost_usd"]) / float(usage["cost_usd"]) > 0.6
