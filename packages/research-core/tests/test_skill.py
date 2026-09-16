@@ -289,3 +289,54 @@ def test_the_skill_teaches_the_flag_that_costs_or_saves_money():
     assert "--no-scope" in skill
     # Both halves, or a caller cannot tell when to reach for it.
     assert "37%" in skill and "6 for 6" in skill
+
+
+@pytest.mark.parametrize("tool", TOOLS)
+def test_every_verb_answers_h_and_help_differently(tool, capsys):
+    """The split holds at EVERY level, not just the root.
+
+    `-h` is always the terse table for a person who already knows the verb.
+    `--help` is always the document for an agent deciding whether and how to
+    call it. At the root that scope is the tool; at a verb it is the verb.
+
+    This is enumerated rather than spot-checked because the same defect has now
+    appeared three times -- `--sections` invisible to agents, then `--no-scope`,
+    then every subcommand answering an agent with an argparse table. A check
+    that names one case is how the second and third got through.
+    """
+    import importlib
+
+    cli = importlib.import_module(f"{tool}.cli")
+    parser = cli.build_parser()
+    verbs = parser._subparsers._group_actions[0].choices
+
+    for verb in verbs:
+        outputs = {}
+        for flag in ("-h", "--help"):
+            with pytest.raises(SystemExit) as exit_info:
+                parser.parse_args([verb, flag])
+            assert exit_info.value.code == 0, f"{verb} {flag} did not exit 0"
+            outputs[flag] = capsys.readouterr().out
+
+        assert outputs["-h"].startswith("usage:"), f"{verb} -h is not the terse table"
+        assert outputs["--help"].startswith("---"), (
+            f"`{verb} --help` returned an argparse table, not an agent-facing "
+            "document. Every verb gets one via wire_verb_help()."
+        )
+        assert outputs["-h"] != outputs["--help"]
+
+
+@pytest.mark.parametrize("tool", TOOLS)
+def test_the_root_skill_tells_an_agent_to_ask_a_verb_directly(tool):
+    """An overview that does not say deeper documentation exists hides it.
+
+    The root skill covers the tool. Each verb has more. An agent only learns
+    that if the root says so -- otherwise per-verb `--help` is a capability
+    nobody discovers, which is the exact defect this whole line of work exists
+    to stop repeating.
+    """
+    import importlib
+
+    skill = " ".join(importlib.import_module(tool).skill().split())
+    assert "--help" in skill
+    assert "verb" in skill.lower()

@@ -21,7 +21,7 @@ from research_core import (
     emit,
     emit_error,
 )
-from research_core.skill import add_help_flags
+from research_core.skill import add_help_flags, wire_verb_help
 from research_core.verbs import register as register_common_verbs
 
 import fact_check
@@ -195,6 +195,10 @@ def build_parser() -> argparse.ArgumentParser:
     checking.set_defaults(handler=_cmd_check_claims)
 
     register_common_verbs(verbs, prog=PROG, package="fact_check", include_verdicts=True)
+
+    # EVERY verb gets the same -h / --help split the root has, wired as a
+    # post-pass so a verb added later inherits it without anyone remembering.
+    wire_verb_help(verbs, prog=PROG, model_backed=("check-claims",))
 
     return parser
 

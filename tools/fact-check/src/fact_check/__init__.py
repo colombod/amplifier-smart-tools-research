@@ -208,6 +208,14 @@ def skill() -> str:
             "Evidence is not gathered here: pass `--from-run <id>` to reuse a deep- "
             "research run that already has sources, which is the point of a shared runs "
             "directory."
+            "GO DEEPER PER VERB. This document covers the tool; every verb has its own. "
+            "`<verb> --help` returns that verb's agent-facing document -- what it does, "
+            "whether it spends money, every flag and what it is FOR, and how to read "
+            "what comes back. `<verb> -h` is the terse flag table for a person. The "
+            "split holds at every level: -h is always for a human who already knows the "
+            "verb, --help is always the document for an agent deciding whether and how "
+            "to call it. When you are about to call something and want more than this "
+            "overview gives you, ask the verb directly."
         ),
         examples=(
             (

@@ -175,3 +175,148 @@ def add_help_flags(parser: argparse.ArgumentParser, *, skill: Callable[[], str])
         default=argparse.SUPPRESS,
         help="this tool's skill, written for an agent driving it",
     )
+
+
+def render_verb_skill(
+    subparser: argparse.ArgumentParser,
+    *,
+    prog: str,
+    verb: str,
+    spends_money: bool,
+    returns: str = "",
+) -> str:
+    """One verb, explained for an agent deciding whether and how to call it.
+
+    The rule, one level down: `-h` is ALWAYS the terse table for a person who
+    already knows the verb; `--help` is ALWAYS the agent-facing document for
+    whatever scope was asked about. At the root that scope is the tool. Here it
+    is this verb.
+
+    Generated from the subparser itself, so a verb added later inherits this
+    without anyone remembering to. The argparse table is a reference; this is an
+    explanation, and an agent choosing between twelve verbs needs the second.
+    """
+    lines: list[str] = [
+        "---",
+        f"name: {prog} {verb}",
+        f"description: {' '.join((subparser.description or '').split())}",
+        "---",
+        "",
+        f"# {prog} {verb}",
+        "",
+    ]
+
+    if spends_money:
+        lines += [
+            "**This verb spends money and calls a model.** It may answer differently "
+            "on a second run, and it fails saying so rather than returning a lesser "
+            "answer when no backend is configured.",
+            "",
+        ]
+    else:
+        lines += [
+            "**Deterministic.** Runs with no provider configured and no credentials "
+            "of any kind, costs nothing, and returns the same answer for the same "
+            "input.",
+            "",
+        ]
+
+    required, optional = [], []
+    for action in subparser._actions:
+        flags = [o for o in action.option_strings if o.startswith("--")]
+        if not flags or flags[0] in ("--help",):
+            continue
+        help_text = " ".join((action.help or "").split())
+        entry = f"- `{flags[0]}`" + (f" — {help_text}" if help_text else "")
+        (required if action.required else optional).append(entry)
+
+    if required:
+        lines += ["## Required", "", *required, ""]
+    if optional:
+        lines += ["## Optional", "", *optional, ""]
+
+    if returns:
+        lines += ["## What comes back", "", returns, ""]
+
+    lines += [
+        "## Reading the result",
+        "",
+        'One JSON document on stdout. Success is `{"result": ...}`; failure is '
+        '`{"error": {"code", "message", "remedy", "affordances"}}` with a '
+        "non-zero exit. **A refusal carries `affordances` too** — named next moves, "
+        "each free and each needing no credential, so being refused is never a dead "
+        "end. Progress and diagnostics go to stderr, never stdout.",
+        "",
+        f"For the whole tool rather than this one verb: `{prog} --help`.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+class VerbSkillAction(argparse.Action):
+    """`--help` on a subcommand: the verb's own agent-facing document."""
+
+    def __init__(self, option_strings, dest, render: Callable[[], str], **kwargs):
+        super().__init__(option_strings, dest, nargs=0, **kwargs)
+        self._render = render
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        sys.stdout.write(self._render())
+        parser.exit()
+
+
+def add_verb_help_flags(
+    subparser: argparse.ArgumentParser,
+    *,
+    prog: str,
+    verb: str,
+    spends_money: bool = False,
+    returns: str = "",
+) -> None:
+    """Wire a subcommand's `-h` to the table and its `--help` to the document.
+
+    The subparser must be built with `add_help=False`, because argparse binds
+    both spellings to one action and the whole point is that they differ.
+    """
+    subparser.add_argument(
+        "-h",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="terse summary for a person: this verb's flags",
+    )
+    subparser.add_argument(
+        "--help",
+        action=VerbSkillAction,
+        render=lambda: render_verb_skill(
+            subparser, prog=prog, verb=verb, spends_money=spends_money, returns=returns
+        ),
+        default=argparse.SUPPRESS,
+        help="this verb explained for an agent driving it",
+    )
+
+
+def wire_verb_help(verbs: Any, *, prog: str, model_backed: tuple[str, ...] = ()) -> None:
+    """Give EVERY subcommand the same `-h` / `--help` split the root has.
+
+    Applied as a post-pass over the subparser set rather than at each call site,
+    for one reason that matters: a verb added later inherits this without anyone
+    remembering to wire it. The defect this fixes had already recurred twice in
+    other costumes -- a capability present in the tool and invisible to the agent
+    consuming it -- and a fix that depends on the next author remembering is the
+    same defect with a longer fuse.
+
+    argparse installs its own `-h/--help` pair bound to ONE action, so the pair
+    is removed first and replaced with two that differ.
+    """
+    for verb, subparser in getattr(verbs, "choices", {}).items():
+        existing = [
+            action for action in subparser._actions if set(action.option_strings) & {"-h", "--help"}
+        ]
+        for action in existing:
+            subparser._actions.remove(action)
+            for option in action.option_strings:
+                subparser._option_string_actions.pop(option, None)
+            for group in subparser._action_groups:
+                if action in group._group_actions:
+                    group._group_actions.remove(action)
+
+        add_verb_help_flags(subparser, prog=prog, verb=verb, spends_money=verb in model_backed)
