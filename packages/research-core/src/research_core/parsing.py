@@ -26,15 +26,38 @@ def extract_json(text: str) -> Any:
     bracket-delimited span. Raises rather than returning a default, because a
     caller that wanted structure and got a default cannot tell the difference
     between "the model said nothing" and "the model said nothing useful".
+
+    Each candidate is tried twice: once strictly, then once permitting literal
+    control characters inside string values.
+
+    WHY THE SECOND PASS EXISTS, diagnosed from two captured rejections rather
+    than guessed. A `--depth high` run failed synthesis with "no JSON document
+    was found" and cost $0.66 in discarded attempts. The replies were, in fact,
+    well-formed JSON documents carrying exactly the right keys -- except that the
+    model had written markdown into the string values (a table in one, a bullet
+    list in the other) using REAL newlines rather than `\n` escapes. Python's
+    json rejects raw control characters in strings by default; that is all
+    `strict=True` means. Both parse perfectly with `strict=False`.
+
+    This is the failure a long reply invites, because length is when a model
+    reaches for markdown structure -- which is why our cheap fixtures never saw
+    it and two 800-second runs did.
+
+    The second pass does NOT weaken the guarantee this module exists for. A
+    half-parsed result that looks whole is still impossible: the document must
+    still be well-formed JSON in every other respect. The only thing forgiven is
+    an unescaped newline inside a string, which changes no structure and loses no
+    data -- json preserves the character either way.
     """
     if not text or not text.strip():
         raise NoStructureFound("the reply was empty")
 
     for candidate in _candidates(text):
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
+        for strict in (True, False):
+            try:
+                return json.loads(candidate, strict=strict)
+            except json.JSONDecodeError:
+                continue
     raise NoStructureFound("no JSON document was found in the reply")
 
 
