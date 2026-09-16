@@ -155,34 +155,30 @@ def test_the_committed_skill_file_matches_what_the_library_returns(tool, slug):
     import importlib
     from pathlib import Path
 
-    from research_core.skill import compose_skill_file
-
     module = importlib.import_module(tool)
-    expected = compose_skill_file(slug, module.INSTALL, module.skill())
+    expected = module.pointer_skill()
     path = Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md"
-    assert path.exists(), f"{path} is missing -- regenerate it from {tool}.skill()"
+    assert path.exists(), f"{path} is missing -- regenerate it from {tool}.pointer_skill()"
     assert path.read_text(encoding="utf-8") == expected, (
-        f"{path} has drifted from {tool}.skill(). Regenerate it; do not hand-edit."
+        f"{path} has drifted from {tool}.pointer_skill(). Regenerate it; do not hand-edit."
     )
 
 
 @pytest.mark.parametrize(
     "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
 )
-def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, capsys):
-    """The installed file is EXACTLY the install block plus `--help`.
+def test_the_installed_skill_is_a_pointer_and_not_a_copy_of_help(tool, slug, capsys):
+    """The file must NOT inline `--help`, and that is a deliberate reversal.
 
-    These were byte-identical until the file gained an `## Install` section, and
-    then equality became incoherent: `--help` is read by someone who already has
-    the binary, so telling them how to obtain it is nonsense, while a host that
-    ran `npx skills add` may hold the document WITHOUT the program, because that
-    command installs a document and not a program.
+    It used to be exactly `--help` with an install block spliced in, guarded by a
+    test asserting the derivation. That test was honest about what it checked and
+    checked the wrong thing: it proved the file matched `--help` IN THIS REPO AT
+    BUILD TIME, while the two artifacts reach a user from different places --
+    `npx skills add <repo>` tracks the default branch, `uv tool install ...@tag`
+    is pinned. A host could hold a skill describing flags its binary does not
+    have, and nothing here would have failed.
 
-    The invariant was never really "these two strings are equal" -- it was "there
-    is one source and the second artifact is mechanically derived from it", and
-    equality was simply the cheapest derivation that worked until now. So this
-    asserts the RELATIONSHIP: still impossible to drift, and each of the two
-    readers gets the document that is true for them.
+    A pointer cannot go stale, because it asserts nothing `--help` would.
     """
     import importlib
     from pathlib import Path
@@ -191,26 +187,78 @@ def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, c
     with pytest.raises(SystemExit) as exit_info:
         cli.build_parser().parse_args(["--help"])
     assert exit_info.value.code == 0
-
-    from research_core.skill import compose_skill_file
-
     printed = capsys.readouterr().out
+
     on_disk = (Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    module = importlib.import_module(tool)
 
-    assert on_disk == compose_skill_file(slug, module.INSTALL, printed), (
-        "the installed SKILL.md is no longer --help with the install block spliced in"
+    # The spec puts YAML frontmatter at the top, and that is how a host learns a
+    # skill's name and description -- which is to say, how it finds it at all.
+    assert on_disk.startswith("---\n")
+
+    # A pointer, not a copy. The body of --help must not be in here.
+    assert len(on_disk) < len(printed) / 2, (
+        "the skill file is the size of --help -- it has become a copy again, and "
+        "a copy can describe flags the installed binary does not have"
     )
-    # The property that actually matters to a host, asserted directly: the spec
-    # puts YAML frontmatter at the top, and that is how a skill is discovered.
-    assert on_disk.startswith("---\n"), (
-        "the installed skill no longer opens with YAML frontmatter -- a host "
-        "cannot read its name or description, so it cannot find it at all"
+
+    # And it must send the reader to the authority. Whitespace-normalised: the
+    # document is wrapped for reading, so a line break inside a command is a
+    # formatting accident, not a change of meaning. Asserting the raw string
+    # would make this test a hostage to the wrap width.
+    flat = " ".join(on_disk.split())
+    assert f"{slug} --help" in flat, "the pointer does not point anywhere"
+    assert f"{slug} <command> --help" in flat, (
+        "per-verb documents are where the real detail lives; the pointer must say so"
     )
+
+
+@pytest.mark.parametrize(
+    "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
+)
+def test_the_pointer_says_which_version_it_came_from(tool, slug):
+    """So a mismatch is VISIBLE rather than discovered through a missing flag.
+
+    The pointer makes no claim about behaviour, but it can still be older or
+    newer than the installed binary. It names its own version and tells the
+    reader that `manifest` reports theirs, so the two can be compared.
+    """
+    import importlib
+
+    module = importlib.import_module(tool)
+    text = module.pointer_skill()
+    version = module.manifest().to_dict()["version"]
+
+    assert f"version: {version}" in text, "the pointer does not say which release built it"
+    assert f"{slug} manifest" in text, "nothing tells the reader how to find their own version"
+    assert "upgrade" in text.lower(), "a version mismatch with no remedy is just bad news"
+
+
+@pytest.mark.parametrize(
+    "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
+)
+def test_acquisition_lives_in_the_pointer_and_never_in_help(tool, slug, capsys):
+    """Two readers, two needs.
+
+    `--help` is run by someone who already HAS the binary, so telling them how to
+    obtain it is incoherent. A host that ran `npx skills add` may hold the
+    document WITHOUT the program, because that command installs a document and
+    not a program.
+    """
+    import importlib
+
+    cli = importlib.import_module(f"{tool}.cli")
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["--help"])
+    printed = capsys.readouterr().out
+
     assert "## Install" not in printed, (
-        "`--help` is read by someone who HAS the tool; acquisition instructions do not belong there"
+        "`--help` is read by someone who HAS the tool; acquisition does not belong there"
+    )
+    assert "## Install" in importlib.import_module(tool).pointer_skill(), (
+        "the pointer's reader may not have the program -- `npx skills add` "
+        "installs this document, not the binary"
     )
 
 

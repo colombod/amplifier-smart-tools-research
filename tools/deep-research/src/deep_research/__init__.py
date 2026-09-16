@@ -290,3 +290,30 @@ def skill() -> str:
 
 
 CAPABILITIES["skill"] = skill
+
+
+#: Where the pointer SKILL.md sends a reader who does not have the tool.
+REPOSITORY = "https://github.com/colombod/amplifier-smart-tools-research"
+AUTHOR = "colombod"
+
+#: Phrases a host matches on when deciding this skill is relevant.
+TRIGGERS = ("deep research", "research this", "find sources", "what is known about")
+
+
+def pointer_skill() -> str:
+    """The installed SKILL.md: install, use `--help`, stay current.
+
+    Deliberately NOT a copy of `--help`. The skill file and the binary reach a
+    user from different places -- `npx skills add` tracks a branch, `uv tool
+    install ...@tag` is pinned -- so a copy can describe flags the installed
+    tool does not have. A pointer cannot.
+    """
+    from research_core.skill import render_pointer_skill
+
+    return render_pointer_skill(
+        manifest(),
+        install=INSTALL,
+        repository=REPOSITORY,
+        author=AUTHOR,
+        triggers=TRIGGERS,
+    )

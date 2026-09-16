@@ -66,8 +66,9 @@ def render_skill(
     the ones that spend. ``result_shape`` and ``navigation`` are the two things a
     caller cannot infer from a verb list and most needs before calling.
 
-    Acquisition instructions are deliberately NOT here -- see
-    ``render_install_block``.
+    Acquisition instructions are deliberately NOT here: a reader running
+    `--help` already has the binary. They live in the pointer SKILL.md that
+    ``render_pointer_skill`` builds, whose reader may not.
     """
     data = manifest.to_dict() if hasattr(manifest, "to_dict") else dict(manifest)
     name = data.get("name", "tool")
@@ -338,52 +339,116 @@ def wire_verb_help(verbs: Any, *, prog: str, model_backed: tuple[str, ...] = ())
         add_verb_help_flags(subparser, prog=prog, verb=verb, spends_money=verb in model_backed)
 
 
-def render_install_block(name: str, install: tuple[tuple[str, str], ...]) -> str:
-    """How to OBTAIN the tool: the one section `--help` must not carry.
+def render_pointer_skill(
+    manifest: Any,
+    *,
+    install: tuple[tuple[str, str], ...],
+    repository: str,
+    author: str,
+    triggers: tuple[str, ...] = (),
+) -> str:
+    """The installed SKILL.md: a POINTER, not a copy of `--help`.
 
-    A reader running `--help` already has the binary, so telling them how to get
-    it is incoherent. A host that ran `npx skills add` may hold this document
-    WITHOUT the program, because that command installs a document and not a
-    program. Two readers, two needs, one source.
+    We used to splice the install block into the whole `--help` document and
+    commit the result -- 155 lines, byte-derived from the tool, with a test
+    asserting the derivation. The test was honest about what it checked and
+    checked the wrong thing: it guaranteed the file matched `--help` IN OUR
+    REPO AT BUILD TIME, while the two artifacts reach a user from different
+    places. `npx skills add <repo>` tracks the default branch; `uv tool install
+    ...@v0.5.0` is pinned. A host can hold a skill describing flags its binary
+    does not have, and nothing would have caught it.
+
+    A pointer cannot go stale, because it asserts nothing `--help` would. The
+    tool's own `--help` is the skill -- printed by the binary that is actually
+    installed, so it is correct by construction.
+
+    This is the shape the smart-tool-creator scaffolds by default, and adopting
+    it costs us nothing we measured: three harnesses drove this tool correctly,
+    and every one of them read `--help` after the skill rather than instead of
+    it.
     """
-    if not install:
-        return ""
+    data = manifest.to_dict() if hasattr(manifest, "to_dict") else dict(manifest)
+    name = data.get("name", "tool")
+    version = data.get("version", "")
+    description = " ".join(str(data.get("description") or "").split())
+
+    summary = description
+    cases = data.get("use_cases") or []
+    if cases:
+        numbered = "; ".join(f"({i}) {' '.join(str(c).split())}" for i, c in enumerate(cases, 1))
+        summary = f"{description} Use when {numbered}."
+    if triggers:
+        summary += " Triggers on " + ", ".join(f'"{x}"' for x in triggers) + "."
+
     lines = [
+        "---",
+        f"name: {name}",
+        "description: >-",
+        *[f"  {line}" for line in _wrap(summary, 84).splitlines()],
+        "license: MIT",
+        "metadata:",
+        f"  author: {author}",
+        f"  repository: {repository}",
+        # The version this POINTER was generated from. The pointer makes no claim
+        # about the tool's behaviour, but it can still be older than the binary --
+        # so it says which release it came from, and `manifest` reports what is
+        # actually installed. A reader comparing the two sees a mismatch rather
+        # than discovering it through a flag that does not exist.
+        f"  version: {version}",
+        "---",
+        "",
+        f"# Using {name}",
+        "",
+        _wrap(description),
+        "",
         "## Install",
         "",
-        f"You may be reading this without having `{name}` yet -- `npx skills add` "
-        "installs this document, not the program.",
+        _wrap(
+            f"`npx skills add` installs THIS DOCUMENT, not the program. If `{name}` is "
+            "not on your PATH, install it:"
+        ),
         "",
         "```bash",
     ]
     for comment, command in install:
         lines += [f"# {comment}", command]
-    lines += ["```", "", ""]
+    lines += [
+        "```",
+        "",
+        "## Use it",
+        "",
+        _wrap(
+            f"Run `{name} --help`. It prints the tool's skill: when to reach for it, "
+            "every capability, what each costs, worked invocations, how to read a "
+            "result too large to hold, and the sharp edges. Follow it. Confirm every "
+            f"argument against `{name} <command> --help` rather than memory -- each "
+            "verb prints its own agent-facing document, and `-h` gives the terse "
+            "argparse summary instead."
+        ),
+        "",
+        _wrap(
+            "That document comes from the binary you actually have, so it is correct "
+            "for your installation. This file cannot be, and does not try."
+        ),
+        "",
+        "## Staying current",
+        "",
+        _wrap(
+            f"`{name} manifest` reports the version installed. This pointer was "
+            f"generated from {version}. If they differ, the tool is the authority -- "
+            "re-read `--help`, because flags and costs change between releases."
+        ),
+        "",
+        "```bash",
+        "# what you have",
+        f"{name} manifest",
+        "",
+        "# what exists",
+        f"git ls-remote --tags --refs {repository} | tail -3",
+        "",
+        "# upgrade in place",
+        install[0][1].replace("uv tool install ", "uv tool install --force "),
+        "```",
+        "",
+    ]
     return "\n".join(lines)
-
-
-def compose_skill_file(name: str, install: tuple[tuple[str, str], ...], skill_text: str) -> str:
-    """The installed SKILL.md: `--help`, with the install block spliced in.
-
-    SPLICED AFTER THE FRONTMATTER, NOT PREPENDED. The Agent Skills spec puts YAML
-    frontmatter at the top of the file, and that is how a host learns the skill's
-    name and description -- which is to say, how it discovers the skill at all.
-    Prepending a markdown section pushed the frontmatter to line 14 and silently
-    broke the one thing the file exists to do. Caught by looking; no test would
-    have failed.
-
-    The invariant was never "these two strings are equal", it was "one source,
-    and the second artifact is mechanically derived from it". This is that
-    derivation, and the drift test asserts it exactly.
-    """
-    block = render_install_block(name, install)
-    if not block:
-        return skill_text
-
-    # The frontmatter is the leading `---` ... `---`. Anything else is a document
-    # we do not recognise, and guessing where to splice would be worse than
-    # refusing to.
-    if not skill_text.startswith("---\n"):
-        raise ValueError(f"{name}: skill text does not open with YAML frontmatter")
-    end = skill_text.index("\n---\n", 4) + len("\n---\n")
-    return skill_text[:end] + "\n" + block + skill_text[end:].lstrip("\n")

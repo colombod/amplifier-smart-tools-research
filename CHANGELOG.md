@@ -3,6 +3,35 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## 0.6.0
+
+### Changed — the installed `SKILL.md` is now a pointer, not a copy
+
+`npx skills add` used to install a 155-line document: the whole of `--help` with an
+install block spliced in, guarded by a test asserting that derivation.
+
+**That test checked the wrong thing.** It proved the file matched `--help` *in this
+repository at build time*, while the two artifacts reach a user from different places —
+`npx skills add <repo>` tracks the default branch, `uv tool install …@v0.5.0` is pinned.
+A host could hold a skill describing flags its binary does not have, and nothing here
+would have failed.
+
+The file is now 69 lines and says four things: what the tool is, how to install it, that
+`--help` is the real skill (and `<command> --help` for each verb), and how to tell whether
+your copy is current. **A pointer cannot go stale, because it asserts nothing `--help`
+would.**
+
+- `--help` is unchanged — still the full agent-facing document, printed by the binary you
+  actually have, so it is correct by construction.
+- Frontmatter gains `license` and `metadata` (`author`, `repository`, `version`), matching
+  what `smart-tool-creator` scaffolds by default.
+- New **Staying current** section: `<tool> manifest` reports your version, the pointer
+  names the release it was built from, and the upgrade command is right there.
+
+This is the shape the smart-tool-creator has scaffolded all along. Adopting it cost
+nothing measured: three harnesses drove this tool correctly, and every one read `--help`
+*after* the skill rather than instead of it.
+
 ## 0.5.0
 
 **Upgrade if you have ever read a cost number out of this tool.** Every run before

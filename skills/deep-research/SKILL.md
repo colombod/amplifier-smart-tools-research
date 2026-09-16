@@ -5,12 +5,31 @@ description: >-
   into a short brief, backed by citations a caller can act on. Reach for it when a
   decision needs more than one source and nobody has time to become the researcher.
   The answer is a brief plus a pointer to the full evidence on disk, so a result too
-  large to hold can still be navigated.
+  large to hold can still be navigated. Use when (1) Find out what is actually known
+  about a question before committing to a decision; (2) Get a short answer with the
+  sources behind it, without reading the sources first; (3) Build a durable evidence
+  record that later questions can be answered against; (4) Produce a bibliography for
+  a topic without collecting the references by hand. Triggers on "deep research",
+  "research this", "find sources", "what is known about".
+license: MIT
+metadata:
+  author: colombod
+  repository: https://github.com/colombod/amplifier-smart-tools-research
+  version: 0.6.0
 ---
+
+# Using deep-research
+
+Answers a research question with evidence: multi-source web research, synthesised into a
+short brief, backed by citations a caller can act on. Reach for it when a decision needs
+more than one source and nobody has time to become the researcher. The answer is a brief
+plus a pointer to the full evidence on disk, so a result too large to hold can still be
+navigated.
 
 ## Install
 
-You may be reading this without having `deep-research` yet -- `npx skills add` installs this document, not the program.
+`npx skills add` installs THIS DOCUMENT, not the program. If `deep-research` is not on
+your PATH, install it:
 
 ```bash
 # as a CLI
@@ -21,135 +40,30 @@ uv add 'deep-research @ git+https://github.com/colombod/amplifier-smart-tools-re
 uvx --from 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research' deep-research --help
 ```
 
-# deep-research
+## Use it
 
-Answers a research question with evidence: multi-source web research, synthesised into a
-short brief, backed by citations a caller can act on. Reach for it when a decision needs
-more than one source and nobody has time to become the researcher. The answer is a brief
-plus a pointer to the full evidence on disk, so a result too large to hold can still be
-navigated.
+Run `deep-research --help`. It prints the tool's skill: when to reach for it, every
+capability, what each costs, worked invocations, how to read a result too large to hold,
+and the sharp edges. Follow it. Confirm every argument against `deep-research <command>
+--help` rather than memory -- each verb prints its own agent-facing document, and `-h`
+gives the terse argparse summary instead.
 
-## Reach for this when
+That document comes from the binary you actually have, so it is correct for your
+installation. This file cannot be, and does not try.
 
-- Find out what is actually known about a question before committing to a decision
-- Get a short answer with the sources behind it, without reading the sources first
-- Build a durable evidence record that later questions can be answered against
-- Produce a bibliography for a topic without collecting the references by hand
+## Staying current
 
-## Cost
-
-Every verb below marked `deterministic` runs with **no AI provider and no credentials**,
-spends nothing, and is safe to call freely -- including on a machine that has never been
-configured. Only the verbs marked `model-backed` spend tokens.
-
-## Verbs
-
-| verb | | what it does |
-|---|---|---|
-| `research` | **model-backed** | answer a research question with evidence |
-| `estimate` | deterministic | what a run will cost and how long, BEFORE spending |
-| `check` | deterministic | whether this host has what the tool needs, and what each gap costs you |
-| `config` | deterministic | the effective settings and which tier each came from |
-| `list` | deterministic | runs in the runs directory, newest first |
-| `status` | deterministic | one run's state, stage progress and usage |
-| `read` | deterministic | a bounded slice of a run's prose; says if it is partial |
-| `sources` | deterministic | a run's citations as structured data |
-| `render` | deterministic | re-shape a stored run: markdown, json, bibliography |
-| `classify` | deterministic | sort URLs into academic, news, docs or other |
-| `manifest` | deterministic | this tool's own manifest |
-
-## Reading the result
-
-One JSON document on stdout. Success is {"result": ...}; failure is{"error": {"code",
-"message", "remedy"}} with a non-zero exit. Progressand diagnostics go to stderr, never
-stdout, so you can parse one without filtering the other. A research result is a BRIEF
-plus a POINTER: `brief` is short and IS the answer, not a teaser; `path` names a run
-directory that outlives the call; `inline` says whether the full report came back with
-the envelope or was left on disk because it was too large. `confidence` is one of low,
-medium or high and reflects what the evidence actually supports -- when it says low,
-believe it.
-
-## Going deeper without swallowing everything
-
-Never swallow a whole run. Every response -- INCLUDING A REFUSAL -- carries
-`affordances`: named next moves, each with a CLI form, a library form, what it returns,
-what it costs, and whether it needs a credential. They are all $0.00 and all
-credential-free, so an agent on an unconfigured host can still explore a result someone
-else paid for. A successful run also carries a `ladder` -- brief, report, sources, raw
--- with each rung's REAL size in bytes, so you can decide what to pull before pulling
-it. SIZE THE READ FIRST. `status <id>` is free and lists every artifact with its bytes
-and line count, so you never need a throwaway read to discover how long a report is.
-Then `read <id> --lines N` for a bounded slice, or `read <id> --sections 1-3` for
-specific numbered sections -- a single section like `2` or a range like `1-3`. A read
-response carries a `sections` list naming the number and title of everything it
-returned, which is how you learn what sections exist. EVERY read carries a completeness
-block: when a view is partial it says so and by how much, and an over-ceiling request is
-refused rather than silently truncated -- so never present a slice as the whole.
-`sources <id> --category academic` returns citations as filterable data. `render <id>
---format bibliography` reshapes a stored run without re-running it. FOR A LONG RUN, use
-`--detach`. It returns in under a second with part one: the run id, where the rest will
-appear, and an explicit `not_yet_true` list -- read that before treating an accepted
-request as an answer. Then ask `status <id>` and read `liveness.state`: `growing` means
-the work is still happening, `final` means it is done, and `abandoned` means the process
-is gone and nothing more is coming. Poll `liveness.state`, never the stage names. THE
-WAIT IS YOURS TO SHAPE, and this is the part callers get wrong: `poll_again_in_seconds`
-is a HINT about when new work will exist, NOT an instruction to sleep that long inside
-one call. A run can outlast your own per-call limit -- ours have taken 658 and 784
-seconds -- so fitting the wait to your ceiling is your job, not this tool's, and how you
-do it is your business. Polling MORE often than the hint is free and safe: `status` is
-deterministic, costs $0.00 and needs no credential, so many short checks are as correct
-as few long ones.CONTROLLING WHAT IT COSTS AND WHAT COMES BACK. `--no-scope` skips the
-question-sharpening stage. Measured both ways: on a question already clear and bounded a
-run costs ~37% MORE with scope than without -- so skipping it saves ~27% of the cost and
-~41% of the wall-clock -- and changes nothing a blind judge could see; on a vague one it
-LOSES a blind comparison 6 for 6. THE TEST IS THE QUESTION, NOT WHO TYPED IT: pass
-`--no-scope` when the question already names its subject, its scope and what would
-answer it, so there is nothing left to sharpen -- a person can ask a question that
-sharp, and a program can emit a woolly one. If you cannot tell, leave it on; paying the
-extra 37% is the cheaper mistake. `estimate --no-scope` prices it for you rather than
-making you do the arithmetic; `--max-sources` is deliberately NOT modelled by estimate,
-because we have no measured cost-per-source. `--max-sources N` caps evidence gathering.
-`--backend` picks where evidence comes from. `--no-inline` keeps the full report OUT of
-the response and returns only the pointer, which is what you want when your context is
-tight; `--inline` forces it in. `--runs-dir PATH` is the shared evidence store -- point
-several callers at one directory and `fact- check --from-run <id>` can reuse evidence
-this tool already paid for, instead of gathering it again. `read <id> --part brief`
-returns just the short answer when that is all you need.GO DEEPER PER VERB. This
-document covers the tool; every verb has its own. `<verb> --help` returns that verb's
-agent-facing document -- what it does, whether it spends money, every flag and what it
-is FOR, and how to read what comes back. `<verb> -h` is the terse flag table for a
-person. The split holds at every level: -h is always for a human who already knows the
-verb, --help is always the document for an agent deciding whether and how to call it.
-When you are about to call something and want more than this overview gives you, ask the
-verb directly.
-
-## What it needs
-
-- **perplexity** (optional) — 
-- **ai-provider** (optional) — 
-
-Run `deep-research check` to see which of these this host actually has. It is
-deterministic, so it answers on a machine with nothing configured -- and it reports what
-each missing one would unlock rather than only that it is missing.
-
-## Examples
-
-Find out what is known, cheaply, before committing to a decision:
+`deep-research manifest` reports the version installed. This pointer was generated from
+0.6.0. If they differ, the tool is the authority -- re-read `--help`, because flags and
+costs change between releases.
 
 ```bash
-deep-research estimate --query 'do state-based CRDTs converge?' --depth low
- deep-research research --query 'do state-based CRDTs converge?' --depth low
-```
+# what you have
+deep-research manifest
 
-Read a large result without pulling all of it into context:
+# what exists
+git ls-remote --tags --refs https://github.com/colombod/amplifier-smart-tools-research | tail -3
 
-```bash
-deep-research read dr-70ce2d29 --lines 40
- deep-research sources dr-70ce2d29 --category academic
-```
-
-Check what this host can actually do, spending nothing:
-
-```bash
-deep-research check
+# upgrade in place
+uv tool install --force 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research'
 ```
