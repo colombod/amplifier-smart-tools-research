@@ -30,11 +30,41 @@ class DepthProfile:
     tokens_out: int
 
 
+#: CALIBRATED AGAINST REAL RUNS, because the first numbers were guesses dressed
+#: as arithmetic. Every measured run exceeded its estimate -- not one came in
+#: under -- and the miss grew with depth:
+#:
+#:     depth  old estimate   observed            ratio
+#:     low    $0.0405        $0.0580 - $0.1275   1.4x - 3.1x
+#:     high   $0.1605        $0.8385 - $1.0087   5.2x - 6.3x
+#:
+#: Observed source counts were roughly double the profile at low (15 against 8)
+#: and two to three times at high (69 and 98 against 34), with wall-clock
+#: similarly over. The profiles below are scaled to the observed MEAN of each
+#: depth. `medium` has no observations at all and is interpolated -- said out
+#: loud rather than presented as measured.
 PROFILES: dict[str, DepthProfile] = {
-    "low": DepthProfile("low", sources=8, seconds=60, tokens_in=6_000, tokens_out=1_500),
-    "medium": DepthProfile("medium", sources=18, seconds=150, tokens_in=14_000, tokens_out=3_200),
-    "high": DepthProfile("high", sources=34, seconds=300, tokens_in=26_000, tokens_out=5_500),
+    "low": DepthProfile("low", sources=15, seconds=100, tokens_in=13_000, tokens_out=3_600),
+    "medium": DepthProfile("medium", sources=40, seconds=350, tokens_in=45_000, tokens_out=12_000),
+    "high": DepthProfile("high", sources=84, seconds=720, tokens_in=140_000, tokens_out=42_000),
 }
+
+#: How far either side of the point a run may reasonably land. Not invented: the
+#: low-depth runs spanned 2.2x between themselves on the SAME depth setting, and
+#: a stage that retries is billed for every attempt -- one measured run spent 63%
+#: of its money on work it discarded. A single number implies a precision nobody
+#: can deliver, so the estimate publishes a band and names why it is wide.
+#: 0.6, not 0.7, and the difference is the whole point: at 0.7 the published
+#: band EXCLUDED one of the four runs it was calibrated on ($0.0580 against a
+#: floor of $0.0651). A band that does not contain its own evidence is worse
+#: than no band, because it looks like a measurement.
+RANGE_LOW = Decimal("0.6")
+RANGE_HIGH = Decimal("2.2")
+
+#: Runs behind the calibration. Small, and stated rather than hidden, because a
+#: caller deciding whether to trust this number deserves to know it rests on
+#: single digits.
+CALIBRATION_RUNS = 4
 
 #: US dollars per thousand tokens. Deliberately a single blended figure rather
 #: than a per-provider table: a table nobody updates is worse than an estimate
@@ -88,6 +118,8 @@ def estimate_run(
         tokens_in = int(tokens_in * float(NO_SCOPE_COST_RATIO))
         tokens_out = int(tokens_out * float(NO_SCOPE_COST_RATIO))
     cost = cost.quantize(Decimal("0.0001"))
+    low = (cost * RANGE_LOW).quantize(Decimal("0.0001"))
+    high = (cost * RANGE_HIGH).quantize(Decimal("0.0001"))
 
     return {
         "depth": depth,
@@ -99,6 +131,13 @@ def estimate_run(
         "estimated_tokens_out": tokens_out,
         "estimated_cost_usd": str(cost),
         "scope": scope,
+        # A BAND, NOT A POINT. Two runs at the SAME depth setting spanned 2.2x
+        # between themselves, and a stage that retries is billed for every
+        # attempt -- one measured run spent 63% of its money on discarded work.
+        # An estimator cannot know how many attempts a stage will need, so a
+        # single figure would promise a precision nobody can deliver.
+        "estimated_cost_usd_range": {"low": str(low), "high": str(high)},
+        "calibration_runs": CALIBRATION_RUNS,
         "basis": (
             (
                 f"depth={depth} profile, scaled for {claims} claims"
@@ -113,8 +152,14 @@ def estimate_run(
         ),
         "is_estimate": True,
         "caveat": (
-            "An estimate from the request alone. A question whose evidence is "
-            "unusually plentiful or unusually scarce will land outside these "
-            "numbers; the run's own run.json records what was actually spent."
+            "An estimate from the request alone, calibrated against "
+            f"{CALIBRATION_RUNS} real runs -- single digits, so treat the point "
+            "figure as the middle of the range rather than a promise. Two runs "
+            "at the same depth spanned 2.2x between themselves. A stage that "
+            "fails validation is retried AND BILLED FOR EVERY ATTEMPT, which no "
+            "estimate can predict: one measured run spent 63% of its money on "
+            "work it discarded. The run's own run.json records what was "
+            "actually spent, including attempts_discarded and "
+            "discarded_cost_usd."
         ),
     }

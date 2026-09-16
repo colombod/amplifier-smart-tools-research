@@ -27,6 +27,27 @@ this release under-reported what it spent.
   moment they became interesting. Every reply is now kept, accepted or not, and a
   string is written as itself rather than JSON-encoded.
 
+- **Every cost estimate was low, and grew worse with depth.** The profiles were
+  guesses dressed as arithmetic; not one measured run came in under its estimate.
+
+  ```
+  depth  old estimate   observed            ratio
+  low    $0.0405        $0.0580 - $0.1275   1.4x - 3.1x
+  high   $0.1605        $0.8385 - $1.0087   5.2x - 6.3x
+  ```
+
+  Profiles are now calibrated to the observed mean of four real runs, and
+  `estimate` publishes a **band** (`estimated_cost_usd_range`) rather than only a
+  point — because a stage that fails validation is retried *and billed for every
+  attempt*, which no estimate can predict. A test asserts the band contains every
+  run it was calibrated on; at the first candidate width it did not.
+- **`run.json` claimed the `scope` stage ran when `--no-scope` was passed.**
+  `scope.json` recorded the skip correctly, but nothing points an auditor there,
+  and the prominent record was the misleading one. A skipped stage is no longer
+  listed as a stage of the run.
+- **`--detach` help said runs take "60 to 550 seconds".** Two measured runs took
+  659 and 784. It now states the real range.
+
 ### Added
 
 - **`fact-check check-claims --detach`.** This verb makes one model call per claim, so

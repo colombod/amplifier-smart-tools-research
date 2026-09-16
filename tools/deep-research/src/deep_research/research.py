@@ -341,7 +341,13 @@ def research(
         query=query,
         depth=budget.depth,
         backend=getattr(engine, "name", "unknown"),
-        stages=STAGES,
+        # A SKIPPED STAGE IS NOT A STAGE OF THIS RUN. run.json used to list
+        # `scope` even when --no-scope was passed. scope.json recorded
+        # `"scoped": false` correctly, but nothing points an auditor there, and
+        # the prominent record was the misleading one -- we drew exactly the
+        # wrong conclusion from it while investigating a real run. Two records
+        # of one fact, and the one a reader reaches first was wrong.
+        stages=STAGES if scope else tuple(s for s in STAGES if s != "scope"),
         quiet=quiet,
         stream=stream,
     )
@@ -351,8 +357,8 @@ def research(
         def progress(event: dict[str, Any]) -> None:
             writer.event(event.pop("type", "progress"), **event)
 
-        writer.start_stage("scope")
         if scope:
+            writer.start_stage("scope")
             scoped = stages.scope(
                 thinker,
                 query,
@@ -371,7 +377,11 @@ def research(
             # question, and this is the other arm of it.
             scoped = StageResult(value={"question": query}, attempts=[])
             writer.write_json("scope.json", {"question": query, "scoped": False})
-            writer.finish_stage("scope", attempts=0, scoped=False)
+            # NOT start_stage/finish_stage. Opening a stage slot is what put
+            # `scope` into run.json's stage list even when it did no work --
+            # and run.json is the record an auditor reads first. scope.json
+            # still records `"scoped": false`, so the skip is on the record;
+            # it is simply no longer recorded as a stage that ran.
             sharpened = query
 
         writer.start_stage("gather")
@@ -630,7 +640,10 @@ def _detach(
                 "created_at": now,
                 "updated_at": now,
                 "detached": True,
-                "stages": [{"name": n, "status": "not_started"} for n in STAGES],
+                "stages": [
+                    {"name": n, "status": "not_started"}
+                    for n in (STAGES if scope else tuple(s for s in STAGES if s != "scope"))
+                ],
                 "counts": {},
                 "usage": {},
                 "confidence": None,

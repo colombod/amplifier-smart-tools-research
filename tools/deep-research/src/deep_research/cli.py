@@ -208,7 +208,8 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "return part one immediately and continue the work in the background. "
             "The response says what is NOT yet true and names `status` as the way "
-            "to find out when it is. A run takes 60 to 550 seconds; blocking for "
+            "to find out when it is. MEASURED runs have taken 57 to 784 seconds -- "
+            "the upper figure is real, not a guess -- so blocking for "
             "that is a choice, not an obligation."
         ),
     )
