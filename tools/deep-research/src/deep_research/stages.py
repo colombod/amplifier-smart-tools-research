@@ -28,7 +28,14 @@ CONFIDENCE = ("low", "medium", "high")
 # -- the stages --------------------------------------------------------------
 
 
-def scope(reasoner: Reasoner, query: str, *, max_attempts: int = 3, on_event=None) -> StageResult:
+def scope(
+    reasoner: Reasoner,
+    query: str,
+    *,
+    max_attempts: int = 3,
+    on_event=None,
+    on_reply=None,
+) -> StageResult:
     """Work out what would actually answer the question, before spending on it."""
 
     def validate(document: Any) -> dict[str, Any]:
@@ -46,6 +53,7 @@ def scope(reasoner: Reasoner, query: str, *, max_attempts: int = 3, on_event=Non
         validate=validate,
         max_attempts=max_attempts,
         on_event=on_event,
+        on_reply=on_reply,
     )
 
 
@@ -57,6 +65,7 @@ def synthesise(
     *,
     max_attempts: int = 3,
     on_event=None,
+    on_reply=None,
 ) -> StageResult:
     """Weigh the evidence and write the report, citing only what it was given."""
     known = {s["id"] for s in sources}
@@ -122,4 +131,5 @@ def synthesise(
         validate=validate,
         max_attempts=max_attempts,
         on_event=on_event,
+        on_reply=on_reply,
     )

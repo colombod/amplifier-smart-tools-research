@@ -242,6 +242,24 @@ def _next_commands(run_id: str, report: str) -> dict[str, str]:
     }
 
 
+def _reply_keeper(writer, stage: str):
+    """Persist EVERY backend reply for a stage, accepted or rejected.
+
+    `raw/` is documented as "the backend's own replies, verbatim, for audit" and
+    for most of this tool's life it held exactly one file, for one stage. A real
+    run then failed synthesis twice at $0.38 an attempt and the replies were
+    discarded at the instant they became the only evidence of why -- so the cause
+    is permanently undiagnosable. A caller is charged for a rejected attempt; it
+    is entitled to see what it paid for.
+    """
+
+    def keep(attempt: int, text: str, accepted: bool) -> None:
+        suffix = "" if accepted else "-rejected"
+        writer.write_raw(f"{stage}-{attempt:02d}{suffix}.txt", text)
+
+    return keep
+
+
 def research(
     query: str,
     *,
@@ -335,7 +353,13 @@ def research(
 
         writer.start_stage("scope")
         if scope:
-            scoped = stages.scope(thinker, query, max_attempts=attempts_allowed, on_event=progress)
+            scoped = stages.scope(
+                thinker,
+                query,
+                max_attempts=attempts_allowed,
+                on_event=progress,
+                on_reply=_reply_keeper(writer, "scope"),
+            )
             writer.write_json("scope.json", scoped.value)
             writer.record_usage(scoped.usage)
             writer.finish_stage("scope", attempts=len(scoped.attempts), scoped=True)
@@ -438,6 +462,7 @@ def research(
             body,
             max_attempts=attempts_allowed,
             on_event=progress,
+            on_reply=_reply_keeper(writer, "synthesise"),
         )
         writer.write_json(
             "attempts.json",

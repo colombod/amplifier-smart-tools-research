@@ -73,6 +73,7 @@ def triage(
     strict: bool = False,
     max_attempts: int = 3,
     on_event=None,
+    on_reply=None,
 ) -> StageResult:
     """Sort claims by what checking each would take.
 
@@ -134,6 +135,7 @@ def triage(
         validate=validate,
         max_attempts=max_attempts,
         on_event=on_event,
+        on_reply=on_reply,
     )
 
 
@@ -147,6 +149,7 @@ def verify_one(
     *,
     max_attempts: int = 3,
     on_event=None,
+    on_reply=None,
 ) -> tuple[Verdict, StageResult]:
     """Assess one claim. Claims are independent, so this is the unit that fans out."""
     known = {s["id"] for s in sources}
@@ -219,6 +222,7 @@ def verify_one(
         validate=validate,
         max_attempts=max_attempts,
         on_event=on_event,
+        on_reply=on_reply,
     )
     document = result.value
     return (
@@ -249,6 +253,7 @@ def compile_summary(
     *,
     max_attempts: int = 3,
     on_event=None,
+    on_reply=None,
 ) -> StageResult:
     """Say what the set of verdicts means together."""
     rendered = "\n\n".join(
@@ -275,4 +280,5 @@ def compile_summary(
         validate=validate,
         max_attempts=max_attempts,
         on_event=on_event,
+        on_reply=on_reply,
     )

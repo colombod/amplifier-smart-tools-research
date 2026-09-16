@@ -86,18 +86,29 @@ def run_stage(
     validate,
     max_attempts: int = 3,
     on_event=None,
+    on_reply=None,
 ) -> StageResult:
     """Run one stage, repairing on rejection, failing loudly when spent.
 
     ``validate`` receives the parsed document and either returns it or raises
     StageRejected carrying the specific finding to put in front of the model next
     time. "Try again" teaches nothing; "you cited s4, which does not exist" does.
+
+    ``on_reply`` receives EVERY reply -- accepted and rejected alike -- as
+    ``(attempt_number, text, accepted)``. Rejected replies are the ones worth
+    keeping: a run once failed synthesis twice at $0.38 a go and the replies were
+    discarded at the moment they became interesting, leaving the cause
+    undiagnosable. A caller is charged for an attempt whether or not it was
+    accepted, so it is entitled to see what it bought.
     """
     attempts: list[Attempt] = []
     current = prompt
 
     for number in range(1, max(1, max_attempts) + 1):
         thought = reasoner.think(current, on_event=on_event)
+        # Recorded BEFORE parsing, so a reply survives even when parsing is the
+        # thing that fails -- which is precisely the case we could not diagnose.
+        reply_text = getattr(thought, "text", "") or ""
         try:
             document = extract_json(thought.text)
         except NoStructureFound as exc:
@@ -113,6 +124,8 @@ def run_stage(
                 rejection = exc
             else:
                 attempts.append(Attempt(number, accepted=True, usage=thought.usage))
+                if on_reply:
+                    on_reply(number, reply_text, True)
                 if on_event:
                     on_event(
                         {
@@ -127,6 +140,8 @@ def run_stage(
         attempts.append(
             Attempt(number, accepted=False, reason=rejection.reason, usage=thought.usage)
         )
+        if on_reply:
+            on_reply(number, reply_text, False)
         if on_event:
             on_event(
                 {

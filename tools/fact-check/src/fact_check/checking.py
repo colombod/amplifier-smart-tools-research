@@ -28,6 +28,24 @@ STAGES = ("triage", "verify", "compile")
 INLINE_BYTE_THRESHOLD = 8_000
 
 
+def _reply_keeper(writer, stage: str):
+    """Persist EVERY backend reply for a stage, accepted or rejected.
+
+    `raw/` is documented as "the backend's own replies, verbatim, for audit".
+    fact-check wrote NOTHING there -- not one reply, accepted or otherwise. A
+    sibling run in deep-research then failed a stage twice at $0.38 an attempt
+    and the replies were discarded at the instant they became the only evidence
+    of why. A caller is charged for a rejected attempt and is entitled to see
+    what it paid for.
+    """
+
+    def keep(attempt: int, text: str, accepted: bool) -> None:
+        suffix = "" if accepted else "-rejected"
+        writer.write_raw(f"{stage}-{attempt:02d}{suffix}.txt", text)
+
+    return keep
+
+
 def read_claims(*, claim: list[str] | None = None, claims_file: str | None = None) -> list[str]:
     """Collect claims from arguments or a file, one per non-empty line."""
     collected = [c.strip() for c in (claim or []) if c and c.strip()]
@@ -144,6 +162,7 @@ def check_claims(
             strict=strict,
             max_attempts=attempts_allowed,
             on_event=progress,
+            on_reply=_reply_keeper(writer, "triage"),
         )
         writer.write_json("claims.json", sorted_claims.value)
         writer.record_usage(sorted_claims.usage)
@@ -179,6 +198,7 @@ def check_claims(
                     findings,
                     max_attempts=attempts_allowed,
                     on_event=progress,
+                    on_reply=_reply_keeper(writer, f"verify-{index:02d}"),
                 )
             except AttemptsExhausted as exc:
                 # A claim the tool could not check is NOT `unverifiable`. That
@@ -217,7 +237,11 @@ def check_claims(
 
         writer.start_stage("compile")
         summary = stages.compile_summary(
-            thinker, verdicts, max_attempts=attempts_allowed, on_event=progress
+            thinker,
+            verdicts,
+            max_attempts=attempts_allowed,
+            on_event=progress,
+            on_reply=_reply_keeper(writer, "summary"),
         )
         writer.record_usage(summary.usage)
         report = str(summary.value["report"]).strip() + "\n"
