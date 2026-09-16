@@ -158,6 +158,29 @@ __all__ = [
 ]
 
 
+#: How to OBTAIN this tool. Prepended to the installed SKILL.md and
+#: deliberately absent from `--help`, whose reader already has the binary.
+INSTALL = (
+    (
+        "as a CLI",
+        "uv tool install "
+        "'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/fact-check'",
+    ),
+    (
+        "as a library, from another project",
+        "uv add "
+        "'fact-check @ git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/fact-check'",
+    ),
+    (
+        "once, without installing",
+        "uvx --from "
+        "'git+https://github.com/colombod/"
+        "amplifier-smart-tools-research#subdirectory=tools/fact-check' "
+        "fact-check --help",
+    ),
+)
+
+
 def skill() -> str:
     """This tool rendered as an Agent Skill, for a host that consumes skills.
 

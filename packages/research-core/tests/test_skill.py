@@ -155,7 +155,10 @@ def test_the_committed_skill_file_matches_what_the_library_returns(tool, slug):
     import importlib
     from pathlib import Path
 
-    expected = importlib.import_module(tool).skill()
+    from research_core.skill import compose_skill_file
+
+    module = importlib.import_module(tool)
+    expected = compose_skill_file(slug, module.INSTALL, module.skill())
     path = Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md"
     assert path.exists(), f"{path} is missing -- regenerate it from {tool}.skill()"
     assert path.read_text(encoding="utf-8") == expected, (
@@ -167,13 +170,19 @@ def test_the_committed_skill_file_matches_what_the_library_returns(tool, slug):
     "tool,slug", [("deep_research", "deep-research"), ("fact_check", "fact-check")]
 )
 def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, capsys):
-    """`--help` and `skills/<name>/SKILL.md` must be the SAME document.
+    """The installed file is EXACTLY the install block plus `--help`.
 
-    Two ways to get a tool's skill -- run `--help`, or let a host install the
-    file -- and if they differ by so much as a byte, a caller who compares them
-    has to work out which one is authoritative. They were briefly off by one
-    trailing newline, because `print()` adds one to a string that already ends
-    in a newline. Nobody would have noticed by reading.
+    These were byte-identical until the file gained an `## Install` section, and
+    then equality became incoherent: `--help` is read by someone who already has
+    the binary, so telling them how to obtain it is nonsense, while a host that
+    ran `npx skills add` may hold the document WITHOUT the program, because that
+    command installs a document and not a program.
+
+    The invariant was never really "these two strings are equal" -- it was "there
+    is one source and the second artifact is mechanically derived from it", and
+    equality was simply the cheapest derivation that worked until now. So this
+    asserts the RELATIONSHIP: still impossible to drift, and each of the two
+    readers gets the document that is true for them.
     """
     import importlib
     from pathlib import Path
@@ -183,11 +192,26 @@ def test_help_output_is_byte_identical_to_the_installed_skill_file(tool, slug, c
         cli.build_parser().parse_args(["--help"])
     assert exit_info.value.code == 0
 
+    from research_core.skill import compose_skill_file
+
     printed = capsys.readouterr().out
     on_disk = (Path(__file__).resolve().parents[3] / "skills" / slug / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    assert printed == on_disk, "--help and the installed SKILL.md have diverged"
+    module = importlib.import_module(tool)
+
+    assert on_disk == compose_skill_file(slug, module.INSTALL, printed), (
+        "the installed SKILL.md is no longer --help with the install block spliced in"
+    )
+    # The property that actually matters to a host, asserted directly: the spec
+    # puts YAML frontmatter at the top, and that is how a skill is discovered.
+    assert on_disk.startswith("---\n"), (
+        "the installed skill no longer opens with YAML frontmatter -- a host "
+        "cannot read its name or description, so it cannot find it at all"
+    )
+    assert "## Install" not in printed, (
+        "`--help` is read by someone who HAS the tool; acquisition instructions do not belong there"
+    )
 
 
 def test_the_brief_is_bounded_because_it_is_the_proxy():

@@ -8,6 +8,19 @@ description: >-
   independently, so one false claim does not condemn the rest.
 ---
 
+## Install
+
+You may be reading this without having `fact-check` yet -- `npx skills add` installs this document, not the program.
+
+```bash
+# as a CLI
+uv tool install 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/fact-check'
+# as a library, from another project
+uv add 'fact-check @ git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/fact-check'
+# once, without installing
+uvx --from 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/fact-check' fact-check --help
+```
+
 # fact-check
 
 Checks claims against evidence and returns a verdict per claim -- supported, refuted,

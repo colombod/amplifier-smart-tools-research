@@ -65,6 +65,9 @@ def render_skill(
     ``verbs`` maps verb name to one line of what it does. ``model_backed`` names
     the ones that spend. ``result_shape`` and ``navigation`` are the two things a
     caller cannot infer from a verb list and most needs before calling.
+
+    Acquisition instructions are deliberately NOT here -- see
+    ``render_install_block``.
     """
     data = manifest.to_dict() if hasattr(manifest, "to_dict") else dict(manifest)
     name = data.get("name", "tool")
@@ -333,3 +336,54 @@ def wire_verb_help(verbs: Any, *, prog: str, model_backed: tuple[str, ...] = ())
                     group._group_actions.remove(action)
 
         add_verb_help_flags(subparser, prog=prog, verb=verb, spends_money=verb in model_backed)
+
+
+def render_install_block(name: str, install: tuple[tuple[str, str], ...]) -> str:
+    """How to OBTAIN the tool: the one section `--help` must not carry.
+
+    A reader running `--help` already has the binary, so telling them how to get
+    it is incoherent. A host that ran `npx skills add` may hold this document
+    WITHOUT the program, because that command installs a document and not a
+    program. Two readers, two needs, one source.
+    """
+    if not install:
+        return ""
+    lines = [
+        "## Install",
+        "",
+        f"You may be reading this without having `{name}` yet -- `npx skills add` "
+        "installs this document, not the program.",
+        "",
+        "```bash",
+    ]
+    for comment, command in install:
+        lines += [f"# {comment}", command]
+    lines += ["```", "", ""]
+    return "\n".join(lines)
+
+
+def compose_skill_file(name: str, install: tuple[tuple[str, str], ...], skill_text: str) -> str:
+    """The installed SKILL.md: `--help`, with the install block spliced in.
+
+    SPLICED AFTER THE FRONTMATTER, NOT PREPENDED. The Agent Skills spec puts YAML
+    frontmatter at the top of the file, and that is how a host learns the skill's
+    name and description -- which is to say, how it discovers the skill at all.
+    Prepending a markdown section pushed the frontmatter to line 14 and silently
+    broke the one thing the file exists to do. Caught by looking; no test would
+    have failed.
+
+    The invariant was never "these two strings are equal", it was "one source,
+    and the second artifact is mechanically derived from it". This is that
+    derivation, and the drift test asserts it exactly.
+    """
+    block = render_install_block(name, install)
+    if not block:
+        return skill_text
+
+    # The frontmatter is the leading `---` ... `---`. Anything else is a document
+    # we do not recognise, and guessing where to splice would be worse than
+    # refusing to.
+    if not skill_text.startswith("---\n"):
+        raise ValueError(f"{name}: skill text does not open with YAML frontmatter")
+    end = skill_text.index("\n---\n", 4) + len("\n---\n")
+    return skill_text[:end] + "\n" + block + skill_text[end:].lstrip("\n")

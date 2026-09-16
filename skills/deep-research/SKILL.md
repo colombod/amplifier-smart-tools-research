@@ -8,6 +8,19 @@ description: >-
   large to hold can still be navigated.
 ---
 
+## Install
+
+You may be reading this without having `deep-research` yet -- `npx skills add` installs this document, not the program.
+
+```bash
+# as a CLI
+uv tool install 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research'
+# as a library, from another project
+uv add 'deep-research @ git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research'
+# once, without installing
+uvx --from 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research' deep-research --help
+```
+
 # deep-research
 
 Answers a research question with evidence: multi-source web research, synthesised into a
