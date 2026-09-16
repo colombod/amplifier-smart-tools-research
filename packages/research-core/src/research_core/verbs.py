@@ -79,7 +79,11 @@ def cmd_classify(args: argparse.Namespace) -> dict[str, Any]:
 
 def cmd_estimate(args: argparse.Namespace) -> dict[str, Any]:
     return api.estimate(
-        query=args.query, claims=args.claims, depth=args.depth, runs_dir=args.runs_dir
+        query=args.query,
+        claims=args.claims,
+        depth=args.depth,
+        runs_dir=args.runs_dir,
+        scope=getattr(args, "scope", True),
     )
 
 
@@ -234,4 +238,17 @@ def register(verbs: Any, *, prog: str, package: str, include_verdicts: bool = Fa
     estimate.add_argument("--query", metavar="TEXT", help="the research question")
     estimate.add_argument("--claims", type=int, metavar="N", help="how many claims to check")
     estimate.add_argument("--depth", choices=DEPTHS, help="override the configured depth")
+    estimate.add_argument(
+        "--no-scope",
+        dest="scope",
+        action="store_false",
+        help=(
+            "price the run as it would be WITHOUT the question-sharpening stage. "
+            "Measured over six interleaved live runs: a run costs ~37%% more with "
+            "scope than without, so skipping it saves ~27%%. NOT MODELLED, and "
+            "said plainly so you stop looking: --max-sources. We have no measured "
+            "cost-per-source, and an estimator that silently accepted the flag "
+            "while ignoring it would be worse than one that rejects it."
+        ),
+    )
     estimate.set_defaults(handler=cmd_estimate)

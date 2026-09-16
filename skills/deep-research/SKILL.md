@@ -81,25 +81,28 @@ wait `poll_again_in_seconds` and ask again, `final` means the work is done, and
 `abandoned` means the process is gone and nothing more is coming. Poll `liveness.state`,
 never the stage names.CONTROLLING WHAT IT COSTS AND WHAT COMES BACK. `--no-scope` skips
 the question-sharpening stage. Measured both ways: on a question already clear and
-bounded it saves ~37% of the cost and ~69% of the wall-clock and changes nothing a blind
-judge could see; on a vague one it LOSES a blind comparison 6 for 6. THE TEST IS THE
-QUESTION, NOT WHO TYPED IT: pass `--no-scope` when the question already names its
-subject, its scope and what would answer it, so there is nothing left to sharpen -- a
-person can ask a question that sharp, and a program can emit a woolly one. If you cannot
-tell, leave it on; paying 37% is the cheaper mistake. `--max-sources N` caps evidence
-gathering. `--backend` picks where evidence comes from. `--no-inline` keeps the full
-report OUT of the response and returns only the pointer, which is what you want when
-your context is tight; `--inline` forces it in. `--runs-dir PATH` is the shared evidence
-store -- point several callers at one directory and `fact- check --from-run <id>` can
-reuse evidence this tool already paid for, instead of gathering it again. `read <id>
---part brief` returns just the short answer when that is all you need.GO DEEPER PER
-VERB. This document covers the tool; every verb has its own. `<verb> --help` returns
-that verb's agent-facing document -- what it does, whether it spends money, every flag
-and what it is FOR, and how to read what comes back. `<verb> -h` is the terse flag table
-for a person. The split holds at every level: -h is always for a human who already knows
-the verb, --help is always the document for an agent deciding whether and how to call
-it. When you are about to call something and want more than this overview gives you, ask
-the verb directly.
+bounded a run costs ~37% MORE with scope than without -- so skipping it saves ~27% of
+the cost and ~41% of the wall-clock -- and changes nothing a blind judge could see; on a
+vague one it LOSES a blind comparison 6 for 6. THE TEST IS THE QUESTION, NOT WHO TYPED
+IT: pass `--no-scope` when the question already names its subject, its scope and what
+would answer it, so there is nothing left to sharpen -- a person can ask a question that
+sharp, and a program can emit a woolly one. If you cannot tell, leave it on; paying the
+extra 37% is the cheaper mistake. `estimate --no-scope` prices it for you rather than
+making you do the arithmetic; `--max-sources` is deliberately NOT modelled by estimate,
+because we have no measured cost-per-source. `--max-sources N` caps evidence gathering.
+`--backend` picks where evidence comes from. `--no-inline` keeps the full report OUT of
+the response and returns only the pointer, which is what you want when your context is
+tight; `--inline` forces it in. `--runs-dir PATH` is the shared evidence store -- point
+several callers at one directory and `fact- check --from-run <id>` can reuse evidence
+this tool already paid for, instead of gathering it again. `read <id> --part brief`
+returns just the short answer when that is all you need.GO DEEPER PER VERB. This
+document covers the tool; every verb has its own. `<verb> --help` returns that verb's
+agent-facing document -- what it does, whether it spends money, every flag and what it
+is FOR, and how to read what comes back. `<verb> -h` is the terse flag table for a
+person. The split holds at every level: -h is always for a human who already knows the
+verb, --help is always the document for an agent deciding whether and how to call it.
+When you are about to call something and want more than this overview gives you, ask the
+verb directly.
 
 ## What it needs
 

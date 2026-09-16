@@ -181,6 +181,7 @@ def estimate(
     claims: int | None = None,
     depth: str | None = None,
     runs_dir: str | None = None,
+    scope: bool = True,
 ) -> dict[str, Any]:
     """What a run will cost and how long it will take, before anything is spent."""
     settings = _settings(runs_dir=runs_dir, depth=depth)
@@ -189,6 +190,11 @@ def estimate(
             "Nothing to estimate.",
             "Give a query for a research run, or a claim count for a fact-check.",
         )
-    document = estimate_run(depth=settings["depth"], claims=claims, backend=settings["backend"])
+    document = estimate_run(
+        depth=settings["depth"],
+        claims=claims,
+        backend=settings["backend"],
+        scope=scope,
+    )
     document["query"] = query
     return document

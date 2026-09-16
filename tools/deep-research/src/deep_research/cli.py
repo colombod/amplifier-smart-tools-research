@@ -194,7 +194,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help=(
             "skip the question-sharpening stage. Measured: on a question that is "
-            "already clear and bounded this saves ~37%% of the cost and ~69%% of the "
+            "already clear and bounded the run costs ~37%% more WITH scope, so skipping "
+            "it saves ~27%% of the cost and ~41%% of the "
             "wall-clock and changes nothing a blind judge could see -- but on a "
             "vague one it loses a blind comparison 6 for 6. Use it when you know "
             "what you are asking; leave it on when you are not sure."

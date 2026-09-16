@@ -43,10 +43,31 @@ COST_PER_1K_IN = Decimal("0.003")
 COST_PER_1K_OUT = Decimal("0.015")
 
 
+#: What skipping the question-sharpening stage actually costs, measured over six
+#: interleaved live runs (evaluation/TUNING-LOG.md entry 006): scope on averaged
+#: $0.5463, scope off $0.3996, with non-overlapping ranges. A caller that passes
+#: --no-scope pays 0.7315 of what it would otherwise pay.
+#:
+#: NOTE THE DIRECTION, because we got it wrong in prose first: the run costs ~37%
+#: MORE with scope than without, which is a ~27% SAVING when you turn it off.
+#: Those are the same measurement and different numbers, and quoting the larger
+#: one as the saving overstates it by ten points.
+NO_SCOPE_COST_RATIO = Decimal("0.7315")
+
+
 def estimate_run(
-    *, depth: str = "medium", claims: int | None = None, backend: str = "perplexity"
+    *,
+    depth: str = "medium",
+    claims: int | None = None,
+    backend: str = "perplexity",
+    scope: bool = True,
 ) -> dict[str, Any]:
-    """Estimate one run. ``claims`` scales the estimate for a fact-check."""
+    """Estimate one run. ``claims`` scales the estimate for a fact-check.
+
+    ``scope`` models the question-sharpening stage, because an estimator that
+    cannot price the decision a caller is about to make is answering a question
+    nobody asked. Two independent agents hit that wall in testing.
+    """
     if depth not in PROFILES:
         from research_core.errors import UsageError
 
@@ -61,9 +82,12 @@ def estimate_run(
     scale = 1.0 if not claims else 1.0 + 0.6 * (claims - 1)
     tokens_in = int(profile.tokens_in * scale)
     tokens_out = int(profile.tokens_out * scale)
-    cost = (
-        Decimal(tokens_in) / 1000 * COST_PER_1K_IN + Decimal(tokens_out) / 1000 * COST_PER_1K_OUT
-    ).quantize(Decimal("0.0001"))
+    cost = Decimal(tokens_in) / 1000 * COST_PER_1K_IN + Decimal(tokens_out) / 1000 * COST_PER_1K_OUT
+    if not scope:
+        cost *= NO_SCOPE_COST_RATIO
+        tokens_in = int(tokens_in * float(NO_SCOPE_COST_RATIO))
+        tokens_out = int(tokens_out * float(NO_SCOPE_COST_RATIO))
+    cost = cost.quantize(Decimal("0.0001"))
 
     return {
         "depth": depth,
@@ -74,10 +98,18 @@ def estimate_run(
         "estimated_tokens_in": tokens_in,
         "estimated_tokens_out": tokens_out,
         "estimated_cost_usd": str(cost),
+        "scope": scope,
         "basis": (
-            f"depth={depth} profile, scaled for {claims} claims"
-            if claims
-            else f"depth={depth} profile"
+            (
+                f"depth={depth} profile, scaled for {claims} claims"
+                if claims
+                else f"depth={depth} profile"
+            )
+            + (
+                ""
+                if scope
+                else f", x{NO_SCOPE_COST_RATIO} for --no-scope (measured, TUNING-LOG 006)"
+            )
         ),
         "is_estimate": True,
         "caveat": (
