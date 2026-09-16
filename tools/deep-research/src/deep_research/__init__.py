@@ -207,6 +207,20 @@ def skill() -> str:
             "`growing` means wait `poll_again_in_seconds` and ask again, `final` means "
             "the work is done, and `abandoned` means the process is gone and nothing "
             "more is coming. Poll `liveness.state`, never the stage names."
+            "CONTROLLING WHAT IT COSTS AND WHAT COMES BACK. `--no-scope` skips the "
+            "question-sharpening stage. Measured both ways: on a question already clear "
+            "and bounded it saves ~37% of the cost and ~69% of the wall-clock and "
+            "changes nothing a blind judge could see; on a vague one it LOSES a blind "
+            "comparison 6 for 6. Pass it when you know exactly what you are asking -- "
+            "typically when a program composed the question -- and leave it off when a "
+            "person phrased it. `--max-sources N` caps evidence gathering. `--backend` "
+            "picks where evidence comes from. `--no-inline` keeps the full report OUT "
+            "of the response and returns only the pointer, which is what you want when "
+            "your context is tight; `--inline` forces it in. `--runs-dir PATH` is the "
+            "shared evidence store -- point several callers at one directory and `fact- "
+            "check --from-run <id>` can reuse evidence this tool already paid for, "
+            "instead of gathering it again. `read <id> --part brief` returns just the "
+            "short answer when that is all you need."
         ),
         examples=(
             (

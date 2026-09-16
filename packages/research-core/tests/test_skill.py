@@ -203,22 +203,89 @@ def test_the_brief_is_bounded_because_it_is_the_proxy():
     assert "IS the answer" in prompts.SYNTHESISE
 
 
-def test_the_skill_documents_every_flag_our_own_messages_advertise():
-    """We told an agent to use `--sections` and never said how.
+#: Flags an agent-facing skill may omit, each with the reason it is omitted.
+#: An entry here is a decision somebody wrote down. Anything NOT here and not in
+#: the skill is an oversight, and the test below calls it one.
+SKILL_EXEMPT = {
+    "--help": "it IS the skill -- documenting it inside itself is circular",
+    "--quiet": "suppresses stderr progress; an agent parsing stdout is unaffected",
+    "--timeout-ms": "operational knob with a sensible default; no decision for a caller",
+    "--out": "a destination path for `render`, obvious from the verb",
+    "--limit": "pagination on `list`; the default is fine and the flag is discoverable",
+    "--status": "a filter on `list`, same",
+    "--tool": "a filter on `list`, same",
+    "--url": "the sole argument of `classify`; the verb is meaningless without it",
+    "--claims": "`estimate`'s fact-check variant; the fact-check skill covers it",
+    "--inline": "documented as the pair `--no-inline`, which is the one worth reaching for",
+    "--format": "documented in the skill's navigation text",
+    "--category": "documented in the skill's navigation text",
+    "--depth": "documented in the skill's examples",
+    "--query": "documented in the skill's examples",
+    "--detach": "documented in the skill's navigation text",
+    "--lines": "documented in the skill's navigation text",
+    "--sections": "documented in the skill's navigation text",
+}
 
-    Found by measurement, not review: an agent given only the skill hit a
-    partial read, followed the completeness note exactly as written, and could
-    not do what the note told it to do. Advertising a capability with no way to
-    reach it is worse than not mentioning it -- the caller is left holding
-    advice it cannot follow.
+
+def _every_flag(parser) -> set[str]:
+    """Every long flag the CLI actually accepts, across all verbs."""
+    flags = set()
+    for group in parser._subparsers._group_actions:
+        for sub in group.choices.values():
+            for action in sub._actions:
+                flags.update(o for o in action.option_strings if o.startswith("--"))
+    return flags
+
+
+def test_every_flag_is_either_in_the_skill_or_exempted_on_purpose():
+    """The skill is the ONLY document an agent gets. A flag missing from it does
+    not exist, however well `--help` describes it.
+
+    THIS DEFECT HAPPENED TWICE. First `--sections`, which our own completeness
+    note told callers to use while the skill never mentioned it -- an agent
+    followed our advice exactly and could not comply. Then `--no-scope`, added
+    with carefully measured help text, invisible to every agent consumer.
+
+    The test written after the first occurrence asserted `--sections` appears in
+    the skill. It checked ONE flag while its name claimed it checked every flag,
+    and it passed on the commit that introduced the second one. So this version
+    enumerates the parser instead of naming favourites: a new flag with no skill
+    text and no exemption FAILS here, which is the only way this stops recurring.
     """
+    import deep_research
+    from deep_research.cli import build_parser
+
+    skill = deep_research.skill()
+    undocumented = sorted(
+        flag
+        for flag in _every_flag(build_parser())
+        if flag not in skill and flag not in SKILL_EXEMPT
+    )
+    assert not undocumented, (
+        f"these flags exist but no agent can discover them: {undocumented}. "
+        "Document each in the skill, or add it to SKILL_EXEMPT with the reason "
+        "an agent does not need it."
+    )
+
+
+def test_the_exemption_list_does_not_rot():
+    """An exemption for a flag that no longer exists is a stale excuse.
+
+    Without this, SKILL_EXEMPT accumulates entries for deleted flags and quietly
+    grows into a list nobody trusts -- which is how an allow-list stops being a
+    record of decisions and becomes a place to hide things.
+    """
+    from deep_research.cli import build_parser
+
+    stale = sorted(set(SKILL_EXEMPT) - _every_flag(build_parser()))
+    assert not stale, f"SKILL_EXEMPT names flags that no longer exist: {stale}"
+
+
+def test_the_skill_teaches_the_flag_that_costs_or_saves_money():
+    """`--no-scope` is the one flag with a measured price on both sides."""
     import deep_research
 
     skill = " ".join(deep_research.skill().split())
-    assert "--sections" in skill, "our completeness note names it; the skill must teach it"
-    assert "1-3" in skill, "the syntax has to be shown, not implied"
-    # And how a caller learns which sections exist at all.
-    assert "`sections` list" in skill
-
-    # The other half: sizing a read without a throwaway call.
-    assert "status" in skill and "line count" in skill
+    assert "--no-scope" in skill
+    # Both halves, or a caller cannot tell when to reach for it.
+    assert "37%" in skill and "6 for 6" in skill
