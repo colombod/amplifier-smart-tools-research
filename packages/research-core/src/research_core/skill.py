@@ -377,8 +377,16 @@ def render_pointer_skill(
     if cases:
         numbered = "; ".join(f"({i}) {' '.join(str(c).split())}" for i, c in enumerate(cases, 1))
         summary = f"{description} Use when {numbered}."
-    if triggers:
-        summary += " Triggers on " + ", ".join(f'"{x}"' for x in triggers) + "."
+    # NO "Triggers on ..." CLAUSE, and the parameter is kept only so callers do
+    # not break. A real user had to name our video tool explicitly in Codex
+    # before it would be reached for, and the cause was exactly this: a trailing
+    # keyword list tells a matcher to look for PHRASES rather than intent, and
+    # nobody asking a real question says "deep research" out loud.
+    #
+    # Hand-editing the committed SKILL.md did not fix it -- this generator put
+    # the clause straight back, which is what the drift test caught. The fix has
+    # to live here.
+    _ = triggers
 
     lines = [
         "---",
@@ -399,7 +407,10 @@ def render_pointer_skill(
         "",
         f"# Using {name}",
         "",
-        _wrap(description),
+        # NOT the description again. It is already in the frontmatter directly
+        # above, and repeating ~900 characters verbatim pushed this file past
+        # the size guard that keeps it a POINTER rather than a copy of --help.
+        _wrap(f"`{name} --help` is the real document. This file only says how to get the tool."),
         "",
         "## Install",
         "",
@@ -412,8 +423,39 @@ def render_pointer_skill(
     ]
     for comment, command in install:
         lines += [f"# {comment}", command]
+    lines += ["```"]
+
+    # WHAT EACH THING NEEDS, spelled out here rather than discovered by failure.
+    # Reported from real use: an agent hit "not configured" partway through a
+    # task, had to work out which of two separate things was missing, and
+    # substituted a different tool entirely. The manifest knew the answer the
+    # whole time; the skill just never said it.
+    requires = data.get("requires") or []
+    if requires:
+        needed = [r for r in requires if not r.get("optional")]
+        optional = [r for r in requires if r.get("optional")]
+        lines += ["", "## What needs setting up", ""]
+        def _line(item: Any) -> str:
+            purpose = " ".join(str(item.get("purpose", "")).split())
+            return f"- **{item.get('name')}** -- {purpose.split('.')[0][:110]}."
+
+        if needed:
+            lines += ["Required:", ""] + [_line(i) for i in needed] + [""]
+        if optional:
+            lines += [
+                "Optional -- everything else runs without them:",
+                "",
+                *[_line(i) for i in optional],
+                "",
+            ]
+        lines.append(
+            _wrap(
+                f"`{name} config` says which of these THIS machine has and what to run "
+                "for each gap. Check it before calling a capability unavailable."
+            )
+        )
+
     lines += [
-        "```",
         "",
         "## Use it",
         "",
