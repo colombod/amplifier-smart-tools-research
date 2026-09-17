@@ -197,9 +197,13 @@ sources, the verdicts, the raw backend replies and an event log of everything th
 The only other path anything is written to is `engine_home` — the embedded engine's cache,
 its module clones, and one working directory per turn, created there and removed when the
 turn ends. It defaults to the engine's own `~/.amplifier-agent`, and `RESEARCH_ENGINE_HOME`
-moves it. **If your host confines writes to a workspace, point those two settings there and
-everything lands inside it**; `deep-research check` reports both paths and whether each is
-writable, and a model-backed verb refuses up front rather than dying mid-run if one is not.
+moves it.
+
+**On a host that confines writes, set `runs_dir` and you are done.** If the engine's usual
+directory is unwritable and you named nothing else, the tree goes to `<runs_dir>/.engine`
+— reported, not silent, as `source: "fallback"` in `check` and in the run's event log. A
+path you *did* name is never replaced, only refused, and `check` reports both paths with a
+writable flag so nothing is discovered mid-run.
 
 ## Maturity — stated plainly
 

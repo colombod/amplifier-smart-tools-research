@@ -219,6 +219,11 @@ what the reference smart tools do, and each with a reason:
   The lever is `AMPLIFIER_AGENT_HOME`, **not** `AMPLIFIER_HOME`: the engine overwrites
   that one at import, so exporting it does nothing — and a test holds the engine to both
   halves of that claim, because our refusal message states them.
+- **Fill a gap, never overrule an intention.** When the engine's usual directory is
+  unusable and *nothing* named another, the tree goes inside `runs_dir`, reported as its
+  own `fallback` tier. When a path *was* named and does not work, we refuse instead.
+  Silently ignoring a stated setting is the failure mode we were just bitten by; doing it
+  ourselves would be worse for knowing better.
 
 **The rule that keeps this honest:** `research_core` imports nothing from the engine at
 module level, ever.

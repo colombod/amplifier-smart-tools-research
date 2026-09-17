@@ -31,6 +31,11 @@ model-backed stage of a run it has already paid for. `AMPLIFIER_HOME` is not the
 `packages/research-core/tests/test_engine_home.py` holds the engine to both halves of
 that claim, since our refusal message states them.
 
+**Fill a gap, never overrule an intention.** A host that named nothing gets a working
+path chosen for it (inside `runs_dir`) and is told so. A host that named one that does not
+work is refused, never quietly relocated — a setting that does nothing while nothing says
+so is the bug we were fixing.
+
 **Refuse rather than degrade.** This codebase would rather fail loudly than return a plausible
 answer built on nothing. A gather that called no tool, a run with no sources, a citation
 pointing at a source that does not exist, a claim that could not be checked for a mechanical

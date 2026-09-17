@@ -36,6 +36,7 @@ from research_core.engine import (
     engine_home,
     engine_home_status,
     ensure_engine_home_usable,
+    resolved_engine_home,
 )
 
 ENV_VARS = [s.env_var for s in SETTINGS]
@@ -67,10 +68,30 @@ def test_the_default_is_what_the_engine_would_have_done_anyway(monkeypatch):
 
 def test_the_engines_own_variable_still_works_when_we_have_no_opinion(monkeypatch):
     # A caller who already knew the engine's lever keeps it: our setting adds a
-    # name for the location, it does not take one away.
-    monkeypatch.setenv(ENGINE_HOME_ENV, "/somewhere/chosen")
+    # name for the location, it does not take one away. Patched as the module
+    # attribute rather than the variable, because what counts is what the CALLER
+    # exported -- binding writes that variable too, and reading it live would be
+    # reading our own writing.
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", "/somewhere/chosen")
     assert str(default_engine_home()) == "/somewhere/chosen"
     assert engine_home() == "/somewhere/chosen"
+
+
+def test_a_path_the_caller_exported_is_not_quietly_replaced_either(isolated, monkeypatch):
+    """The same rule as the setting, for the engine's own variable.
+
+    It reaches us through the default tier, so a naive "fall back whenever the
+    default fails" would silently ignore it -- which is exactly what
+    AMPLIFIER_HOME does, and the reason this area needed fixing at all.
+    """
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", "/proc/not-a-directory/engine")
+    monkeypatch.setenv("RESEARCH_RUNS_DIR", str(isolated / "runs"))
+
+    home, source = resolved_engine_home()
+    assert source == "default"
+    assert str(home) == "/proc/not-a-directory/engine"
+    with pytest.raises(EngineUnavailable):
+        ensure_engine_home_usable()
 
 
 def test_the_setting_moves_it_and_says_which_tier_said_so(isolated, monkeypatch):
@@ -224,3 +245,104 @@ def test_the_two_claims_our_message_makes_about_the_engine_are_true(tmp_path):
         f"the engine no longer overwrites ${OVERWRITTEN_HOME_ENV}; the refusal "
         "message saying it has no effect has become false"
     )
+
+
+def test_a_confined_host_that_configured_nothing_gets_a_working_path(isolated, monkeypatch):
+    """The whole point of the fallback: one setting, not two.
+
+    A host that confines writes has already pointed `runs_dir` somewhere it
+    allows -- that is the setting it came for. Making it discover a second one,
+    by losing a run first, is the experience this replaces.
+    """
+    unreachable = isolated / "no-home"
+    unreachable.mkdir()
+    unreachable.chmod(0o500)
+    monkeypatch.setenv("HOME", str(unreachable))
+    monkeypatch.setenv("RESEARCH_RUNS_DIR", str(isolated / "workspace" / "runs"))
+
+    home, source = resolved_engine_home()
+    assert source == "fallback"
+    assert home == isolated / "workspace" / "runs" / ".engine"
+    assert ensure_engine_home_usable() == home
+
+    status = engine_home_status()
+    assert status["writable"] is True
+    assert "not writable" in status["because"]
+    assert "engine_home" in status["because"]
+    unreachable.chmod(0o700)
+
+
+def test_the_fallback_is_invisible_to_the_navigation_verbs(isolated, monkeypatch):
+    # It lives INSIDE the runs directory, so `list` has to keep ignoring it --
+    # a cache reported as a run would be a worse bug than the one this fixes.
+    from research_core import api
+
+    runs = isolated / "runs"
+    (runs / ".engine" / "cache").mkdir(parents=True)
+    listed = api.list_runs(runs_dir=str(runs))
+    assert listed["count"] == 0
+
+
+def test_a_path_someone_named_is_never_overridden(isolated, monkeypatch):
+    """Filling a gap in an intention and overruling one are different acts.
+
+    A caller who set `engine_home` and got it wrong is told so. Quietly using
+    somewhere else would mean their setting did nothing and nothing said so --
+    which is precisely the AMPLIFIER_HOME trap, rebuilt by us.
+    """
+    blocked = isolated / "named-but-broken"
+    blocked.mkdir()
+    blocked.chmod(0o500)
+    monkeypatch.setenv("RESEARCH_ENGINE_HOME", str(blocked / "engine"))
+    monkeypatch.setenv("RESEARCH_RUNS_DIR", str(isolated / "runs"))
+
+    _, source = resolved_engine_home()
+    assert source == "environment"
+    with pytest.raises(EngineUnavailable):
+        ensure_engine_home_usable()
+    blocked.chmod(0o700)
+
+
+def test_when_nothing_on_the_host_works_the_refusal_says_both(isolated, monkeypatch):
+    # Fixing only the second problem and meeting the first immediately after is
+    # a bad afternoon; the refusal names the runs directory too.
+    unreachable = isolated / "no-home"
+    unreachable.mkdir()
+    unreachable.chmod(0o500)
+    monkeypatch.setenv("HOME", str(unreachable))
+    monkeypatch.setenv("RESEARCH_RUNS_DIR", str(unreachable / "runs"))
+
+    with pytest.raises(EngineUnavailable) as excinfo:
+        ensure_engine_home_usable()
+    assert "runs_dir" in excinfo.value.remedy
+    assert str(unreachable / "runs") in excinfo.value.remedy
+    unreachable.chmod(0o700)
+
+
+def test_the_fallback_announces_itself_into_the_runs_own_event_log(isolated, monkeypatch):
+    # Choosing a path on someone's behalf is defensible; doing it silently is
+    # not. Once per process, though -- a four-stage run must not say it four
+    # times.
+    unreachable = isolated / "no-home"
+    unreachable.mkdir()
+    unreachable.chmod(0o500)
+    monkeypatch.setenv("HOME", str(unreachable))
+    monkeypatch.setenv("RESEARCH_RUNS_DIR", str(isolated / "runs"))
+    monkeypatch.setattr(engine, "_FALLBACK_ANNOUNCED", False)
+
+    events: list[dict] = []
+    engine._announce_fallback_home(events.append)
+    engine._announce_fallback_home(events.append)
+
+    assert len(events) == 1
+    assert events[0]["type"] == "progress"
+    assert str(isolated / "runs" / ".engine") in events[0]["message"]
+    unreachable.chmod(0o700)
+
+
+def test_nothing_is_announced_when_the_usual_place_works(isolated, monkeypatch):
+    monkeypatch.setenv("RESEARCH_ENGINE_HOME", str(isolated / "home"))
+    monkeypatch.setattr(engine, "_FALLBACK_ANNOUNCED", False)
+    events: list[dict] = []
+    engine._announce_fallback_home(events.append)
+    assert events == []

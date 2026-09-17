@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from research_core.config import SOURCE_DEFAULT, SOURCE_FALLBACK
 from research_core.errors import NoProviderError, SmartToolError
 
 #: Where the engine keeps this tool's own session state.
@@ -71,6 +72,18 @@ WORK_SUBDIR = "work"
 #: and advise them about a variable they never set; the first version of this
 #: did exactly that.
 _INHERITED_OVERWRITTEN_HOME = os.environ.get(OVERWRITTEN_HOME_ENV)
+
+#: What the CALLER set the engine's own variable to, snapshotted before anything
+#: here could bind it. Reading it live would mean reading our own writing:
+#: `bind_engine_home` sets it, so after one bind every later read would report a
+#: path "the caller chose" that we chose -- and a fallback, once taken, would
+#: look like a deliberate setting forever after.
+_INHERITED_ENGINE_HOME = os.environ.get(ENGINE_HOME_ENV)
+
+#: Whether this process has already told its caller that a fallback home is in
+#: use. Once per process, not once per turn: a four-stage run would otherwise
+#: repeat the same sentence four times, and advice repeated is advice skipped.
+_FALLBACK_ANNOUNCED = False
 
 #: Tried in order when the caller does not name one.
 PROVIDER_PREFERENCE = ("anthropic", "openai", "gemini", "azure-openai")
@@ -126,10 +139,22 @@ def default_engine_home() -> Path:
     quietly orphaning what is already on disk. Our setting's job is to make the
     location nameable, not to relocate anyone who never had a problem.
     """
-    override = os.environ.get(ENGINE_HOME_ENV)
-    if override:
-        return Path(override).expanduser()
+    if _INHERITED_ENGINE_HOME:
+        return Path(_INHERITED_ENGINE_HOME).expanduser()
     return Path.home() / ".amplifier-agent"
+
+
+def fallback_engine_home(runs_dir: str | Path) -> Path:
+    """Inside the runs directory, which the caller has already pointed somewhere.
+
+    A dot-directory so it cannot be mistaken for a run, and inside rather than
+    beside: writing to a SIBLING of the path a confined host allowed would be the
+    very bug this whole area exists to fix, one directory over.
+
+    ``list_runs`` skips any directory without a ``run.json``, so this is
+    invisible to every navigation verb.
+    """
+    return Path(runs_dir).expanduser() / ".engine"
 
 
 def resolved_engine_home() -> tuple[Path, str]:
@@ -141,11 +166,38 @@ def resolved_engine_home() -> tuple[Path, str]:
     the parent would be lost precisely in the long-running case this exists for.
     The config file and the environment reach both processes; an argument does
     not, so this setting has no argument tier.
+
+    ONE case resolves to a path nobody named: the default is unusable and the
+    caller expressed no preference. A host that confines writes hits exactly
+    that, and making it type a second setting to proceed is a worse answer than
+    putting the tree inside the runs directory it has already pointed somewhere
+    writable -- which is a location it chose, even if it did not choose it for
+    this. The fallback is reported as its own tier, never dressed up as a
+    default, so nobody has to deduce where their disk went.
+
+    A caller who NAMED a path that does not work is refused instead. Overriding
+    a stated intention silently is a different act from filling a gap in it.
     """
     from research_core.config import resolve_settings
 
-    setting = resolve_settings().resolved["engine_home"]
-    return Path(str(setting.value)).expanduser(), setting.source
+    settings = resolve_settings()
+    setting = settings.resolved["engine_home"]
+    home = Path(str(setting.value)).expanduser()
+    # `$AMPLIFIER_AGENT_HOME` arrives through the default tier, because our
+    # default IS whatever the engine would have used -- but a caller who
+    # exported it named a path just as deliberately as one who wrote the
+    # setting, and overriding it silently would rebuild the AMPLIFIER_HOME trap
+    # with our name on it. Only a host that named nothing at all is filled in.
+    named = setting.source != SOURCE_DEFAULT or bool(_INHERITED_ENGINE_HOME)
+    if named or _writable(home):
+        return home, setting.source
+
+    candidate = fallback_engine_home(settings["runs_dir"])
+    if _writable(candidate):
+        return candidate, SOURCE_FALLBACK
+    # Neither works: hand back the default so the refusal names the path the
+    # caller would otherwise go looking for, and let it say the rest.
+    return home, setting.source
 
 
 def bind_engine_home() -> Path:
@@ -191,6 +243,14 @@ def engine_home_status() -> dict[str, Any]:
             else "cannot be written to; every model-backed verb would fail here"
         ),
     }
+    if source == SOURCE_FALLBACK:
+        status["because"] = (
+            f"{default_engine_home()} is not writable on this host and nothing "
+            "named another path, so the tree goes inside the runs directory "
+            "instead. Set engine_home to put it somewhere of your choosing -- "
+            "and do set it if several machines share one runs directory, since "
+            "this cache is not written to be shared."
+        )
     if _INHERITED_OVERWRITTEN_HOME:
         # Cheap to report and expensive to discover: this is the variable a
         # caller exports when they want to move the tree, and the engine
@@ -226,6 +286,20 @@ def ensure_engine_home_usable() -> Path:
                 f" Note that ${OVERWRITTEN_HOME_ENV} is set and does nothing: "
                 "the engine overwrites it at import."
             )
+        if source == SOURCE_DEFAULT:
+            # Reaching here with the default means the fallback was tried and
+            # was no better, so the runs directory is unwritable too. Saying
+            # only "set engine_home" would send someone to fix the second
+            # problem and meet the first one immediately afterwards.
+            from research_core.config import resolve_settings
+
+            note += (
+                " The runs directory "
+                f"({fallback_engine_home(resolve_settings()['runs_dir'])}) was "
+                "tried as a fallback and cannot be written to either, so this "
+                "host has no usable path yet: runs_dir most likely needs "
+                "pointing somewhere allowed as well."
+            )
         raise EngineUnavailable(
             f"The engine's own directory at {home} ({source}) cannot be written to: {exc}",
             "Point it somewhere writable: set engine_home in the config file, "
@@ -234,6 +308,33 @@ def ensure_engine_home_usable() -> Path:
             "temporary one. Every deterministic verb keeps working meanwhile." + note,
         ) from exc
     return home
+
+
+def _announce_fallback_home(on_event: Callable[[dict[str, Any]], None] | None) -> None:
+    """Say it once, into the run's own event log, when a fallback is in use.
+
+    `check` reports it, but a caller who never ran `check` would otherwise find
+    a cache inside their runs directory with nothing anywhere saying who put it
+    there. Choosing a path on someone's behalf is defensible; doing it quietly
+    is not, and the run record is where they will look afterwards.
+    """
+    global _FALLBACK_ANNOUNCED
+    if on_event is None or _FALLBACK_ANNOUNCED:
+        return
+    home, source = resolved_engine_home()
+    if source != SOURCE_FALLBACK:
+        return
+    _FALLBACK_ANNOUNCED = True
+    on_event(
+        {
+            "type": "progress",
+            "message": (
+                f"{default_engine_home()} is not writable here, so the engine's "
+                f"cache and working directories are going to {home}. Set "
+                "engine_home to choose somewhere else."
+            ),
+        }
+    )
 
 
 @contextlib.contextmanager
@@ -476,6 +577,7 @@ async def _run_turn_async(
     chosen = select_provider(list(symbols["enumerate_resolvable_providers"]()), override=provider)
 
     display = _Display(on_event)
+    _announce_fallback_home(on_event)
 
     with _turn_workspace() as cwd:
         prepared = await symbols["load_and_prepare_cached"](aaa_version=symbols["version"])

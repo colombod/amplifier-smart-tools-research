@@ -59,6 +59,21 @@ a problem gets moved, and the cache — several hundred megabytes of module clon
 shared between runs rather than rebuilt per invocation. Prefer a path that survives
 between runs over a temporary one.
 
+**If that default is unwritable and you named nothing, the tree goes inside your runs
+directory** (`<runs_dir>/.engine`) rather than failing. One setting, not two: a host that
+confines writes has already pointed `runs_dir` somewhere it allows, and that is a location
+it chose — even if it did not choose it for this. The substitution is reported as its own
+tier, `source: "fallback"`, with a `because`, in `check` and in the run's event log. It is
+never silent, and `list` ignores it — a directory without a `run.json` is not a run.
+
+Two things it deliberately will not do. **A path you named is never replaced**, only
+refused: your setting doing nothing while nothing says so is the exact trap described
+below. And if the runs directory is unwritable too, the refusal names *both*, so you do
+not fix the second problem and meet the first one immediately afterwards.
+
+Set `engine_home` explicitly if several machines share one runs directory — this cache is
+not written to be shared.
+
 **`AMPLIFIER_HOME` is not the lever, however much it looks like one.** The engine
 overwrites that variable when it is imported, so exporting it does nothing at all.
 `check` says so when it sees it set. Use `engine_home`, `RESEARCH_ENGINE_HOME`, or the

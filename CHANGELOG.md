@@ -3,6 +3,50 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## 0.8.0
+
+0.7.0 stopped a confined host losing a paid run. It still made that host **configure two
+settings to proceed**, and it only told it so after it had tried. This release finishes
+the job: on a host that confines writes, **set `runs_dir` and you are done.**
+
+### Changed — a host that named nothing gets a working path, and is told where
+
+When the engine's usual directory is unwritable and **nothing** named another, the tree now
+goes to `<runs_dir>/.engine` instead of refusing. That is not a guess: a host that confines
+writes has already pointed `runs_dir` somewhere it allows.
+
+- Reported as its own tier — `source: "fallback"`, with a `because` — in `check` **and** as
+  a one-line note in the run's own event log. Choosing a path on someone's behalf is
+  defensible; doing it quietly is not, and the run record is where they will look.
+- Invisible to the navigation verbs: `list` skips any directory without a `run.json`.
+- Set `engine_home` explicitly if several machines share one runs directory. This cache is
+  not written to be shared.
+
+### Unchanged on purpose — a path you named is refused, never replaced
+
+A value from the setting, the config file, or `$AMPLIFIER_AGENT_HOME` is an intention, and
+the fallback does not touch it. A setting that does nothing while nothing says so is
+exactly the `AMPLIFIER_HOME` trap 0.7.0 was written about; rebuilding it under our own name
+would be worse for knowing better. **Filling a gap in an intention and overruling one are
+different acts.**
+
+`$AMPLIFIER_AGENT_HOME` needed care here, because it reaches us through the *default* tier
+— our default is whatever the engine would have used. It is now snapshotted at import and
+distinguished from a default nobody set, so exporting it still works and is still honoured
+over the fallback. Reading it live would have meant reading our own writing: binding sets
+that variable, so a fallback once taken would have looked like a deliberate setting forever
+after.
+
+### Also
+
+- When no usable path exists at all, the refusal now names **both** the engine home and the
+  runs directory it tried, so you do not fix the second problem and meet the first one
+  immediately afterwards.
+
+Verified end to end: a real turn on a host with a read-only `$HOME` and a nonexistent
+`$TMPDIR`, with `runs_dir` as the only setting — 84 MB of engine tree landed inside the
+workspace, `list` still reported no runs, and the scratch directory was gone afterwards.
+
 ## 0.7.0
 
 **Upgrade if you run this anywhere that confines writes** — a sandboxed agent host, a

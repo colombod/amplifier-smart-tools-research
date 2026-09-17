@@ -143,10 +143,20 @@ the config file and the environment reach it, an argument does not.
 overwrites that variable when it is imported, so exporting it changes nothing. `check`
 says so when it sees it set.
 
-A model-backed verb **refuses up front** when `engine_home` cannot be written to —
-`engine_unavailable`, exit 1, naming the path, the tier that chose it, and the setting
-that moves it. Refusing before the run rather than at its first model-backed stage is the
-difference between an error and a bill.
+**When the default is unwritable and nothing named a path**, the tree goes to
+`<runs_dir>/.engine` instead of failing, reported as `source: "fallback"` with a `because`
+— in `check` and in the run's event log, never silently. `list` ignores it: a directory
+with no `run.json` is not a run.
+
+A path that **was** named — by the setting, the config file, or `$AMPLIFIER_AGENT_HOME` —
+is never replaced, only refused. Filling a gap in an intention and overruling one are
+different acts, and the second is the trap this section exists to close.
+
+A model-backed verb **refuses up front** when no usable path exists —
+`engine_unavailable`, exit 1, naming the path, the tier that chose it, the setting that
+moves it, and the runs directory too when that was tried and failed as well. Refusing
+before the run rather than at its first model-backed stage is the difference between an
+error and a bill.
 
 **Absent and wrong-type are different things, and wrong is fatal.** A key that is absent
 falls through quietly to the next tier. A value of the wrong type, a value outside a
@@ -225,10 +235,15 @@ whether it is writable, so a confined host learns that before it spends anything
 
 ```json
 {"result": {"engine_home": {
-  "path": "/workspace/.engine", "source": "config-file", "writable": true,
-  "detail": "the engine's cache, module clones and per-turn working directories go here"
+  "path": "/workspace/.runs/.engine", "source": "fallback", "writable": true,
+  "detail": "the engine's cache, module clones and per-turn working directories go here",
+  "because": "/home/u/.amplifier-agent is not writable on this host and nothing named another path, ..."
 }}}
 ```
+
+`source` is one of the four settings tiers, or `fallback` — which is not a tier, because
+no value is stated there: it is this tool saying it chose a working path rather than
+failing, and where.
 
 ### `estimate` — deterministic
 

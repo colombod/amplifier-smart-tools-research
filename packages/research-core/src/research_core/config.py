@@ -40,6 +40,13 @@ SOURCE_CONFIG_FILE = "config-file"
 SOURCE_ENVIRONMENT = "environment"
 SOURCE_DEFAULT = "default"
 
+#: Not a tier: no value is ever STATED here. It is what a consumer reports when
+#: a default turned out to be unusable on this host and it chose a working path
+#: rather than failing -- see `engine.resolved_engine_home`. Kept in this file
+#: because the vocabulary of provenance belongs in one place, and deliberately
+#: absent from RESOLUTION_ORDER below, which answers "where may a value be set?"
+SOURCE_FALLBACK = "fallback"
+
 #: Most explicit first. Published so a caller can report it without hard-coding it.
 RESOLUTION_ORDER = (
     SOURCE_ARGUMENT,
