@@ -194,6 +194,13 @@ the point.
 `--runs-dir`, or set `RESEARCH_RUNS_DIR`. A run directory holds the brief, the report, the
 sources, the verdicts, the raw backend replies and an event log of everything that happened.
 
+The only other path anything is written to is `engine_home` — the embedded engine's cache,
+its module clones, and one working directory per turn, created there and removed when the
+turn ends. It defaults to the engine's own `~/.amplifier-agent`, and `RESEARCH_ENGINE_HOME`
+moves it. **If your host confines writes to a workspace, point those two settings there and
+everything lands inside it**; `deep-research check` reports both paths and whether each is
+writable, and a model-backed verb refuses up front rather than dying mid-run if one is not.
+
 ## Maturity — stated plainly
 
 - Both distribution roots pass the [conformance kit](https://github.com/microsoft/amplifier-smart-tools)

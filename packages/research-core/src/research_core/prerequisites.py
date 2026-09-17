@@ -196,6 +196,15 @@ def check(manifest: Manifest, *, runs_dir: str | None = None) -> dict[str, Any]:
             ),
         }
 
+    # The second place this tool causes writes, and the one nobody chose. It is
+    # reported unconditionally and beside runs_dir on purpose: a host that
+    # confines writes needs both paths in front of it at once, before it spends
+    # anything, rather than discovering the second at the first model-backed
+    # stage of a run it has already paid for.
+    from research_core.engine import engine_home_status
+
+    document["engine_home"] = engine_home_status()
+
     known_surfaces = sorted(SURFACES)
     document["credential_surfaces"] = known_surfaces
     return document

@@ -3,6 +3,47 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## 0.7.0
+
+**Upgrade if you run this anywhere that confines writes** — a sandboxed agent host, a
+container, CI. Before this release those hosts lost model-backed runs *after* paying for
+the evidence.
+
+### Fixed — a confined host could not complete a run, and was not told why
+
+A real run in a sandboxed host gathered 54 sources, spent its money, and then died on the
+synthesis stage with a bare `PermissionError` naming `~/.amplifier-agent` — a directory
+nobody had chosen, that no setting mentioned, and that the run had never said it needed.
+
+Two locations were being written outside the caller's control: the embedded engine's tree
+(several hundred megabytes of prepared-bundle cache and module clones) and a scratch
+working directory taken from `$TMPDIR`. Neither was nameable, so neither could be pointed
+somewhere the host allowed.
+
+- **New setting `engine_home`** (`RESEARCH_ENGINE_HOME`, or `engine_home` in the config
+  file). Everything written outside `runs_dir` now goes there. **Two paths, and no
+  others** — point both into your workspace and the tool stays inside it.
+- **The turn's working directory moved inside it**, and is now *removed when the turn
+  ends*. It used to be a fresh `$TMPDIR` directory per turn that nothing ever deleted.
+- **Model-backed verbs refuse up front** when that path is unwritable — `engine_unavailable`,
+  naming the path, the tier that chose it, and the setting that moves it. Before the run,
+  not at its first model-backed stage.
+- **`check` reports both paths** and whether each is writable, so a host can find this out
+  before it spends anything.
+
+The default is unchanged: whatever the engine itself would have used. Nobody who never had
+a problem is moved, and the cache stays shared between runs rather than rebuilt per
+invocation.
+
+### Fixed — the obvious lever was the wrong one, silently
+
+`AMPLIFIER_HOME` is the variable the storage layer reads, so it is the one anybody reaching
+for a lever exports first. The engine **overwrites it at import**, so exporting it does
+nothing whatsoever, in silence. `check` now says so when it sees it set, the refusal above
+repeats it, and a test holds the engine to both halves of that claim — that
+`AMPLIFIER_AGENT_HOME` moves the tree and `AMPLIFIER_HOME` does not — so a message that
+quietly stopped being true would fail the build instead of misdirecting the next person.
+
 ## 0.6.0
 
 ### Changed — the installed `SKILL.md` is now a pointer, not a copy

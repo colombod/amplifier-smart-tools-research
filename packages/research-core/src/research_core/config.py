@@ -66,6 +66,19 @@ def _default_runs_dir() -> str:
     return str(Path(state).expanduser() / "amplifier-research" / "runs")
 
 
+def _default_engine_home() -> str:
+    """Whatever the embedded engine would have used anyway.
+
+    Imported lazily, and from the engine module, so the default cannot drift
+    from what the engine actually does -- the same mistake in two files is the
+    one this project has already made four times. The lazy import is the usual
+    rule: nothing here may pull the agent engine in at module level.
+    """
+    from research_core.engine import default_engine_home
+
+    return str(default_engine_home())
+
+
 #: Every setting a caller may set. Shared by both tools: a deployment configures
 #: the pair once, and nothing here is per-tool.
 SETTINGS: tuple[Setting, ...] = (
@@ -76,6 +89,17 @@ SETTINGS: tuple[Setting, ...] = (
         "RESEARCH_RUNS_DIR",
         "Where runs are written. Point several callers at one directory and "
         "evidence accumulates; nothing reaps it.",
+    ),
+    Setting(
+        "engine_home",
+        str,
+        None,  # computed at resolution time from what the engine itself defaults to
+        "RESEARCH_ENGINE_HOME",
+        "Where the embedded engine keeps its cache, module clones and per-turn "
+        "working directories. Everything this tool writes outside the runs "
+        "directory goes here, so a host that confines writes has exactly two "
+        "paths to point somewhere it allows. Hundreds of megabytes, and worth "
+        "keeping between runs.",
     ),
     Setting(
         "backend",
@@ -316,7 +340,9 @@ def resolve_settings(**arguments: Any) -> Settings:
             )
             continue
 
-        default = _default_runs_dir() if setting.name == "runs_dir" else setting.default
+        computed = {"runs_dir": _default_runs_dir, "engine_home": _default_engine_home}
+        factory = computed.get(setting.name)
+        default = factory() if factory else setting.default
         resolved[setting.name] = Resolved(setting.name, default, SOURCE_DEFAULT, "built-in default")
 
     return Settings(

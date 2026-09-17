@@ -15,7 +15,7 @@ license: MIT
 metadata:
   author: colombod
   repository: https://github.com/colombod/amplifier-smart-tools-research
-  version: 0.6.0
+  version: 0.7.0
 ---
 
 # Using deep-research
@@ -54,7 +54,7 @@ installation. This file cannot be, and does not try.
 ## Staying current
 
 `deep-research manifest` reports the version installed. This pointer was generated from
-0.6.0. If they differ, the tool is the authority -- re-read `--help`, because flags and
+0.7.0. If they differ, the tool is the authority -- re-read `--help`, because flags and
 costs change between releases.
 
 ```bash

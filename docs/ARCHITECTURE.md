@@ -211,6 +211,14 @@ what the reference smart tools do, and each with a reason:
   poison the environment for unrelated code, make deterministic verbs pay for a provider
   stack, and fail the conformance check that runs `--help` with the environment scrubbed.
   One cause, three symptoms.
+- **Where the engine writes is ours to decide.** Left alone it puts hundreds of megabytes
+  under `~/.amplifier-agent` and a scratch directory wherever `$TMPDIR` points — two
+  locations the caller never chose, which is harmless on a workstation and fatal in a
+  sandbox that confines writes. `engine_home` names the first, the turn's working
+  directory moved inside it, and preflight proves it is writable before a token is spent.
+  The lever is `AMPLIFIER_AGENT_HOME`, **not** `AMPLIFIER_HOME`: the engine overwrites
+  that one at import, so exporting it does nothing — and a test holds the engine to both
+  halves of that claim, because our refusal message states them.
 
 **The rule that keeps this honest:** `research_core` imports nothing from the engine at
 module level, ever.

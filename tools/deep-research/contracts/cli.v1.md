@@ -125,8 +125,28 @@ overridable by `RESEARCH_CONFIG`. **It sits above the environment**: a deploymen
 wrote a config file is entitled to have it honoured, while an environment variable can
 arrive by accident from a parent process.
 
-Configurable: `runs_dir`, `backend`, `depth`, `provider`, `model`, `max_read_lines`,
-`max_attempts`, `timeout_ms`.
+Configurable: `runs_dir`, `engine_home`, `backend`, `depth`, `provider`, `model`,
+`host_config`, `max_read_lines`, `max_attempts`, `timeout_ms`.
+
+**Two paths, and this tool writes nowhere else.** `runs_dir` holds the evidence;
+`engine_home` holds everything the embedded engine needs to run — its prepared-bundle
+cache, its module clones, and one working directory per turn, created inside it and
+removed when the turn ends. A host that confines writes to a workspace points both
+somewhere it allows and is done. `engine_home` defaults to whatever the engine itself
+would have used (`$AMPLIFIER_AGENT_HOME`, else `~/.amplifier-agent`), so a host that
+never had a problem is not moved; it is several hundred megabytes and worth keeping
+between runs. It has no `--flag` tier: the binding has to be in place before the engine
+is imported, and a detached run is a separate process that re-resolves its own settings —
+the config file and the environment reach it, an argument does not.
+
+`AMPLIFIER_HOME` is **not** the lever, however much it looks like one: the engine
+overwrites that variable when it is imported, so exporting it changes nothing. `check`
+says so when it sees it set.
+
+A model-backed verb **refuses up front** when `engine_home` cannot be written to —
+`engine_unavailable`, exit 1, naming the path, the tier that chose it, and the setting
+that moves it. Refusing before the run rather than at its first model-backed stage is the
+difference between an error and a bill.
 
 **Absent and wrong-type are different things, and wrong is fatal.** A key that is absent
 falls through quietly to the next tier. A value of the wrong type, a value outside a
@@ -199,6 +219,16 @@ into the package. The declared `deterministic_smoke` capability.
 Reports prerequisites and which backends resolve on this host. **Reporting a problem is
 this verb's success** — it exits 0 whether the host is healthy or broken, because the
 report is the deliverable. Each failed check carries its own `remedy`.
+
+It also reports both paths this tool writes to — `runs_dir` and `engine_home` — each with
+whether it is writable, so a confined host learns that before it spends anything:
+
+```json
+{"result": {"engine_home": {
+  "path": "/workspace/.engine", "source": "config-file", "writable": true,
+  "detail": "the engine's cache, module clones and per-turn working directories go here"
+}}}
+```
 
 ### `estimate` — deterministic
 

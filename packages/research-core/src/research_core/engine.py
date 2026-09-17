@@ -11,6 +11,24 @@ on this machine, not taken on faith -- and a module-level import would poison
 that variable for unrelated code in the same process, make every deterministic
 verb pay for a provider stack it never uses, and break the conformance rule that
 runs `--help` with the environment scrubbed. One cause, three symptoms.
+
+WHERE THE ENGINE WRITES is this module's problem too. Left alone it puts several
+hundred megabytes of module clones and prepared-bundle cache under
+``~/.amplifier-agent``, and opens a scratch working directory wherever ``$TMPDIR``
+points. Neither location was chosen by the caller, which is harmless on a
+workstation and fatal in a sandbox that confines writes to a workspace: the first
+model-backed stage dies on a bare ``PermissionError`` naming a path nobody asked
+for -- after the evidence has been gathered and paid for. So this module binds
+that location from a setting (``engine_home``), puts the turn's working directory
+inside it instead of ``$TMPDIR``, removes that directory afterwards, and proves
+the whole tree is writable in preflight, before a prompt is built or a token
+spent.
+
+The variable that moves it is ``AMPLIFIER_AGENT_HOME``, and that is not the
+obvious guess. ``AMPLIFIER_HOME`` is the one the storage resolver underneath
+reads, so it is the one anybody reaching for a lever exports first -- and the
+engine overwrites it at import, so exporting it does nothing whatsoever, in
+silence. Verified by setting it and watching it change, not assumed.
 """
 
 from __future__ import annotations
@@ -18,17 +36,41 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import shutil
 import sys
 import tempfile
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from research_core.errors import NoProviderError, SmartToolError
 
 #: Where the engine keeps this tool's own session state.
 WORKSPACE = "amplifier-research"
+
+#: The one environment variable that moves the engine's on-disk tree. Everything
+#: it writes -- prepared-bundle cache, module clones, session state -- is under
+#: this, and our turn working directories are put there too.
+ENGINE_HOME_ENV = "AMPLIFIER_AGENT_HOME"
+
+#: The variable a caller reaches for instead, and which does nothing: the engine
+#: overwrites it at import. Named here so the refusal below can say so, because
+#: the alternative is someone exporting it and believing the problem is elsewhere.
+OVERWRITTEN_HOME_ENV = "AMPLIFIER_HOME"
+
+#: Turn working directories live here, under the engine home. A subdirectory
+#: rather than the root so that deleting scratch can never reach the cache.
+WORK_SUBDIR = "work"
+
+#: Whether the CALLER had exported the useless variable, snapshotted before this
+#: process could import an engine -- which is guaranteed, because every engine
+#: import in this package is inside a function in this module. Reading the live
+#: environment instead would report the engine's own value back at the caller
+#: and advise them about a variable they never set; the first version of this
+#: did exactly that.
+_INHERITED_OVERWRITTEN_HOME = os.environ.get(OVERWRITTEN_HOME_ENV)
 
 #: Tried in order when the caller does not name one.
 PROVIDER_PREFERENCE = ("anthropic", "openai", "gemini", "azure-openai")
@@ -75,8 +117,157 @@ class TurnResult:
     tool_calls: int = 0
 
 
+def default_engine_home() -> Path:
+    """Where the engine would put its tree if nobody said otherwise.
+
+    Deliberately the engine's OWN default rather than somewhere of ours: the
+    tree holds a module cache measured in hundreds of megabytes, and a default
+    that moved it per-caller would mean re-cloning it for every invocation while
+    quietly orphaning what is already on disk. Our setting's job is to make the
+    location nameable, not to relocate anyone who never had a problem.
+    """
+    override = os.environ.get(ENGINE_HOME_ENV)
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".amplifier-agent"
+
+
+def resolved_engine_home() -> tuple[Path, str]:
+    """The configured engine home and which tier supplied it.
+
+    Settings are resolved here rather than threaded down from the caller, and
+    the reason is the detached child: it is a fresh process that re-resolves
+    everything for itself, so a value that travelled as a function argument in
+    the parent would be lost precisely in the long-running case this exists for.
+    The config file and the environment reach both processes; an argument does
+    not, so this setting has no argument tier.
+    """
+    from research_core.config import resolve_settings
+
+    setting = resolve_settings().resolved["engine_home"]
+    return Path(str(setting.value)).expanduser(), setting.source
+
+
+def bind_engine_home() -> Path:
+    """Point the engine's tree at the configured home. Idempotent.
+
+    Must run before amplifier_agent_lib is imported: the binding it performs on
+    its own storage happens at import time, so a value set afterwards is read by
+    nothing. Calling it from _load, immediately above the only import site in
+    this package, is what makes "before" structural rather than remembered.
+    """
+    home, _ = resolved_engine_home()
+    os.environ[ENGINE_HOME_ENV] = str(home)
+    return home
+
+
+def _writable(path: Path) -> bool:
+    """Whether a path can be written to, or created and then written to."""
+    probe = path
+    while not probe.exists():
+        parent = probe.parent
+        if parent == probe:
+            return False
+        probe = parent
+    return os.access(probe, os.W_OK)
+
+
+def engine_home_status() -> dict[str, Any]:
+    """Where the engine will write, and whether it can. Reported by `check`.
+
+    Deterministic: reads settings and the filesystem, imports no engine, needs no
+    credential. A host that cannot run a model-backed verb can still be told why
+    before it tries one.
+    """
+    home, source = resolved_engine_home()
+    writable = _writable(home)
+    status: dict[str, Any] = {
+        "path": str(home),
+        "source": source,
+        "writable": writable,
+        "detail": (
+            "the engine's cache, module clones and per-turn working directories go here"
+            if writable
+            else "cannot be written to; every model-backed verb would fail here"
+        ),
+    }
+    if _INHERITED_OVERWRITTEN_HOME:
+        # Cheap to report and expensive to discover: this is the variable a
+        # caller exports when they want to move the tree, and the engine
+        # overwrites it at import, so it has no effect at all.
+        status["ignored"] = (
+            f"${OVERWRITTEN_HOME_ENV} is set and has no effect here: the engine "
+            f"overwrites it when it is imported. ${ENGINE_HOME_ENV}, or the "
+            "engine_home setting, is what moves the tree."
+        )
+    return status
+
+
+def ensure_engine_home_usable() -> Path:
+    """Prove the engine can write where it is about to, or refuse saying where.
+
+    Called from preflight and again from the turn itself. The failure this
+    replaces was a bare PermissionError raised deep inside a bundle load, on the
+    first model-backed stage of a run whose evidence had already been gathered
+    and paid for -- a true message naming a path the caller never chose, with no
+    statement of which knob moves it.
+    """
+    home = bind_engine_home()
+    try:
+        (home / WORK_SUBDIR).mkdir(parents=True, exist_ok=True)
+        probe = home / WORK_SUBDIR / f".writable-{uuid.uuid4().hex}"
+        probe.touch()
+        probe.unlink()
+    except OSError as exc:
+        _, source = resolved_engine_home()
+        note = ""
+        if _INHERITED_OVERWRITTEN_HOME:
+            note = (
+                f" Note that ${OVERWRITTEN_HOME_ENV} is set and does nothing: "
+                "the engine overwrites it at import."
+            )
+        raise EngineUnavailable(
+            f"The engine's own directory at {home} ({source}) cannot be written to: {exc}",
+            "Point it somewhere writable: set engine_home in the config file, "
+            f"or ${ENGINE_HOME_ENV}. It holds a module cache of several hundred "
+            "megabytes, so prefer a path that survives between runs over a "
+            "temporary one. Every deterministic verb keeps working meanwhile." + note,
+        ) from exc
+    return home
+
+
+@contextlib.contextmanager
+def _turn_workspace() -> Iterator[str]:
+    """A working directory for one turn, inside the engine home, then gone.
+
+    Two corrections in one small scope. It used to be ``tempfile.mkdtemp()`` with
+    no directory argument, which put it wherever ``$TMPDIR`` pointed -- a SECOND
+    location outside the caller's control, so a host that had made the engine
+    home writable could still be tripped by the other one. And nothing ever
+    removed it: every turn left a directory behind, for the life of the machine.
+
+    Writability is proved here as well as in preflight. A library caller can
+    reach ``run_turn`` directly, and it should refuse the same way.
+
+    A process killed outright leaves its directory behind -- empty, since the
+    engine's own state lives elsewhere under the home. That is the honest limit
+    of cleanup in a finally block, and it is not worth a reaper with a time
+    policy to sweep up empty directories.
+    """
+    work = ensure_engine_home_usable() / WORK_SUBDIR
+    cwd = tempfile.mkdtemp(prefix="turn-", dir=str(work))
+    try:
+        # Anything the bundle prints goes to stderr. stdout carries the result
+        # and nothing else, so a caller can parse it without filtering.
+        with contextlib.redirect_stdout(sys.stderr):
+            yield cwd
+    finally:
+        shutil.rmtree(cwd, ignore_errors=True)
+
+
 def _load():
     """Import the engine. Deferred, and the only place it happens."""
+    bind_engine_home()
     try:
         from amplifier_agent_cli.provider_sources import (
             enumerate_resolvable_providers,
@@ -259,8 +450,17 @@ def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
 
 
 def preflight(*, provider: str | None = None) -> str:
-    """Confirm a turn could run, before any prompt is built."""
-    return select_provider(available_providers(), override=provider)
+    """Confirm a turn could run, before any prompt is built.
+
+    Two questions, and the second was learned from a real failure: a provider
+    that can answer, and somewhere the engine can write. A host may have the
+    first without the second -- a sandbox confining writes to its workspace is
+    exactly that host -- and discovering it at the first model-backed stage means
+    discovering it after the evidence has been bought.
+    """
+    chosen = select_provider(available_providers(), override=provider)
+    ensure_engine_home_usable()
+    return chosen
 
 
 async def _run_turn_async(
@@ -275,12 +475,9 @@ async def _run_turn_async(
     symbols = _load()
     chosen = select_provider(list(symbols["enumerate_resolvable_providers"]()), override=provider)
 
-    cwd = tempfile.mkdtemp(prefix="amplifier-research-")
     display = _Display(on_event)
 
-    # Anything the bundle prints goes to stderr. stdout carries the result and
-    # nothing else, so a caller can parse it without filtering.
-    with contextlib.redirect_stdout(sys.stderr):
+    with _turn_workspace() as cwd:
         prepared = await symbols["load_and_prepare_cached"](aaa_version=symbols["version"])
 
         # Injection is a no-op while any provider is mounted, and the vendored
@@ -403,6 +600,13 @@ def run_turn(
     )
 
 
-def engine_home() -> str | None:
-    """Where the engine put its home, if it has been imported in this process."""
-    return os.environ.get("AMPLIFIER_HOME")
+def engine_home() -> str:
+    """The tree the engine writes into, whether or not it has been imported yet.
+
+    It used to report ``$AMPLIFIER_HOME``, which answered a different question
+    than its name suggested: that variable is set by the engine at import, so
+    this returned None until something had already run, and afterwards named a
+    subdirectory rather than the tree. What a caller wants to know is where the
+    writes will land, and that is answerable before anything is imported.
+    """
+    return str(resolved_engine_home()[0])

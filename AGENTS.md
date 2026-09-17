@@ -23,6 +23,14 @@ Logic in the CLI is capability the library cannot reach. A test enforces this.
 **Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import.
 Import inside the function that needs it.
 
+**Two write locations, both settings: `runs_dir` and `engine_home`.** Nothing may write
+anywhere else — not `$TMPDIR`, not a home directory the caller never named. A host that
+confines writes should have to point two settings, not discover a third at the first
+model-backed stage of a run it has already paid for. `AMPLIFIER_HOME` is not the lever
+(the engine overwrites it at import); `AMPLIFIER_AGENT_HOME` is, and
+`packages/research-core/tests/test_engine_home.py` holds the engine to both halves of
+that claim, since our refusal message states them.
+
 **Refuse rather than degrade.** This codebase would rather fail loudly than return a plausible
 answer built on nothing. A gather that called no tool, a run with no sources, a citation
 pointing at a source that does not exist, a claim that could not be checked for a mechanical
