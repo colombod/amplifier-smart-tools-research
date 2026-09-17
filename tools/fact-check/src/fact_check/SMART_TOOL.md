@@ -1,13 +1,9 @@
 ---
 smart_tool_format: 1
 name: fact-check
-version: 0.8.0
+version: 0.9.0
 description: >
-  Checks claims against evidence and returns a verdict per claim -- supported, refuted,
-  unverifiable or opinion -- with the sources each verdict rests on. Reach for it when
-  something asserts several things and you need to know which of them hold, rather than
-  whether the piece as a whole sounds right. Claims are checked independently, so one
-  false claim does not condemn the rest.
+  Takes things someone has asserted and checks each one against evidence, returning a verdict per claim -- supported, refuted, unverifiable or opinion -- with the sources each rests on. Reach for it when the ask sounds like "is any of this actually true?", "check the claims in this draft before it goes out", "he says X, is that right?", "which parts of this hold up?", or "where did that number come from?". Claims are checked INDEPENDENTLY, so one false claim does not condemn the rest of a document, and a single verdict can be audited down to the sources under it. Use it on a draft before it ships, on a page or a transcript full of assertions, or to re-check claims against evidence an earlier research run already gathered. Do NOT use it for an open question with no claim in it yet -- that is deep-research -- or to check code against its tests.
 use_cases:
   - Check the claims in a document or a draft before it goes out
   - Find which of several assertions actually hold, and which merely sound right
