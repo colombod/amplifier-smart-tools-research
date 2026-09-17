@@ -435,6 +435,7 @@ def render_pointer_skill(
         needed = [r for r in requires if not r.get("optional")]
         optional = [r for r in requires if r.get("optional")]
         lines += ["", "## What needs setting up", ""]
+
         def _line(item: Any) -> str:
             purpose = " ".join(str(item.get("purpose", "")).split())
             return f"- **{item.get('name')}** -- {purpose.split('.')[0][:110]}."
