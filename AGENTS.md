@@ -11,6 +11,25 @@ Two smart tools — `deep-research` and `fact-check` — over one shared library
 | `tools/*/contracts/cli.v1.md` | what callers may rely on. Changing it breaks someone |
 | `evaluation/TUNING-LOG.md` | every tuning change and its measured effect |
 
+## Before you push: `scripts/preflight.sh`, not memory
+
+`ruff` and `pytest` passing in your own `.venv` is not evidence CI will pass.
+0.10.0 went red on `main` twice (`004a623`, `c128f7e`) because the only check
+that catches a version bumped in `SMART_TOOL.md` but not in the matching
+`tools/*/pyproject.toml` is the external conformance kit's
+`manifest-version-matches-package` rule, run against **built wheels** -- and
+that kit is fetched and run only by CI's `conformance` job, never by `pytest`.
+Run `scripts/preflight.sh` before every push; it mirrors `.github/workflows/ci.yml`
+job by job (fresh venv, built wheels, the conformance kit fetched fresh, both
+tool roots, plus the full suite re-run under `env -i` because this kind of
+box may resolve real provider credentials through host auth in a way CI's
+runner never does). Budget 1-2 minutes on a warm cache. See the script's own
+header comment for the full mapping and its documented limitations.
+
+Bumping the version touches seven files that must all agree (see
+`scripts/bump_version.sh`'s header). Use that script; it edits all seven,
+reinstalls, regenerates `SKILL.md`, and self-checks -- it never runs git.
+
 ## The rules that are not negotiable
 
 **Deterministic verbs run with no provider and no credentials.** Not "usually" — the
