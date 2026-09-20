@@ -16,7 +16,22 @@ _FENCED = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
 
 class NoStructureFound(ValueError):
-    """The reply carried no parseable document where one was required."""
+    """The reply carried no parseable document where one was required.
+
+    ``detail`` -- when set -- is the specific `json.JSONDecodeError` message
+    (with its line/column/byte offset) from the candidate that got furthest
+    before failing. D6: a repair loop that only ever says "no JSON document
+    was found" cannot distinguish "you said nothing" from "you said almost
+    the right thing, but this one character broke it" -- and a model fed the
+    first message when the second was true fixes the wrong thing, repeatedly,
+    at cost. ``detail`` is None only when no candidate looked enough like
+    JSON to produce a parse error at all (e.g. the reply was empty or pure
+    prose).
+    """
+
+    def __init__(self, message: str, *, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail
 
 
 def extract_json(text: str) -> Any:
@@ -52,13 +67,28 @@ def extract_json(text: str) -> Any:
     if not text or not text.strip():
         raise NoStructureFound("the reply was empty")
 
+    # The candidate that parsed FURTHEST before failing (highest `.pos`) is
+    # the one most likely to be "real JSON with one specific defect" rather
+    # than unrelated prose -- and its own JSONDecodeError already names the
+    # exact byte offset and the token it expected, which is precisely what a
+    # repair attempt needs to fix the one thing that is actually wrong rather
+    # than guess. `pos == 0` is excluded: that means the parser rejected the
+    # very first character, which is what plain prose does too (it never
+    # started looking like JSON at all) and surfacing that as "the specific
+    # defect" would be no more useful than the generic message -- worse, it
+    # would look like a real diagnosis and mislead a repair attempt into
+    # fixing something that was never wrong.
+    best_error: json.JSONDecodeError | None = None
     for candidate in _candidates(text):
         for strict in (True, False):
             try:
                 return json.loads(candidate, strict=strict)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as exc:
+                if exc.pos > 0 and (best_error is None or exc.pos > best_error.pos):
+                    best_error = exc
                 continue
-    raise NoStructureFound("no JSON document was found in the reply")
+    detail = str(best_error) if best_error is not None else None
+    raise NoStructureFound("no JSON document was found in the reply", detail=detail)
 
 
 def _candidates(text: str) -> list[str]:

@@ -1,7 +1,7 @@
 ---
 smart_tool_format: 1
 name: fact-check
-version: 0.9.1
+version: 0.10.0
 description: >
   Takes things someone has asserted and checks each one against evidence, returning a verdict per claim -- supported, refuted, unverifiable or opinion -- with the sources each rests on. Reach for it when the ask sounds like "is any of this actually true?", "check the claims in this draft before it goes out", or "where did that number come from?". Claims are checked INDEPENDENTLY, so one false claim does not condemn the rest of a document. Do NOT use it for an open question with no claim in it yet -- that is deep-research -- or to check code against its tests.
 use_cases:
@@ -38,13 +38,26 @@ requires:
       credentials of its own.
     optional: true
     install: docs/CONFIGURATION.md
+  - name: engine-home
+    purpose: >
+      A writable directory for the embedded engine's own cache, module clones and
+      per-turn working directories -- $AMPLIFIER_AGENT_HOME if set, else
+      ~/.amplifier-agent. Checked as part of preflight for check-claims, alongside
+      ai-provider: without a writable one the run refuses before it starts, naming
+      the path and the setting that moves it, rather than failing with a bare
+      filesystem error after evidence has already been gathered. Every deterministic
+      verb keeps working regardless. Run `fact-check check` to see whether this host
+      has it.
+    optional: true
+    install: docs/CONFIGURATION.md
 ---
 
 # fact-check
 
-One library, one thin `fact-check` CLI. Every response is a single JSON document on
-stdout; failures are a JSON error envelope carrying `code`, `message` and `remedy`, with
-a non-zero exit. Diagnostics and progress go to stderr.
+One library, one thin `fact-check` CLI. Every response is a single JSON document: a
+success is on stdout; a failure -- a JSON error envelope carrying `code`, `message` and
+`remedy`, with a non-zero exit -- is on stderr, with stdout left empty. Diagnostics and
+progress also go to stderr, on both success and failure.
 
 ## What it is good at
 

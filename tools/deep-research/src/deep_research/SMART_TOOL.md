@@ -1,7 +1,7 @@
 ---
 smart_tool_format: 1
 name: deep-research
-version: 0.9.1
+version: 0.10.0
 description: >
   Researches a question across many sources and returns a short brief plus the citations behind it. Reach for it when the ask sounds like "what do we actually know about X?", "find me sources on this", or "I need to decide this and have not read anything yet". Searches the live web and synthesises, returning a brief plus a pointer to the full evidence kept on disk. Do NOT use it to check specific claims you already have -- that is fact-check -- or for questions answerable from the code or documents already in front of you.
 use_cases:
@@ -38,13 +38,26 @@ requires:
       `pip install google-genai`). This tool stores no credentials of its own.
     optional: true
     install: docs/CONFIGURATION.md
+  - name: engine-home
+    purpose: >
+      A writable directory for the embedded engine's own cache, module clones and
+      per-turn working directories -- $AMPLIFIER_AGENT_HOME if set, else
+      ~/.amplifier-agent. Checked as part of preflight for the research verb,
+      alongside ai-provider: without a writable one the run refuses before it starts,
+      naming the path and the setting that moves it, rather than failing with a bare
+      filesystem error after evidence has already been gathered. Every deterministic
+      verb keeps working regardless. Run `deep-research check` to see whether this
+      host has it.
+    optional: true
+    install: docs/CONFIGURATION.md
 ---
 
 # deep-research
 
-One library, one thin `deep-research` CLI. Every response is a single JSON document on
-stdout; failures are a JSON error envelope carrying `code`, `message` and `remedy`, with
-a non-zero exit. Diagnostics and progress go to stderr.
+One library, one thin `deep-research` CLI. Every response is a single JSON document: a
+success is on stdout; a failure -- a JSON error envelope carrying `code`, `message` and
+`remedy`, with a non-zero exit -- is on stderr, with stdout left empty. Diagnostics and
+progress also go to stderr, on both success and failure.
 
 ## What it is good at
 

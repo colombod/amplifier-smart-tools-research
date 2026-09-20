@@ -3,6 +3,67 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## 0.10.0 - 2026-09-20
+
+The specification review (`check-spec-adherence`, round two) and the output-correctness sweep
+— real runs, real spend, verifying that answers are right, not just that structures are valid.
+Round two improved: deep-research 6-adhere/10-deviate → 10-adhere/6-deviate, fact-check → 12-adhere/5-deviate.
+The output-correctness sweep found eight defects that passed 342 green tests and two rounds of
+source review.
+
+### Fixed
+
+- **Nothing in either tool has ever fetched a cited source.** The brief's load-bearing citation
+  was an HTTP 404, unmarked in the brief, sources view and bibliography, underwrote four
+  downstream "high"-confidence verdicts. Added deterministic `--verify` flag for `sources` that
+  checks reachability of every citation (opt-in because it reaches the network), distinguishes
+  real 404 from network failure, and degrades gracefully offline.
+- **`fact-check verdicts` always returned `tally: null`** in a document whose own contract says
+  tally IS the answer. Test hand-written fixtures carried two keys no engine wrote and lacked five
+  that every engine writes — the fixture was the defect. All hand-made fixtures now scrubbed to
+  real-run recordings; regression test added.
+- **A failed run under-reported cost 13.8x** ($0.027 claimed vs $0.344 spent). Discarded-cost
+  arithmetic hung on a value only constructed on success. Now recorded on failing path; two
+  further fact-check stages with no exhausted-attempt handler identified and fixed.
+- **Two defects only under `--detach`:** relative `--claims-file` worked attached, always died
+  detached (child spawned with `cwd=runs_dir`, path passed verbatim); `--detach` accepted
+  non-existent `--from-run` while attached refused it instantly. Detached path now runs same
+  validation as attached.
+- **The repair loop fed back the wrong finding three times** — three rejected replies all failed
+  on one unescaped quote, feedback said "no JSON, no prose around it", retries added a code
+  fence and kept the bug. Now reports parser's own error and position.
+- **Contract drift, self-inflicted:** `contracts/cli.v1.md` still documented error envelopes on
+  stdout after the correct move to stderr in 0.9.1. Agents parsing as documented saw nothing on
+  failure. Fixed in contracts, manifests, skill texts, CLI epilogs and shared per-verb template.
+  `affordances` promised by every verb document, populated by none — now populated for
+  `no_provider` at library boundary.
+
+### Changed
+
+- **CLI capabilities moved into the library.** PRIMARY capability skills (`research` for
+  deep-research, `check-claims` for fact-check) were parsed and derived in `cli.py`, making
+  them unreachable from the library. Now the library owns these definitions, wired through
+  manifest and skill generation so agent-facing documentation is always about the library's
+  actual surface, not an argparse derivation that can drift undocumented. Pointer skill
+  thinned from 91 to 56 lines.
+- **Manifests updated:** previously-silent writable-engine-home prerequisite now declared in
+  both `SMART_TOOL.md` files (part of the fix for detached validation defect above).
+- **Visibility: previously-excluded `--max-attempts` now documented** in both CLIs and both
+  skill documents rather than documented-only-in-text as "excluded" — it was never excluded,
+  just undocumented at flag level.
+- **Omitted sources named instead of dropped.** When agent reply contained a source entry
+  malformed beyond repair, it was discarded without record. Now reported as a warning in both
+  `sources.json` (with `"warning": "omitted_malformed"`) and in the result's own `warnings` list
+  so a caller knows sources are incomplete.
+
+### Verified
+
+- 363 tests pass in normal and scrubbed environment (`env -i HOME=<fresh> PATH=...`, which is
+  what CI runs; the clean environment caught a first cut silently resolving this box's ambient
+  credentials on detach tests).
+- ruff format and ruff lint clean across 77 files.
+- `SMART_TOOL.md` changes regenerated into `skills/*/SKILL.md` and drift test passes.
+
 ## 0.9.1 - 2026-09-20
 
 ### Fixed

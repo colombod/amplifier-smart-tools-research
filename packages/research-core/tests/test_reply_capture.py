@@ -63,6 +63,51 @@ def test_a_rejected_reply_is_handed_to_on_reply_verbatim():
     assert seen[1][2] is True
 
 
+def test_a_malformed_json_reply_is_repaired_with_the_specific_parse_error():
+    """D6: an unescaped quote inside a string is genuinely-unparseable JSON,
+    not prose-around-JSON -- and the old generic finding ("carried no JSON
+    document... no prose around it") sent a model chasing the wrong defect.
+    Real run dr-dd376b7d burned three attempts and $0.34 on exactly this:
+    every rejected reply added a ```json fence (acting on the wrong
+    instruction) and kept the one unescaped quote that actually broke it.
+
+    This drives the real `run_stage` repair loop, not `extract_json` in
+    isolation, so it proves the specific parse error actually reaches the
+    next prompt.
+    """
+    # A literal, unescaped quote inside a string value -- the exact defect
+    # from dr-dd376b7d ("... The only "package" source given ..."). This is
+    # genuinely malformed JSON, not prose-around-JSON: the parser gets 22
+    # characters in before it breaks.
+    malformed = '{"report": "The only "package" source given here is fine"}'
+    reasoner = _Scripted(malformed, json.dumps({"report": "ok"}))
+
+    result = run_stage("synthesise", reasoner, "prompt", validate=lambda document: document)
+
+    assert result.value == {"report": "ok"}
+    repair_prompt = reasoner.asked[1]
+    assert "REJECTED" in repair_prompt
+    # The specific json.JSONDecodeError detail -- byte offset and expected
+    # token -- must reach the next attempt, not a generic complaint.
+    assert "Expecting" in repair_prompt or "delimiter" in repair_prompt, (
+        "the repair must carry the parser's own diagnosis, not a guess"
+    )
+    # And the generic, WRONG finding ("carried no JSON document... no prose
+    # around it") must not be what a genuinely-malformed-but-present JSON
+    # document gets told -- that finding caused the model to add a ```json
+    # fence three times while the actual defect (the unescaped quote) survived.
+    assert "no prose around it" not in repair_prompt
+
+
+def test_an_empty_or_prose_only_reply_still_gets_the_generic_finding():
+    """The generic finding is correct when there is truly nothing JSON-shaped
+    to point at -- D6's fix must not remove it for the case it is right for.
+    """
+    reasoner = _Scripted("I'd be happy to help! Here's my analysis.", json.dumps({"ok": True}))
+    run_stage("synthesise", reasoner, "prompt", validate=lambda document: document)
+    assert "no prose around it" in reasoner.asked[1]
+
+
 def test_every_reply_survives_even_when_the_stage_never_succeeds():
     """The total failure is the case most in need of evidence, and most likely to lose it."""
     replies = ("prose one", "prose two", "prose three")

@@ -410,23 +410,41 @@ def read_part(
 
 
 def sources_of(run: Run, *, category: str | None = None) -> dict[str, Any]:
-    """A run's citations as structured data."""
+    """A run's citations as structured data.
+
+    ``omitted``, when present, names every source entry the backend received
+    but could not keep and why -- not an object, no url, a repeat of one
+    already kept. A partial result is a failure unless it says which parts
+    succeeded; this is where a caller finds that out.
+    """
     document = _read_json(run.file(SOURCES_FILE), "sources.json")
     sources = document.get("sources", [])
     if category is not None:
         sources = [s for s in sources if s.get("category") == category]
-    return {
+    result: dict[str, Any] = {
         "run_id": run.run_id,
         "count": len(sources),
         "sources": sources,
         "inherited_from": document.get("inherited_from"),
     }
+    omitted = document.get("omitted")
+    if omitted:
+        result["omitted"] = omitted
+    return result
 
 
 def verdicts_of(
     run: Run, *, verdict: str | None = None, index: int | None = None
 ) -> dict[str, Any]:
-    """A fact-check run's per-claim results."""
+    """A fact-check run's per-claim results.
+
+    Never presents a still-running check as though it were whole: the
+    incremental artifact's own ``complete`` flag travels with the result, and
+    while a run is not yet complete the response also names how many claims
+    are expected and which indexes have not landed yet -- a partial result is
+    a failure unless it says which parts succeeded, and a caller reading a
+    partial run must not be able to mistake it for a finished one.
+    """
     path = run.file(VERDICTS_FILE)
     if not path.exists():
         raise UsageError(
@@ -434,17 +452,40 @@ def verdicts_of(
             "Verdicts belong to fact-check runs. Use `read` for a research run.",
         )
     document = _read_json(path, "verdicts.json")
-    entries = document.get("verdicts", [])
+    all_entries = [e for e in document.get("verdicts", []) if isinstance(e, dict)]
+    complete = bool(document.get("complete", False))
+
+    # Computed from the entries actually on disk, never from a record field a
+    # writer might forget to set: a tally that could silently read as empty
+    # from a missing key is the "declared but not usable" shape this project
+    # keeps having to fix.
+    tally: dict[str, int] = {}
+    for entry in all_entries:
+        name = entry.get("verdict")
+        if name:
+            tally[name] = tally.get(name, 0) + 1
+
+    entries = all_entries
     if verdict is not None:
         entries = [v for v in entries if v.get("verdict") == verdict]
     if index is not None:
         entries = [v for v in entries if v.get("index") == index]
-    return {
+
+    result: dict[str, Any] = {
         "run_id": run.run_id,
         "count": len(entries),
-        "tally": run.record.get("tally"),
+        "tally": tally,
         "verdicts": entries,
+        "complete": complete,
+        "run_status": run.record.get("status"),
     }
+    if not complete:
+        expected = run.record.get("counts", {}).get("claims")
+        if isinstance(expected, int):
+            seen = {e.get("index") for e in all_entries}
+            result["expected_claims"] = expected
+            result["missing_claim_indexes"] = [i for i in range(expected) if i not in seen]
+    return result
 
 
 def citation_ids(text: str) -> list[str]:

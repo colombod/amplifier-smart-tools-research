@@ -3,7 +3,7 @@ name = "research-core"
 # Static on purpose. A dynamic version makes the conformance rule
 # manifest-version-matches-package SKIP rather than fail, so the check would be
 # lost silently.
-version = "0.9.1"
+version = "0.10.0"
 description = "Shared core for the research smart tools: manifest, envelope, errors, run artifacts."
 readme = "README.md"
 # 3.12, not 3.11: the `agent` extra pulls amplifier-agent, which requires >=3.12.

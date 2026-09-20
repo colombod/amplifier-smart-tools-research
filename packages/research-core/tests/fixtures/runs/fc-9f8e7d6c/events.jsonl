@@ -1,8 +1,24 @@
-{"type": "run", "run_id": "fc-9f8e7d6c", "status": "started", "at": "2026-09-14T10:02:00Z", "claims": 3, "from_run": "dr-1a2b3c4d"}
-{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "triage", "index": 1, "of": 3, "status": "complete", "at": "2026-09-14T10:02:19Z", "duration_ms": 19000}
-{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 1, "status": "complete", "verdict": "supported", "at": "2026-09-14T10:02:51Z"}
-{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 2, "status": "complete", "verdict": "refuted", "at": "2026-09-14T10:03:30Z"}
-{"type": "claim", "run_id": "fc-9f8e7d6c", "index": 3, "status": "complete", "verdict": "unverifiable", "at": "2026-09-14T10:04:02Z"}
-{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "verify", "index": 2, "of": 3, "status": "complete", "at": "2026-09-14T10:04:02Z", "duration_ms": 103000}
-{"type": "stage", "run_id": "fc-9f8e7d6c", "stage": "compile", "index": 3, "of": 3, "status": "complete", "at": "2026-09-14T10:04:12Z", "duration_ms": 10000}
-{"type": "run", "run_id": "fc-9f8e7d6c", "status": "complete", "at": "2026-09-14T10:04:12Z", "duration_ms": 132000}
+{"at": "2026-09-20T12:15:20Z", "backend": "scripted", "depth": "medium", "query": "3 claim(s)", "run_id": "fc-9f8e7d6c", "status": "started", "type": "run"}
+{"at": "2026-09-20T12:15:20Z", "index": 1, "of": 3, "run_id": "fc-9f8e7d6c", "stage": "triage", "status": "started", "type": "stage"}
+{"accepted": true, "at": "2026-09-20T12:15:20Z", "attempt": 1, "run_id": "fc-9f8e7d6c", "stage": "triage", "type": "stage_attempt"}
+{"at": "2026-09-20T12:15:20Z", "attempts": 1, "attempts_discarded": 0, "cost_usd": "0.001", "discarded_cost_usd": null, "run_id": "fc-9f8e7d6c", "tokens_in": 100, "tokens_out": 50, "type": "usage"}
+{"at": "2026-09-20T12:15:20Z", "claims": 3, "duration_ms": 0, "index": 1, "of": 3, "run_id": "fc-9f8e7d6c", "stage": "triage", "status": "complete", "strict": false, "type": "stage"}
+{"at": "2026-09-20T12:15:20Z", "index": 2, "of": 3, "run_id": "fc-9f8e7d6c", "stage": "verify", "status": "started", "type": "stage"}
+{"at": "2026-09-20T12:15:20Z", "claim_type": "simple", "index": 0, "of": 3, "run_id": "fc-9f8e7d6c", "status": "started", "type": "claim"}
+{"accepted": true, "at": "2026-09-20T12:15:20Z", "attempt": 1, "run_id": "fc-9f8e7d6c", "stage": "verify[0]", "type": "stage_attempt"}
+{"at": "2026-09-20T12:15:20Z", "attempts": 2, "attempts_discarded": 0, "cost_usd": "0.002", "discarded_cost_usd": null, "run_id": "fc-9f8e7d6c", "tokens_in": 200, "tokens_out": 100, "type": "usage"}
+{"at": "2026-09-20T12:15:20Z", "index": 0, "of": 3, "run_id": "fc-9f8e7d6c", "status": "complete", "type": "claim", "verdict": "supported"}
+{"at": "2026-09-20T12:15:20Z", "claim_type": "complex", "index": 1, "of": 3, "run_id": "fc-9f8e7d6c", "status": "started", "type": "claim"}
+{"accepted": true, "at": "2026-09-20T12:15:20Z", "attempt": 1, "run_id": "fc-9f8e7d6c", "stage": "verify[1]", "type": "stage_attempt"}
+{"at": "2026-09-20T12:15:20Z", "attempts": 3, "attempts_discarded": 0, "cost_usd": "0.003", "discarded_cost_usd": null, "run_id": "fc-9f8e7d6c", "tokens_in": 300, "tokens_out": 150, "type": "usage"}
+{"at": "2026-09-20T12:15:20Z", "index": 1, "of": 3, "run_id": "fc-9f8e7d6c", "status": "complete", "type": "claim", "verdict": "refuted"}
+{"at": "2026-09-20T12:15:20Z", "claim_type": "complex", "index": 2, "of": 3, "run_id": "fc-9f8e7d6c", "status": "started", "type": "claim"}
+{"accepted": true, "at": "2026-09-20T12:15:20Z", "attempt": 1, "run_id": "fc-9f8e7d6c", "stage": "verify[2]", "type": "stage_attempt"}
+{"at": "2026-09-20T12:15:20Z", "attempts": 4, "attempts_discarded": 0, "cost_usd": "0.004", "discarded_cost_usd": null, "run_id": "fc-9f8e7d6c", "tokens_in": 400, "tokens_out": 200, "type": "usage"}
+{"at": "2026-09-20T12:15:20Z", "index": 2, "of": 3, "run_id": "fc-9f8e7d6c", "status": "complete", "type": "claim", "verdict": "unverifiable"}
+{"at": "2026-09-20T12:15:20Z", "duration_ms": 0, "index": 2, "of": 3, "opinion": 0, "refuted": 1, "run_id": "fc-9f8e7d6c", "stage": "verify", "status": "complete", "supported": 1, "type": "stage", "unverifiable": 1}
+{"at": "2026-09-20T12:15:20Z", "index": 3, "of": 3, "run_id": "fc-9f8e7d6c", "stage": "compile", "status": "started", "type": "stage"}
+{"accepted": true, "at": "2026-09-20T12:15:20Z", "attempt": 1, "run_id": "fc-9f8e7d6c", "stage": "compile", "type": "stage_attempt"}
+{"at": "2026-09-20T12:15:20Z", "attempts": 5, "attempts_discarded": 0, "cost_usd": "0.005", "discarded_cost_usd": null, "run_id": "fc-9f8e7d6c", "tokens_in": 500, "tokens_out": 250, "type": "usage"}
+{"at": "2026-09-20T12:15:20Z", "duration_ms": 0, "index": 3, "of": 3, "run_id": "fc-9f8e7d6c", "stage": "compile", "status": "complete", "type": "stage"}
+{"at": "2026-09-20T12:15:20Z", "duration_ms": 6, "run_id": "fc-9f8e7d6c", "status": "complete", "type": "run"}

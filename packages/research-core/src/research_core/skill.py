@@ -305,11 +305,14 @@ def render_capability_skill(capability: CapabilitySkill, *, prog: str) -> str:
     lines += [
         "## Reading the result",
         "",
-        'One JSON document on stdout. Success is `{"result": ...}`; failure is '
-        '`{"error": {"code", "message", "remedy", "affordances"}}` with a '
-        "non-zero exit. **A refusal carries `affordances` too** -- named next moves, "
-        "each free and each needing no credential, so being refused is never a dead "
-        "end. Progress and diagnostics go to stderr, never stdout.",
+        'One JSON document per call. A SUCCESS -- `{"result": ...}` -- is on '
+        'STDOUT. A FAILURE -- `{"error": {"code", "message", "remedy", '
+        '"affordances"}}` with a non-zero exit -- is on STDERR, with stdout '
+        "left empty; if stdout is empty, the call failed. **A refusal carries "
+        "`affordances` too** -- named next moves, each free and each needing "
+        "no credential, so being refused is never a dead end. Progress and "
+        "diagnostics are always on stderr, never stdout, on both success and "
+        "failure.",
         "",
         f"For the whole tool rather than this one verb: `{prog} --help`.",
     ]
@@ -403,11 +406,14 @@ def render_verb_skill(
     lines += [
         "## Reading the result",
         "",
-        'One JSON document on stdout. Success is `{"result": ...}`; failure is '
-        '`{"error": {"code", "message", "remedy", "affordances"}}` with a '
-        "non-zero exit. **A refusal carries `affordances` too** — named next moves, "
-        "each free and each needing no credential, so being refused is never a dead "
-        "end. Progress and diagnostics go to stderr, never stdout.",
+        'One JSON document per call. A SUCCESS -- `{"result": ...}` -- is on '
+        'STDOUT. A FAILURE -- `{"error": {"code", "message", "remedy", '
+        '"affordances"}}` with a non-zero exit -- is on STDERR, with stdout '
+        "left empty; if stdout is empty, the call failed. **A refusal carries "
+        "`affordances` too** — named next moves, each free and each needing "
+        "no credential, so being refused is never a dead end. Progress and "
+        "diagnostics are always on stderr, never stdout, on both success and "
+        "failure.",
         "",
         f"For the whole tool rather than this one verb: `{prog} --help`.",
     ]
@@ -597,37 +603,18 @@ def render_pointer_skill(
         lines += [f"# {comment}", command]
     lines += ["```"]
 
-    # WHAT EACH THING NEEDS, spelled out here rather than discovered by failure.
-    # Reported from real use: an agent hit "not configured" partway through a
-    # task, had to work out which of two separate things was missing, and
-    # substituted a different tool entirely. The manifest knew the answer the
-    # whole time; the skill just never said it.
-    requires = data.get("requires") or []
-    if requires:
-        needed = [r for r in requires if not r.get("optional")]
-        optional = [r for r in requires if r.get("optional")]
-        lines += ["", "## What needs setting up", ""]
-
-        def _line(item: Any) -> str:
-            purpose = " ".join(str(item.get("purpose", "")).split())
-            return f"- **{item.get('name')}** -- {purpose.split('.')[0][:110]}."
-
-        if needed:
-            lines += ["Required:", ""] + [_line(i) for i in needed] + [""]
-        if optional:
-            lines += [
-                "Optional -- everything else runs without them:",
-                "",
-                *[_line(i) for i in optional],
-                "",
-            ]
-        lines.append(
-            _wrap(
-                f"`{name} config` says which of these THIS machine has and what to run "
-                "for each gap. Check it before calling a capability unavailable."
-            )
-        )
-
+    # THIN ON PURPOSE: the manifest's name and description (in the frontmatter
+    # above), the install commands (above), and the instruction below to run
+    # `--help` and follow it -- nothing more. A prior version also carried a
+    # "What needs setting up" prerequisites section and a "Staying current"
+    # section with a live `git ls-remote` check: both duplicated content
+    # `--help`/`manifest`/`check` already state authoritatively, on the
+    # binary actually installed, which is exactly the runtime-contract detail
+    # a POINTER must not carry (see the module docstring on why a pointer
+    # can go stale but must never assert anything `--help` would). The one
+    # piece of that kept is the version-mismatch note below: it costs one
+    # line and is the caller's only way to notice this pointer is older or
+    # newer than the binary it points at.
     lines += [
         "",
         "## Use it",
@@ -646,22 +633,13 @@ def render_pointer_skill(
             "for your installation. This file cannot be, and does not try."
         ),
         "",
-        "## Staying current",
-        "",
         _wrap(
-            f"`{name} manifest` reports the version installed. This pointer was "
-            f"generated from {version}. If they differ, the tool is the authority -- "
-            "re-read `--help`, because flags and costs change between releases."
+            f"`{name} manifest` reports the version actually installed; this pointer "
+            f"was generated from {version}. If they differ, re-read `--help` -- flags "
+            "and costs can change between releases. Upgrade in place:"
         ),
         "",
         "```bash",
-        "# what you have",
-        f"{name} manifest",
-        "",
-        "# what exists",
-        f"git ls-remote --tags --refs {repository} | tail -3",
-        "",
-        "# upgrade in place",
         install[0][1].replace("uv tool install ", "uv tool install --force "),
         "```",
         "",

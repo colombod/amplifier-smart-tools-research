@@ -153,12 +153,18 @@ def parse_agent_reply(
         )
 
     sources: list[Source] = []
+    omitted: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for entry in document.get("sources") or []:
+    for index, entry in enumerate(document.get("sources") or []):
         if not isinstance(entry, dict):
+            omitted.append({"index": index, "reason": "not an object"})
             continue
         url = str(entry.get("url") or "").strip()
-        if not url or url in seen:
+        if not url:
+            omitted.append({"index": index, "reason": "missing or empty url"})
+            continue
+        if url in seen:
+            omitted.append({"index": index, "reason": "duplicate url", "url": url})
             continue
         seen.add(url)
         sources.append(
@@ -177,4 +183,5 @@ def parse_agent_reply(
         usage=dict(usage or {}),
         raw=document,
         backend="agent",
+        omitted=omitted,
     )

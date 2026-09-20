@@ -176,7 +176,10 @@ def test_verdicts_filter_and_carry_the_tally():
     assert document["tally"]["refuted"] == 1
     only = verdicts_of(load_run(FIXTURES, FACT_CHECK), verdict="unverifiable")
     assert only["count"] == 1
-    assert only["verdicts"][0]["index"] == 3
+    # Real verdicts are indexed from 0 (`enumerate(claims)`), not 1 -- the
+    # fixture this replaced was hand-authored with 1-based indices, a fiction
+    # no real run has ever produced.
+    assert only["verdicts"][0]["index"] == 2
 
 
 def test_unverifiable_is_its_own_verdict_and_not_a_refutation():

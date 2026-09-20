@@ -1,0 +1,1 @@
+{"verdict": "refuted", "confidence": "high", "reasoning": "Convergence is agreement, not correctness. The sources are explicit that strong eventual consistency says every replica agrees on a state, and says nothing about that state being one an application would accept [s2][s5].", "sources": ["s2", "s5"]}

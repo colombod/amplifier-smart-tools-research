@@ -123,9 +123,28 @@ def _ai_provider_detector() -> tuple[str, str]:
     return ABSENT, found.detail
 
 
+def _engine_home_detector() -> tuple[str, str]:
+    """Satisfied only if the engine could actually write where it will try to.
+
+    Reuses `engine_home_status`, the SAME check `check`'s unconditional
+    `engine_home` block and `ensure_engine_home_usable`'s preflight both rest
+    on, so this cannot drift from what a model-backed verb will actually do
+    when it starts. Unlike `ai-provider`, this is a filesystem fact rather
+    than a credential one: a host with no provider configured at all may
+    still have a perfectly writable engine home.
+    """
+    from research_core.engine import engine_home_status
+
+    status = engine_home_status()
+    if status["writable"]:
+        return SATISFIED, f"{status['path']} ({status['source']}) is writable"
+    return ABSENT, f"{status['path']} ({status['source']}): {status['detail']}"
+
+
 DETECTORS: dict[str, Callable[[], tuple[str, str]]] = {
     "perplexity": _credential_detector("perplexity"),
     "ai-provider": _ai_provider_detector,
+    "engine-home": _engine_home_detector,
 }
 
 

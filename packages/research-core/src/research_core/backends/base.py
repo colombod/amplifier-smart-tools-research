@@ -39,13 +39,21 @@ class Source:
 
 @dataclass(frozen=True)
 class Evidence:
-    """What a backend returns: findings, the sources behind them, what it cost."""
+    """What a backend returns: findings, the sources behind them, what it cost.
+
+    ``omitted`` names every source entry a backend received but could not
+    keep -- not an object, no URL, or a repeat of one already kept -- each
+    with why. A partial result is a failure unless the omission is reported;
+    this is how a backend reports it rather than silently returning only the
+    portion that parsed.
+    """
 
     text: str
     sources: list[Source] = field(default_factory=list)
     usage: dict[str, Any] = field(default_factory=dict)
     raw: Any = None
     backend: str = ""
+    omitted: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,6 +61,7 @@ class Evidence:
             "sources": [s.to_dict() for s in self.sources],
             "usage": dict(self.usage),
             "backend": self.backend,
+            "omitted": list(self.omitted),
         }
 
 

@@ -5,7 +5,12 @@ built once here rather than twice in two thin CLIs. The CLI still does only what
 CLI should -- argument parsing and output shaping -- and this module is library
 code that any other caller can use directly.
 
-Nothing here needs a credential or reaches a network.
+Nothing here needs a credential. One verb reaches a network, and only when a
+caller opts in: `sources --verify` HEADs each source's URL to report whether it
+still resolves (see `research_core.url_reachability`; unrelated to a run's own
+process `liveness`, which is about whether a detached run's process is still
+working, not whether a citation's URL still resolves). Every other verb here touches
+only what is already on disk.
 """
 
 from __future__ import annotations
@@ -58,7 +63,13 @@ def cmd_read(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def cmd_sources(args: argparse.Namespace) -> dict[str, Any]:
-    return api.sources(args.run_id, category=args.category, runs_dir=args.runs_dir)
+    return api.sources(
+        args.run_id,
+        category=args.category,
+        runs_dir=args.runs_dir,
+        verify=args.verify,
+        verify_timeout=args.verify_timeout,
+    )
 
 
 def cmd_verdicts(args: argparse.Namespace) -> dict[str, Any]:
@@ -236,13 +247,42 @@ _CAPABILITIES: dict[str, CapabilitySkill] = {
         args=(
             ArgSpec("run_id", "run_id", required=True, positional=True),
             ArgSpec("--category", "category", choices=CATEGORIES, help="only sources of this kind"),
+            ArgSpec(
+                "--verify",
+                "verify",
+                default=False,
+                help=(
+                    "HEAD (falling back to GET) every source's URL and report "
+                    "whether it resolves. Reaches the network -- off by "
+                    "default, and never needed for the deterministic case. "
+                    "Reachability is not support: this only catches a citation "
+                    "that resolves to nothing at all."
+                ),
+            ),
+            ArgSpec(
+                "--verify-timeout",
+                "verify_timeout",
+                default=5.0,
+                help="seconds to wait per source before giving up; only used with --verify",
+            ),
             ArgSpec("--runs-dir", "runs_dir", help="where runs live for this invocation"),
         ),
         invocation="{prog} sources dr-82baa98f --category academic",
         result=(
-            "`run_id`, `count`, `sources` (list of `{id, url, title, category}`), `inherited_from`."
+            "`run_id`, `count`, `sources` (list of `{id, url, title, category}`), "
+            "`inherited_from`, and -- only when the backend could not keep every "
+            "entry it received -- `omitted` (one entry per dropped source: "
+            "`index`, `reason`). With `--verify`: each source also carries "
+            "`reachable` (true/false/null), `status_code`, `checked_at`, and "
+            "-- only on a network failure -- `check_error`; the envelope also "
+            "carries `verified: true`, `reachable_count`, `unreachable_count`, "
+            "`unknown_count`."
         ),
-        failures=("RunNotFoundError (exit 1) if the run has no `sources.json`.",),
+        failures=(
+            "RunNotFoundError (exit 1) if the run has no `sources.json`. "
+            "`--verify` never raises for a network failure -- an unreachable-"
+            "to-check source is reported with `reachable: null`, not an error.",
+        ),
     ),
     "verdicts": CapabilitySkill(
         verb="verdicts",
@@ -305,6 +345,9 @@ _CAPABILITIES: dict[str, CapabilitySkill] = {
             "RunFailedError (exit 1) if the run failed: a failed run has nothing "
             "complete to assemble into a finished-shaped document. Run `status` "
             "for what happened, or `read`/`sources` for what survives.",
+            "SmartToolError (exit 1) if `--out` names a path that cannot be "
+            "created or written: the message names the exact path; the "
+            "rendered document was produced and is available without --out.",
         ),
     ),
     "classify": CapabilitySkill(
@@ -364,6 +407,81 @@ _CAPABILITIES: dict[str, CapabilitySkill] = {
             "UsageError (exit 2) if neither `--query` nor `--claims` is given: "
             "there is nothing to estimate.",
         ),
+    ),
+    #: `manifest`, `skill` and `config` are identical in shape across both
+    #: tools -- same arguments, same result, same failures -- so they are
+    #: defined here ONCE rather than duplicated in each tool's `cli.py`. Each
+    #: tool's own `_cmd_manifest`/`_cmd_skill`/`_cmd_config` still calls ITS
+    #: OWN library function (`deep_research.manifest()` vs
+    #: `fact_check.manifest()`); only the --help DOCUMENT is shared, because
+    #: the document is the same for both.
+    "manifest": CapabilitySkill(
+        verb="manifest",
+        description=(
+            "This tool's own manifest as structured data: what it is, what it "
+            "needs, and which of its prerequisites are optional. Deterministic: "
+            "runs with no provider configured and no credentials of any kind."
+        ),
+        spends_money=False,
+        args=(),
+        invocation="{prog} manifest",
+        result=(
+            "The manifest as JSON: `name`, `version`, `description`, "
+            "`use_cases`, `platforms`, and `requires` (one entry per declared "
+            "prerequisite: `name`, `purpose`, `optional`, `install`)."
+        ),
+        failures=("None -- the manifest ships inside the package and always loads.",),
+    ),
+    "skill": CapabilitySkill(
+        verb="skill",
+        description=(
+            "Render this tool as an Agent Skill -- YAML frontmatter plus "
+            "markdown -- which a host can write straight into a skills "
+            "directory and an agent can read as it reads any other skill. "
+            "`--help` is written for a person and leaves an agent to infer the "
+            "contract from English; this states the same contract in the "
+            "shape hosts already have machinery for. Deterministic: runs with "
+            "no provider configured and no credentials of any kind."
+        ),
+        spends_money=False,
+        args=(),
+        invocation="{prog} skill",
+        result='`{"skill": "<the rendered Agent Skill document, frontmatter and body>"}`.',
+        failures=("None -- rendered entirely from the manifest and the registered capabilities.",),
+    ),
+    "config": CapabilitySkill(
+        verb="config",
+        description=(
+            "The effective settings, and which tier each came from: an "
+            "explicit argument, the config file, an environment variable, or "
+            "the built-in default, in that order of precedence. Anything seen "
+            "and deliberately not honoured is reported as such rather than "
+            "vanishing. Credential surfaces report only the tier that "
+            "satisfied them, never a value. Deterministic: runs with no "
+            "provider configured."
+        ),
+        spends_money=False,
+        args=(
+            ArgSpec(
+                "--runs-dir", "runs_dir", help="override the runs directory for this invocation"
+            ),
+            ArgSpec("--backend", "backend", help="override the evidence backend"),
+            ArgSpec(
+                "--depth",
+                "depth",
+                choices=DEPTHS,
+                help="override how hard a run works before it reports",
+            ),
+        ),
+        invocation="{prog} config --runs-dir /tmp/runs",
+        result=(
+            "`settings` (one entry per setting: `value`, `source` one of "
+            "argument/config_file/environment/default, `detail`), "
+            "`config_path`, `config_path_exists`, `ignored` (recognised keys "
+            "this host is not honouring), `credentials` (per-surface status, "
+            "never a value), `credentials_path`, `resolution_order`."
+        ),
+        failures=("None -- an unset or unreadable config file falls back to defaults.",),
     ),
 }
 
@@ -454,6 +572,19 @@ def register(verbs: Any, *, prog: str, package: str, include_verdicts: bool = Fa
     _add_runs_dir(sources)
     sources.add_argument("run_id", metavar="<id>")
     sources.add_argument("--category", choices=CATEGORIES, help="only sources of this kind")
+    sources.add_argument(
+        "--verify",
+        action="store_true",
+        default=False,
+        help="HEAD every source's URL and report whether it resolves (reaches the network)",
+    )
+    sources.add_argument(
+        "--verify-timeout",
+        type=float,
+        default=5.0,
+        metavar="SECONDS",
+        help="seconds to wait per source before giving up; only used with --verify",
+    )
     sources.set_defaults(handler=cmd_sources, _capability_skill=_CAPABILITIES["sources"])
 
     if include_verdicts:

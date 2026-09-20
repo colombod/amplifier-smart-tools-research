@@ -151,6 +151,12 @@ def test_each_optional_requirement_names_its_cost_where_a_reader_will_see_it(
     document = check(manifest)
     surfaced = " ".join(document["reduced_form"])
     for requirement in manifest.requires:
+        # engine-home is a filesystem check, not a credential one: on a host
+        # that can write to its own home directory it is satisfied regardless
+        # of `no_host_providers`, so it need not appear among the costs of
+        # having nothing CONFIGURED.
+        if requirement.name == "engine-home":
+            continue
         if requirement.optional:
             assert requirement.name in surfaced, requirement.name
 
@@ -159,7 +165,13 @@ def test_each_optional_requirement_names_its_cost_where_a_reader_will_see_it(
 def test_check_reports_absent_when_nothing_is_configured(package, tmp_path, no_host_providers):
     pytest.importorskip(package)
     document = check(load_manifest(package), runs_dir=str(tmp_path / "runs"))
-    assert {r["state"] for r in document["requirements"]} == {"absent"}
+    by_name = {r["name"]: r["state"] for r in document["requirements"]}
+    # engine-home is a filesystem fact, not a credential one: it is unaffected
+    # by "nothing is configured" and is expected to be satisfied on any host
+    # that can write to its own home directory, which the test host can.
+    credential_states = {name: state for name, state in by_name.items() if name != "engine-home"}
+    assert set(credential_states.values()) == {"absent"}
+    assert by_name["engine-home"] == "satisfied"
     # Nothing required is missing, because nothing is required.
     assert document["ready"] is True
     assert document["deterministic_capabilities_available"] is True

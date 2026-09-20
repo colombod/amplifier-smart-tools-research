@@ -123,11 +123,25 @@ def run_stage(
         try:
             document = extract_json(thought.text)
         except NoStructureFound as exc:
-            rejection = StageRejected(
-                str(exc),
-                finding="Your reply carried no JSON document. Return ONLY the "
-                "JSON document asked for, with no prose around it.",
-            )
+            # D6: a rejection must feed back the SPECIFIC finding, and "no
+            # JSON document was found" is the wrong finding whenever a
+            # candidate came close -- it was three attempts, one real
+            # mistake (an unescaped quote), and every retry fixed prose the
+            # model never actually wrote, because the feedback described a
+            # different defect than the one the parser hit.
+            if exc.detail:
+                finding = (
+                    "Your reply contained something that looked like a JSON "
+                    f"document, but it failed to parse: {exc.detail}. Fix "
+                    "that specific problem -- do not restructure or re-fence "
+                    "the reply -- and return the corrected JSON document."
+                )
+            else:
+                finding = (
+                    "Your reply carried no JSON document. Return ONLY the "
+                    "JSON document asked for, with no prose around it."
+                )
+            rejection = StageRejected(str(exc), finding=finding)
         else:
             try:
                 value = validate(document)

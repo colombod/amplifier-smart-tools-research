@@ -18,10 +18,11 @@ from __future__ import annotations
 from typing import Any
 
 from research_core import Manifest, api, load_manifest
+from research_core.skill import ArgSpec, CapabilitySkill
 
 from fact_check.checking import check_claims
 
-__version__ = "0.1.0"
+__version__ = "0.10.0"
 
 PACKAGE = "fact_check"
 PROG = "fact-check"
@@ -76,10 +77,25 @@ def read(
 
 
 def sources(
-    run_id: str, *, category: str | None = None, runs_dir: str | None = None
+    run_id: str,
+    *,
+    category: str | None = None,
+    runs_dir: str | None = None,
+    verify: bool = False,
+    verify_timeout: float = 5.0,
 ) -> dict[str, Any]:
-    """A run's citations as structured data."""
-    return api.sources(run_id, category=category, runs_dir=runs_dir)
+    """A run's citations as structured data.
+
+    ``verify`` reaches the network -- see `research_core.api.sources` for what
+    it checks and why it defaults off.
+    """
+    return api.sources(
+        run_id,
+        category=category,
+        runs_dir=runs_dir,
+        verify=verify,
+        verify_timeout=verify_timeout,
+    )
 
 
 def render(
@@ -124,6 +140,107 @@ def estimate(
     --no-scope` do, and the library must reach everything the CLI reaches.
     """
     return api.estimate(claims=claims, query=query, depth=depth, runs_dir=runs_dir, scope=scope)
+
+
+#: Library-owned `--help` content for this tool's PRIMARY capability, in the
+#: same shape `research_core.verbs._CAPABILITIES` gives the shared verbs --
+#: built from `check_claims`'s own signature and behaviour, not derived from
+#: the argparse subparser in `cli.py`. `check-claims` is this tool's own
+#: reason to exist, so it is the one capability an agent most needs the full
+#: document for, and `tests/test_capability_skills.py` cross-checks this
+#: against both the parser and the public library signature so neither can
+#: drift undocumented. LIVES HERE, in the library, rather than in `cli.py`:
+#: the CLI only wires it into the parser, it does not define it.
+#:
+#: `reasoner`, `stream` and `run_id` are excluded from `args` for the same
+#: reason as `deep_research.RESEARCH_CAPABILITY`'s: the first two are
+#: Python-embedding test seams with no CLI spelling, and `run_id` is wiring
+#: the detached child uses to resume the identifier its parent already
+#: published.
+CHECK_CLAIMS_CAPABILITY = CapabilitySkill(
+    verb="check-claims",
+    description=(
+        "Assess each claim against evidence a research run already gathered, "
+        "and return one verdict per claim: supported, refuted, unverifiable, "
+        "or opinion. Model-backed: it makes one model call per claim and "
+        "fails saying so when no reasoning provider is configured, rather "
+        "than guessing. Evidence is not gathered here -- pass --from-run."
+    ),
+    spends_money=True,
+    args=(
+        ArgSpec("--claim", "claim", help="a claim to check; repeatable"),
+        ArgSpec("--claims-file", "claims_file", help="one claim per line"),
+        ArgSpec(
+            "--from-run",
+            "from_run",
+            help="use this run's evidence instead of gathering it again",
+        ),
+        ArgSpec(
+            "--strict",
+            "strict",
+            default=False,
+            help="treat every claim as complex: slower, more expensive, and `estimate` says so",
+        ),
+        ArgSpec("--runs-dir", "runs_dir", help="where runs live for this invocation"),
+        ArgSpec("--timeout-ms", "timeout_ms", help="wall-clock budget for one reasoning turn"),
+        ArgSpec(
+            "--inline",
+            "inline",
+            default=None,
+            help="return the whole report in the envelope, whatever its size",
+        ),
+        ArgSpec(
+            "--no-inline",
+            "inline",
+            default=None,
+            help="always return a pointer, never the report itself",
+        ),
+        ArgSpec(
+            "--max-attempts",
+            "max_attempts",
+            help=(
+                "how many times a stage may be repaired before the run "
+                "fails; unset uses the configured default (3)"
+            ),
+        ),
+        ArgSpec("--quiet", "quiet", default=False, help="do not stream progress to stderr"),
+        ArgSpec(
+            "--detach",
+            "detach",
+            default=False,
+            help=(
+                "return part one immediately and continue the work in the "
+                "background. ONE MODEL CALL PER CLAIM -- estimated 330s for "
+                "three claims, 959s for ten, and that estimator is known to "
+                "under-predict"
+            ),
+        ),
+    ),
+    invocation=(
+        "{prog} check-claims --from-run dr-70ce2d29 --claim 'CRDTs converge without coordination.'"
+    ),
+    result=(
+        "`run_id`, `status`, `brief`, `tally` (counts per verdict -- small, "
+        "and it IS the answer), `claim_count`, `source_count`, "
+        "`inherited_from` (the run this evidence came from), `confidence`, "
+        "`path` (the run directory), `report_bytes`, `inline`, `usage`, "
+        "`next` (the exact `verdicts`/`sources` commands to go further). "
+        "`unverifiable` means CHECKED and no adequate evidence either way -- "
+        "never a synonym for `refuted`. With `--detach`, part one comes back "
+        "instead: `accepted`, `detached`, `pid`, `claim_count`, "
+        "`inherited_from`, `not_yet_true`, and `poll_again_in_seconds`."
+    ),
+    failures=(
+        "NoProviderError (exit 3): no reasoning provider is configured.",
+        "UsageError (exit 2): no claims given (neither `--claim` nor "
+        "`--claims-file`), or no `--from-run`.",
+        "NoEvidence (exit 1): the named run has no sources to check claims against.",
+        "SmartToolError wrapping ClaimUncheckable (exit 1): a claim could "
+        "not be checked after `max_attempts` rejections -- distinct from "
+        "`unverifiable`, which means checked and the evidence was inadequate. "
+        "Verdicts already recorded before the stop are kept.",
+    ),
+)
 
 
 #: Every capability, by the name the CLI uses for it. A test asserts this covers
@@ -220,8 +337,11 @@ def skill() -> str:
         },
         model_backed=("check-claims",),
         result_shape=(
-            'One JSON document on stdout. Success is {"result": ...}; failure is'
-            '{"error": {"code", "message", "remedy"}} with a non-zero exit. The `tally`'
+            'One JSON document per call. Success -- {"result": ...} -- is on '
+            "STDOUT. Failure -- "
+            '{"error": {"code", "message", "remedy"}} with a non-zero exit -- is on '
+            "STDERR, with stdout left empty; if stdout is empty, the call failed. "
+            "The `tally` "
             "travels inline because it is small and it IS the answer; the per-claim "
             "detail stays on disk. VERDICT MEANINGS MATTER HERE: `supported` and "
             "`refuted` mean the evidence says so; `unverifiable` means the claim was "

@@ -21,100 +21,14 @@ from research_core import (
     emit,
     emit_error,
 )
-from research_core.skill import ArgSpec, CapabilitySkill, add_help_flags, wire_verb_help
+from research_core.skill import add_help_flags, wire_verb_help
+from research_core.verbs import _CAPABILITIES as _COMMON_CAPABILITIES
 from research_core.verbs import register as register_common_verbs
 
 import fact_check
+from fact_check import CHECK_CLAIMS_CAPABILITY
 
 PROG = "fact-check"
-
-#: Library-owned `--help` content for this tool's PRIMARY capability -- see
-#: `deep_research.cli.RESEARCH_CAPABILITY` for the sibling and the rationale.
-#: Built from `fact_check.check_claims`'s own signature and behaviour, not
-#: derived from the argparse subparser below it.
-#:
-#: `reasoner`, `stream` and `run_id` are excluded from `args` for the same
-#: reason as `research`'s: the first two are Python-embedding test seams with
-#: no CLI spelling, and `run_id` is wiring the detached child uses to resume
-#: the identifier its parent already published. `max_attempts` is a real
-#: tunable with no CLI flag yet either; `tests/test_capability_skills.py`
-#: mirrors this exclusion so the gap cannot reopen silently.
-CHECK_CLAIMS_CAPABILITY = CapabilitySkill(
-    verb="check-claims",
-    description=(
-        "Assess each claim against evidence a research run already gathered, "
-        "and return one verdict per claim: supported, refuted, unverifiable, "
-        "or opinion. Model-backed: it makes one model call per claim and "
-        "fails saying so when no reasoning provider is configured, rather "
-        "than guessing. Evidence is not gathered here -- pass --from-run."
-    ),
-    spends_money=True,
-    args=(
-        ArgSpec("--claim", "claim", help="a claim to check; repeatable"),
-        ArgSpec("--claims-file", "claims_file", help="one claim per line"),
-        ArgSpec(
-            "--from-run",
-            "from_run",
-            help="use this run's evidence instead of gathering it again",
-        ),
-        ArgSpec(
-            "--strict",
-            "strict",
-            default=False,
-            help="treat every claim as complex: slower, more expensive, and `estimate` says so",
-        ),
-        ArgSpec("--runs-dir", "runs_dir", help="where runs live for this invocation"),
-        ArgSpec("--timeout-ms", "timeout_ms", help="wall-clock budget for one reasoning turn"),
-        ArgSpec(
-            "--inline",
-            "inline",
-            default=None,
-            help="return the whole report in the envelope, whatever its size",
-        ),
-        ArgSpec(
-            "--no-inline",
-            "inline",
-            default=None,
-            help="always return a pointer, never the report itself",
-        ),
-        ArgSpec("--quiet", "quiet", default=False, help="do not stream progress to stderr"),
-        ArgSpec(
-            "--detach",
-            "detach",
-            default=False,
-            help=(
-                "return part one immediately and continue the work in the "
-                "background. ONE MODEL CALL PER CLAIM -- estimated 330s for "
-                "three claims, 959s for ten, and that estimator is known to "
-                "under-predict"
-            ),
-        ),
-    ),
-    invocation=(
-        "{prog} check-claims --from-run dr-70ce2d29 --claim 'CRDTs converge without coordination.'"
-    ),
-    result=(
-        "`run_id`, `status`, `brief`, `tally` (counts per verdict -- small, "
-        "and it IS the answer), `claim_count`, `source_count`, "
-        "`inherited_from` (the run this evidence came from), `confidence`, "
-        "`path` (the run directory), `report_bytes`, `inline`, `usage`, "
-        "`next` (the exact `verdicts`/`sources` commands to go further). "
-        "`unverifiable` means CHECKED and no adequate evidence either way -- "
-        "never a synonym for `refuted`. With `--detach`, part one comes back "
-        "instead: `accepted`, `detached`, `pid`, `claim_count`, "
-        "`inherited_from`, `not_yet_true`, and `poll_again_in_seconds`."
-    ),
-    failures=(
-        "NoProviderError (exit 3): no reasoning provider is configured.",
-        "UsageError (exit 2): no claims given (neither `--claim` nor "
-        "`--claims-file`), or no `--from-run`.",
-        "NoEvidence (exit 1): the named run has no sources to check claims against.",
-        "SmartToolError wrapping ClaimUncheckable (exit 1): a claim could "
-        "not be checked after `max_attempts` rejections -- distinct from "
-        "`unverifiable`, which means checked and the evidence was inadequate. "
-        "Verdicts already recorded before the stop are kept.",
-    ),
-)
 
 _DESCRIPTION = """\
 fact-check -- checks claims against evidence, one verdict per claim.
@@ -126,10 +40,12 @@ Each verdict carries the sources it rests on.
 _EPILOG = """\
 USING THE RESULT
 
-  Every response is a single JSON document on stdout. Success is
-  {"result": ...}; failure is {"error": {"code", "message", "remedy"}} with a
-  non-zero exit. Diagnostics and progress go to stderr, never stdout, so you can
-  parse one without filtering the other.
+  Every response is a single JSON document. A SUCCESS -- {"result": ...} -- is
+  on stdout. A FAILURE -- {"error": {"code", "message", "remedy"}} with a
+  non-zero exit -- is on stderr, with stdout left empty. If stdout is empty,
+  the call failed; read stderr. Diagnostics and progress are always on
+  stderr, never stdout, on both success and failure, so you can parse stdout
+  for a result without ever filtering a failure out of it.
 
   A check result is a TALLY plus a POINTER. The tally -- how many claims were
   supported, refuted, unverifiable or opinion -- comes back inline, because it
@@ -163,8 +79,9 @@ NAVIGATING A LARGE RESULT
 
 OUTPUT FORMAT
 
-  Every capability returns JSON on stdout, always -- there is no text mode and
-  no --json flag, because every consumer of this tool is code. The
+  Every capability returns JSON, always -- there is no text mode and no --json
+  flag, because every consumer of this tool is code. A success is JSON on
+  stdout; a failure is a JSON error envelope on stderr, never stdout. The
   specification leaves the format to each capability and asks only that the
   help text say which one it is. This is it.
 """
@@ -209,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
             "configured and no credentials of any kind."
         ),
     )
-    manifest.set_defaults(handler=_cmd_manifest)
+    manifest.set_defaults(handler=_cmd_manifest, _capability_skill=_COMMON_CAPABILITIES["manifest"])
 
     skill = verbs.add_parser(
         "skill",
@@ -222,7 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
             "contract in the shape hosts already have machinery for. Deterministic."
         ),
     )
-    skill.set_defaults(handler=_cmd_skill)
+    skill.set_defaults(handler=_cmd_skill, _capability_skill=_COMMON_CAPABILITIES["skill"])
 
     config = verbs.add_parser(
         "config",
@@ -248,7 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("low", "medium", "high"),
         help="override how hard a run works before it reports",
     )
-    config.set_defaults(handler=_cmd_config)
+    config.set_defaults(handler=_cmd_config, _capability_skill=_COMMON_CAPABILITIES["config"])
 
     checking = verbs.add_parser(
         "check-claims",
@@ -279,6 +196,15 @@ def build_parser() -> argparse.ArgumentParser:
     checking.add_argument("--timeout-ms", type=int, metavar="MS")
     checking.add_argument("--inline", dest="inline", action="store_true", default=None)
     checking.add_argument("--no-inline", dest="inline", action="store_false")
+    checking.add_argument(
+        "--max-attempts",
+        type=int,
+        metavar="N",
+        help=(
+            "how many times a stage may be repaired before the run fails; "
+            "unset uses the configured default (3)"
+        ),
+    )
     checking.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
     checking.add_argument(
         "--detach",
@@ -321,6 +247,7 @@ def _cmd_check_claims(args: argparse.Namespace) -> dict[str, Any]:
         inline=args.inline,
         quiet=args.quiet,
         detach=args.detach,
+        max_attempts=args.max_attempts,
     )
 
 
@@ -338,6 +265,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return exc.exit_code
     except Exception as exc:  # noqa: BLE001 - the envelope is the contract
+        # The remedy tells the caller to report the traceback on stderr, so it
+        # has to actually be there -- not just a promise the message makes.
+        import traceback
+
+        traceback.print_exc()
         emit_error(
             "error",
             f"{type(exc).__name__}: {exc}",

@@ -20,10 +20,10 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from research_core import runs as _runs
-from research_core.affordances import free
+from research_core.affordances import free, no_provider_affordance
 from research_core.backends.base import Budget, Evidence, ResearchBackend
 from research_core.config import resolve_settings
-from research_core.errors import NoEvidence, SmartToolError
+from research_core.errors import NoEvidence, NoProviderError, SmartToolError
 from research_core.reasoning import Reasoner
 from research_core.staging import AttemptsExhausted, StageResult
 from research_core.urls import classify_url
@@ -33,6 +33,10 @@ from research_core.writer import RunWriter, new_run_id
 from deep_research import stages
 
 STAGES = ("scope", "gather", "synthesise", "report")
+#: Matches `deep_research.PROG` / `deep_research.cli.PROG`. Not imported from
+#: either -- `deep_research/__init__.py` imports THIS module, so importing
+#: back from it here would be circular.
+_PROG = "deep-research"
 
 #: Above this, the report is left on disk and the envelope carries a pointer.
 #: Below it, the caller gets the whole thing inline and is spared a second call.
@@ -310,8 +314,19 @@ def research(
     # the evidence, and a `--detach` request that dies on its own preflight
     # moments after the caller was told `accepted: true` has been misled about
     # what it received.
-    engine.preflight()
-    thinker.preflight()
+    try:
+        engine.preflight()
+        thinker.preflight()
+    except NoProviderError as exc:
+        # D8: every `no_provider` refusal has the same one real next move --
+        # `check` -- but the preflight that raises it lives deep in
+        # research_core, with no notion of which CLI is running. Attached
+        # here, at the one place that knows both PROG and this tool's own
+        # `check`, so a library caller catching the exception directly sees
+        # it too, not only a CLI caller reading the envelope.
+        if not exc.affordances:
+            exc.affordances = [no_provider_affordance(prog=_PROG, package="deep_research")]
+        raise
 
     if detach:
         # Hand back part one and get out of the way. The work continues in a
@@ -399,12 +414,18 @@ def research(
         )
         writer.write_raw("gather-01.json", getattr(evidence, "raw", None) or evidence.to_dict())
         sources = number_sources(evidence)
+        # A backend that DROPPED a malformed source entry (not an object, no
+        # url, a repeat) is recorded here rather than silently returning only
+        # the portion that parsed -- a partial result is a failure unless it
+        # says which parts succeeded.
+        omitted_sources = list(getattr(evidence, "omitted", None) or [])
         writer.write_json(
             _runs.SOURCES_FILE,
             {
                 "schema": "research-sources/v1",
                 "run_id": writer.run_id,
                 "sources": sources,
+                "omitted": omitted_sources,
             },
         )
         writer.count(sources=len(sources))
@@ -510,6 +531,13 @@ def research(
     except AttemptsExhausted as exc:
         # Loudly, carrying every attempt. Returning the least-bad draft would
         # hand back a partial answer nobody could tell apart from a good one.
+        # Every attempt was billed for, including the rejected ones -- record
+        # that BEFORE failing, or the run's own usage total understates what
+        # it spent by exactly the attempts it discarded. `StageResult.usage`
+        # already computes this correctly; it was simply never reached on
+        # this path, because it is normally read off a StageResult that only
+        # exists when a stage succeeds.
+        writer.record_usage(StageResult(value=None, attempts=exc.attempts).usage)
         writer.write_json("attempts.json", {exc.stage: [a.to_dict() for a in exc.attempts]})
         writer.fail(
             stage=exc.stage,
@@ -575,11 +603,12 @@ def research(
     envelope["affordances"] = affordances
     if show_inline:
         envelope["report"] = report
+    warnings: list[dict[str, Any]] = []
     if dangling:
         # Surfaced, never swallowed: the synthesis cited something this run does
         # not have. It is reported on the result rather than only in a log,
         # because a caller acting on the brief needs to know.
-        envelope["warnings"] = [
+        warnings.append(
             {
                 "code": "dangling_citations",
                 "message": (
@@ -587,7 +616,26 @@ def research(
                 ),
                 "markers": dangling,
             }
-        ]
+        )
+    if omitted_sources:
+        # Same principle, the other direction: the backend received source
+        # entries it could not keep. A partial result is a failure unless the
+        # omission is documented, so it travels on the result rather than
+        # only in sources.json.
+        warnings.append(
+            {
+                "code": "omitted_sources",
+                "message": (
+                    f"The backend returned {len(omitted_sources)} source entr"
+                    f"{'y' if len(omitted_sources) == 1 else 'ies'} this run could not "
+                    "keep. See `sources <id>` -- omitted entries and why are on "
+                    "sources.json."
+                ),
+                "omitted": omitted_sources,
+            }
+        )
+    if warnings:
+        envelope["warnings"] = warnings
     return envelope
 
 

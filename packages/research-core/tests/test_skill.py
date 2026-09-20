@@ -295,6 +295,10 @@ SKILL_EXEMPT = {
     "--help": "it IS the skill -- documenting it inside itself is circular",
     "--quiet": "suppresses stderr progress; an agent parsing stdout is unaffected",
     "--timeout-ms": "operational knob with a sensible default; no decision for a caller",
+    "--max-attempts": (
+        "retry knob with a sensible default (3); documented in `research --help` "
+        "via RESEARCH_CAPABILITY, not the root overview"
+    ),
     "--out": "a destination path for `render`, obvious from the verb",
     "--limit": "pagination on `list`; the default is fine and the flag is discoverable",
     "--status": "a filter on `list`, same",

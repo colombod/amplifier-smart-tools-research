@@ -22,124 +22,14 @@ from research_core import (
     emit,
     emit_error,
 )
-from research_core.skill import ArgSpec, CapabilitySkill, add_help_flags, wire_verb_help
+from research_core.skill import add_help_flags, wire_verb_help
+from research_core.verbs import _CAPABILITIES as _COMMON_CAPABILITIES
 from research_core.verbs import register as register_common_verbs
 
 import deep_research
+from deep_research import RESEARCH_CAPABILITY
 
 PROG = "deep-research"
-
-#: Library-owned `--help` content for this tool's PRIMARY capability, in the
-#: same shape `research_core.verbs._CAPABILITIES` gives the nine shared verbs
-#: -- built from `deep_research.research`'s own signature and behaviour, not
-#: derived from the argparse subparser below it. `research` and `check-claims`
-#: are each tool's own reason to exist, so they are the two capabilities an
-#: agent most needs the full document for, and `tests/test_capability_skills.py`
-#: cross-checks this against both the parser and the public library signature
-#: so neither can drift undocumented.
-#:
-#: `reasoner`, `stream` and `run_id` are excluded from `args` on purpose: the
-#: first two are Python-embedding test seams (a `Reasoner` object and a
-#: writable stream have no CLI spelling), and `run_id` is wiring the detached
-#: child uses to resume the identifier its parent already published -- never a
-#: caller's own choice. `max_attempts` is a real tunable but has no CLI flag
-#: yet either; see `RESEARCH_CAPABILITY`'s exclusion note mirrored in
-#: `tests/test_capability_skills.py`.
-RESEARCH_CAPABILITY = CapabilitySkill(
-    verb="research",
-    description=(
-        "Research a question and leave the evidence on disk: a brief plus a "
-        "pointer to the full report, the numbered sources and the backend's "
-        "raw replies. Model-backed: it consumes tokens, may answer "
-        "differently on a second run, and fails saying so when no evidence "
-        "backend or reasoning provider is configured, rather than returning "
-        "a lesser answer built on nothing."
-    ),
-    spends_money=True,
-    args=(
-        ArgSpec("--query", "query", required=True, help="the research question"),
-        ArgSpec(
-            "--depth",
-            "depth",
-            choices=("low", "medium", "high"),
-            help="how hard the run works before it reports; unset uses the configured default",
-        ),
-        ArgSpec(
-            "--max-sources",
-            "max_sources",
-            help="cap how many sources gather keeps; unset means no cap",
-        ),
-        ArgSpec(
-            "--backend",
-            "backend",
-            help="which backend acquires evidence: perplexity or agent",
-        ),
-        ArgSpec("--runs-dir", "runs_dir", help="where runs live for this invocation"),
-        ArgSpec(
-            "--timeout-ms",
-            "timeout_ms",
-            help="wall-clock budget for the reasoning stages",
-        ),
-        ArgSpec(
-            "--inline",
-            "inline",
-            default=None,
-            help="return the whole report in the envelope, whatever its size",
-        ),
-        ArgSpec(
-            "--no-inline",
-            "inline",
-            default=None,
-            help="always return a pointer, never the report itself",
-        ),
-        ArgSpec(
-            "--no-scope",
-            "scope",
-            default=True,
-            help=(
-                "skip the question-sharpening stage. Measured ~27% cheaper and "
-                "~41% faster on a question that is already clear and bounded, "
-                "but loses a blind comparison 6 for 6 on a vague one -- leave it "
-                "on when you are not sure"
-            ),
-        ),
-        ArgSpec("--quiet", "quiet", default=False, help="do not stream progress to stderr"),
-        ArgSpec(
-            "--detach",
-            "detach",
-            default=False,
-            help=(
-                "return part one immediately and continue the work in the "
-                "background. MEASURED runs have taken 57 to 784 seconds"
-            ),
-        ),
-    ),
-    invocation='{prog} research --query "do state-based CRDTs converge?" --depth low',
-    result=(
-        "`run_id`, `status`, `brief`, `confidence` (low/medium/high -- when it "
-        "says low, believe it), `source_count`, `path` (the run directory), "
-        "`report_bytes`, `inline` (whether `report` came back with the "
-        "envelope or was left on disk), `usage`, `next` (the exact `read`/"
-        "`sources`/`render` commands to go further), `ladder` (brief/report/"
-        "sources/raw, each with its REAL size in bytes), `affordances` (named "
-        "next moves, each free and credential-free), and -- when a citation "
-        "points at a source this run does not have -- `warnings`. With "
-        "`--detach`, part one comes back instead: `accepted`, `detached`, "
-        "`pid`, `not_yet_true` (what is not true yet -- read it before "
-        "treating acceptance as an answer), and `poll_again_in_seconds`."
-    ),
-    failures=(
-        "NoProviderError (exit 3): no evidence backend, or no reasoning "
-        "provider, is configured. Run `check` to see what this host resolves.",
-        "NoEvidence (exit 1): the gather stage returned no sources -- nothing "
-        "to base an answer on. The run record is kept; `status <id>` shows "
-        "where it stopped.",
-        "SmartToolError wrapping AttemptsExhausted (exit 1): a stage was "
-        "rejected `max_attempts` times in a row; every attempt is kept in "
-        "the run's `attempts.json`.",
-        "UsageError (exit 2): an unrecognised `--backend` name.",
-    ),
-)
 
 _DESCRIPTION = """\
 deep-research -- answers a research question with evidence.
@@ -151,10 +41,12 @@ act on. The answer is a brief plus a pointer to the full evidence on disk.
 _EPILOG = """\
 USING THE RESULT
 
-  Every response is a single JSON document on stdout. Success is
-  {"result": ...}; failure is {"error": {"code", "message", "remedy"}} with a
-  non-zero exit. Diagnostics and progress go to stderr, never stdout, so you can
-  parse one without filtering the other.
+  Every response is a single JSON document. A SUCCESS -- {"result": ...} -- is
+  on stdout. A FAILURE -- {"error": {"code", "message", "remedy"}} with a
+  non-zero exit -- is on stderr, with stdout left empty. If stdout is empty,
+  the call failed; read stderr. Diagnostics and progress are always on
+  stderr, never stdout, on both success and failure, so you can parse stdout
+  for a result without ever filtering a failure out of it.
 
   A research result is a BRIEF plus a POINTER. `brief` is short and is the
   answer, not a teaser. `path` points at a run directory that outlives the call:
@@ -183,8 +75,9 @@ NAVIGATING A LARGE RESULT
 
 OUTPUT FORMAT
 
-  Every capability returns JSON on stdout, always -- there is no text mode and
-  no --json flag, because every consumer of this tool is code. The
+  Every capability returns JSON, always -- there is no text mode and no --json
+  flag, because every consumer of this tool is code. A success is JSON on
+  stdout; a failure is a JSON error envelope on stderr, never stdout. The
   specification leaves the format to each capability and asks only that the
   help text say which one it is. This is it.
 """
@@ -229,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
             "configured and no credentials of any kind."
         ),
     )
-    manifest.set_defaults(handler=_cmd_manifest)
+    manifest.set_defaults(handler=_cmd_manifest, _capability_skill=_COMMON_CAPABILITIES["manifest"])
 
     skill = verbs.add_parser(
         "skill",
@@ -242,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
             "contract in the shape hosts already have machinery for. Deterministic."
         ),
     )
-    skill.set_defaults(handler=_cmd_skill)
+    skill.set_defaults(handler=_cmd_skill, _capability_skill=_COMMON_CAPABILITIES["skill"])
 
     config = verbs.add_parser(
         "config",
@@ -267,7 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("low", "medium", "high"),
         help="override how hard a run works before it reports",
     )
-    config.set_defaults(handler=_cmd_config)
+    config.set_defaults(handler=_cmd_config, _capability_skill=_COMMON_CAPABILITIES["config"])
 
     research = verbs.add_parser(
         "research",
@@ -313,6 +206,15 @@ def build_parser() -> argparse.ArgumentParser:
             "what you are asking; leave it on when you are not sure."
         ),
     )
+    research.add_argument(
+        "--max-attempts",
+        type=int,
+        metavar="N",
+        help=(
+            "how many times a stage may be repaired before the run fails; "
+            "unset uses the configured default (3)"
+        ),
+    )
     research.add_argument("--quiet", action="store_true", help="do not stream progress to stderr")
     research.add_argument(
         "--detach",
@@ -356,6 +258,7 @@ def _cmd_research(args: argparse.Namespace) -> dict[str, Any]:
         quiet=args.quiet,
         detach=args.detach,
         scope=args.scope,
+        max_attempts=args.max_attempts,
     )
 
 
@@ -373,6 +276,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return exc.exit_code
     except Exception as exc:  # noqa: BLE001 - the envelope is the contract
+        # The remedy tells the caller to report the traceback on stderr, so it
+        # has to actually be there -- not just a promise the message makes.
+        import traceback
+
+        traceback.print_exc()
         emit_error(
             "error",
             f"{type(exc).__name__}: {exc}",

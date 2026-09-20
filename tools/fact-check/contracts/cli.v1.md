@@ -113,6 +113,12 @@ The per-claim results as structured data, filterable by verdict. Deterministic: 
 is already on disk, so this costs nothing and spends no tokens. This is the primary
 navigation path for a large fact-check, the way `read`/`sources` are for a research run.
 
+A still-running (or interrupted) check is never presented as though it were whole: the
+result always carries `complete` (bool) and `run_status`. While `complete` is `false` it
+also carries `expected_claims` (how many claims this run was given) and
+`missing_claim_indexes` (which claim indexes have not landed a verdict yet), so a
+partial view can never be mistaken for a finished one.
+
 ---
 
 ## 4. Backlog — deliberately not in v1

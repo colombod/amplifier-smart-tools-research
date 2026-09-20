@@ -126,6 +126,34 @@ def test_no_evidence_source_is_a_usage_error_not_a_silent_empty_check(tmp_path):
     assert "--from-run" in excinfo.value.remedy
 
 
+def test_a_claim_that_could_not_be_checked_reports_what_every_rejected_attempt_cost(
+    tmp_path,
+):
+    """D1 sibling: verify's own AttemptsExhausted is converted to
+    ClaimUncheckable, and that conversion used to happen before any usage was
+    recorded -- the same "wasted money reported as zero" shape as
+    deep-research's exhausted path, one layer deeper. Drives the real
+    failing path (not `record_usage` called directly) and reads run.json off
+    disk, which is what a caller actually sees.
+    """
+    reasoner = ScriptedReasoner(
+        json.dumps({"claims": [{"index": 0, "text": "claim 0", "type": "simple", "reason": "x"}]}),
+        *[json.dumps({"verdict": "not-a-verdict"}) for _ in range(2)],
+    )
+    with pytest.raises(SmartToolError):
+        check(tmp_path, ["A claim."], reasoner, max_attempts=2)
+
+    run = next((tmp_path / "runs").iterdir())
+    record = json.loads((run / "run.json").read_text())
+    usage = record["usage"]
+
+    # 1 accepted triage attempt + 2 rejected verify attempts.
+    assert usage["attempts"] == 3
+    assert usage["attempts_discarded"] == 2
+    assert usage["discarded_cost_usd"] is not None
+    assert float(usage["discarded_cost_usd"]) == pytest.approx(0.0020)
+
+
 def test_a_run_with_no_sources_is_refused(tmp_path):
     from research_core.errors import NoEvidence
 
@@ -275,6 +303,16 @@ def test_verdicts_already_reached_survive_a_later_claim_failing(tmp_path):
     assert len(verdicts["verdicts"]) == 1
     assert verdicts["verdicts"][0]["verdict"] == "supported"
 
+    # The `verdicts` CAPABILITY -- not the raw file -- must say the same
+    # thing: a partial result is a failure unless it names which parts
+    # succeeded, and a caller reading it must not mistake it for a finished
+    # run.
+    found = fact_check.verdicts(run.name, runs_dir=str(tmp_path / "runs"))
+    assert found["complete"] is False
+    assert found["run_status"] == "failed"
+    assert found["expected_claims"] == 2
+    assert found["missing_claim_indexes"] == [1]
+
 
 # -- triage ------------------------------------------------------------------
 
@@ -412,3 +450,17 @@ def test_the_reasoning_seam_refuses_before_a_prompt_is_built(tmp_path):
         check(tmp_path, ["A claim."], UnconfiguredReasoner(), from_run=research_id)
     # the refusal left no fact-check run behind
     assert not any(p.name.startswith("fc-") for p in (tmp_path / "runs").iterdir())
+
+
+def test_a_no_provider_refusal_carries_the_check_affordance(tmp_path):
+    """D8 sibling: same fix, same shape, the other tool."""
+    from research_core import NoProviderError
+
+    research_id = a_research_run(tmp_path)
+    with pytest.raises(NoProviderError) as excinfo:
+        check(tmp_path, ["A claim."], UnconfiguredReasoner(), from_run=research_id)
+    affordances = excinfo.value.affordances
+    assert affordances, "a no_provider refusal must not be a dead end"
+    check_affordance = next(a for a in affordances if a.name == "check")
+    assert check_affordance.command == "fact-check check"
+    assert check_affordance.call == "fact_check.check()"

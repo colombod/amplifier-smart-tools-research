@@ -37,15 +37,19 @@ VERB_TO_API_FUNC: dict[str, str] = {
     "render": "render",
     "classify": "classify",
     "estimate": "estimate",
+    "manifest": "manifest",
+    "config": "config",
 }
 
 #: Library parameters that are wiring, not a caller decision, so a capability
 #: skill need not document them as an argument: `check`'s ``package`` is fixed
-#: per tool (never chosen by a caller), and `status`'s ``prog`` is always the
-#: calling tool's own name, supplied by the CLI itself.
+#: per tool (never chosen by a caller), `status`'s ``prog`` is always the
+#: calling tool's own name, supplied by the CLI itself, and `manifest`'s
+#: ``package`` is the same fixed-per-tool wiring as `check`'s.
 INTERNAL_PARAMS: dict[str, set[str]] = {
     "check": {"package"},
     "status": {"prog"},
+    "manifest": {"package"},
 }
 
 
@@ -188,10 +192,13 @@ PRIMARY_CAPABILITY: dict[str, tuple[str, str]] = {
 #: caller decision reachable from the CLI: `reasoner` and `stream` have no CLI
 #: spelling at all (a `Reasoner` object, a writable stream), and `run_id` is
 #: how the detached child resumes the identifier its parent already
-#: published -- never a caller's own choice. `max_attempts` is a real tunable
-#: with no CLI flag yet either. Mirrors the exclusion note on
-#: `RESEARCH_CAPABILITY` / `CHECK_CLAIMS_CAPABILITY` in each tool's `cli.py`.
-PRIMARY_INTERNAL_PARAMS: set[str] = {"reasoner", "stream", "run_id", "max_attempts"}
+#: published -- never a caller's own choice. `max_attempts` used to be listed
+#: here too ("a real tunable with no CLI flag yet"), which was exactly the gap
+#: a spec reviewer named: a real library parameter, invisible to every agent
+#: reading `--help`. It now has a `--max-attempts` flag and an `ArgSpec` on
+#: both `RESEARCH_CAPABILITY` and `CHECK_CLAIMS_CAPABILITY`, so it is no
+#: longer excluded here -- the cross-check below is what holds it in place.
+PRIMARY_INTERNAL_PARAMS: set[str] = {"reasoner", "stream", "run_id"}
 
 
 def _primary_capability(tool: str):

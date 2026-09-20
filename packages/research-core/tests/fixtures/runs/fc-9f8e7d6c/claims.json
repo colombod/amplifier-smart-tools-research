@@ -1,0 +1,22 @@
+{
+  "claims": [
+    {
+      "index": 0,
+      "reason": "direct property claim",
+      "text": "State-based CRDTs converge regardless of the order in which updates arrive.",
+      "type": "simple"
+    },
+    {
+      "index": 1,
+      "reason": "requires distinguishing convergence from correctness",
+      "text": "If two CRDT replicas converge, the value they converge on is correct.",
+      "type": "complex"
+    },
+    {
+      "index": 2,
+      "reason": "requires a survey claim",
+      "text": "Most production CRDT implementations apply validation outside the lattice.",
+      "type": "complex"
+    }
+  ]
+}

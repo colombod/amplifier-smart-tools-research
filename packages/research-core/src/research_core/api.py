@@ -24,7 +24,7 @@ from typing import Any
 
 from research_core import runs as _runs
 from research_core.config import effective_configuration, resolve_settings
-from research_core.errors import UsageError
+from research_core.errors import SmartToolError, UsageError
 from research_core.estimate import estimate_run
 from research_core.manifest import load_manifest
 from research_core.prerequisites import check as _check
@@ -113,10 +113,45 @@ def read(
 
 
 def sources(
-    run_id: str, *, category: str | None = None, runs_dir: str | None = None
+    run_id: str,
+    *,
+    category: str | None = None,
+    runs_dir: str | None = None,
+    verify: bool = False,
+    verify_timeout: float = 5.0,
 ) -> dict[str, Any]:
-    """A run's citations as structured data."""
-    return _runs.sources_of(_runs.load_run(_runs_dir(runs_dir), run_id), category=category)
+    """A run's citations as structured data.
+
+    ``verify`` reaches the network -- HEAD (falling back to GET) every
+    source's URL and reports whether it currently resolves. Off by default:
+    this verb is otherwise a deterministic, no-network read, and a caller who
+    only wants to list what a run recorded should not pay for N round trips it
+    never asked for. Reachability is not support -- a source can resolve and
+    still not say what a citation claims; this only catches the case where it
+    does not resolve at all. Never raises on network failure: a source that
+    could not be checked is reported as `reachable: None` with why, distinct
+    from one that resolved and said 404.
+    """
+    document = _runs.sources_of(_runs.load_run(_runs_dir(runs_dir), run_id), category=category)
+    if verify:
+        from research_core.url_reachability import verify_source_urls
+
+        checks = verify_source_urls(document["sources"], timeout=verify_timeout)
+        by_id = {check["id"]: check for check in checks}
+        for entry in document["sources"]:
+            check = by_id.get(entry.get("id"))
+            if check is None:
+                continue
+            entry["reachable"] = check["reachable"]
+            entry["checked_at"] = check["checked_at"]
+            entry["status_code"] = check["status_code"]
+            if check["error"]:
+                entry["check_error"] = check["error"]
+        document["verified"] = True
+        document["reachable_count"] = sum(1 for c in checks if c["reachable"] is True)
+        document["unreachable_count"] = sum(1 for c in checks if c["reachable"] is False)
+        document["unknown_count"] = sum(1 for c in checks if c["reachable"] is None)
+    return document
 
 
 def verdicts(
@@ -150,8 +185,20 @@ def render(
         # wherever it is read, not one that is only correct relative to a
         # directory the reader may not share.
         path = Path(out).expanduser().resolve()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(rendered, encoding="utf-8")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(rendered, encoding="utf-8")
+        except OSError as exc:
+            # Loud, and naming the exact path that would not take the write --
+            # not a bare traceback escaping from underneath a directory this
+            # call may have just created. The render itself already succeeded;
+            # only the destination failed, so nothing here is lost, only
+            # unwritten.
+            raise SmartToolError(
+                f"Could not write the rendered {fmt} to {path}: {exc}",
+                f"Choose a writable --out path, or drop --out to get the {fmt} "
+                "back inline instead.",
+            ) from exc
         # A capability that produces an artifact identifies it rather than
         # embedding it in a message the caller then has to carve up.
         return {

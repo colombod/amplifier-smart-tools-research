@@ -1,0 +1,1 @@
+{"verdict": "supported", "confidence": "high", "reasoning": "Both primary sources state the property directly, and it follows from merge being associative, commutative and idempotent [s1][s2].", "sources": ["s1", "s2"]}

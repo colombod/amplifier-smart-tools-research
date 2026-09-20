@@ -19,10 +19,11 @@ from __future__ import annotations
 from typing import Any
 
 from research_core import Manifest, api, load_manifest
+from research_core.skill import ArgSpec, CapabilitySkill
 
 from deep_research.research import research
 
-__version__ = "0.1.0"
+__version__ = "0.10.0"
 
 PACKAGE = "deep_research"
 PROG = "deep-research"
@@ -77,10 +78,25 @@ def read(
 
 
 def sources(
-    run_id: str, *, category: str | None = None, runs_dir: str | None = None
+    run_id: str,
+    *,
+    category: str | None = None,
+    runs_dir: str | None = None,
+    verify: bool = False,
+    verify_timeout: float = 5.0,
 ) -> dict[str, Any]:
-    """A run's citations as structured data."""
-    return api.sources(run_id, category=category, runs_dir=runs_dir)
+    """A run's citations as structured data.
+
+    ``verify`` reaches the network -- see `research_core.api.sources` for what
+    it checks and why it defaults off.
+    """
+    return api.sources(
+        run_id,
+        category=category,
+        runs_dir=runs_dir,
+        verify=verify,
+        verify_timeout=verify_timeout,
+    )
 
 
 def render(
@@ -114,6 +130,127 @@ def estimate(
     --no-scope` do, and the library must reach everything the CLI reaches.
     """
     return api.estimate(query=query, claims=claims, depth=depth, runs_dir=runs_dir, scope=scope)
+
+
+#: Library-owned `--help` content for this tool's PRIMARY capability, in the
+#: same shape `research_core.verbs._CAPABILITIES` gives the shared verbs --
+#: built from `research`'s own signature and behaviour, not derived from the
+#: argparse subparser in `cli.py`. `research` is this tool's own reason to
+#: exist, so it is the one capability an agent most needs the full document
+#: for, and `tests/test_capability_skills.py` cross-checks this against both
+#: the parser and the public library signature so neither can drift
+#: undocumented. LIVES HERE, in the library, rather than in `cli.py`: the CLI
+#: only wires it into the parser, it does not define it.
+#:
+#: `reasoner`, `stream` and `run_id` are excluded from `args` on purpose: the
+#: first two are Python-embedding test seams (a `Reasoner` object and a
+#: writable stream have no CLI spelling), and `run_id` is wiring the detached
+#: child uses to resume the identifier its parent already published -- never a
+#: caller's own choice.
+RESEARCH_CAPABILITY = CapabilitySkill(
+    verb="research",
+    description=(
+        "Research a question and leave the evidence on disk: a brief plus a "
+        "pointer to the full report, the numbered sources and the backend's "
+        "raw replies. Model-backed: it consumes tokens, may answer "
+        "differently on a second run, and fails saying so when no evidence "
+        "backend or reasoning provider is configured, rather than returning "
+        "a lesser answer built on nothing."
+    ),
+    spends_money=True,
+    args=(
+        ArgSpec("--query", "query", required=True, help="the research question"),
+        ArgSpec(
+            "--depth",
+            "depth",
+            choices=("low", "medium", "high"),
+            help="how hard the run works before it reports; unset uses the configured default",
+        ),
+        ArgSpec(
+            "--max-sources",
+            "max_sources",
+            help="cap how many sources gather keeps; unset means no cap",
+        ),
+        ArgSpec(
+            "--backend",
+            "backend",
+            help="which backend acquires evidence: perplexity or agent",
+        ),
+        ArgSpec("--runs-dir", "runs_dir", help="where runs live for this invocation"),
+        ArgSpec(
+            "--timeout-ms",
+            "timeout_ms",
+            help="wall-clock budget for the reasoning stages",
+        ),
+        ArgSpec(
+            "--inline",
+            "inline",
+            default=None,
+            help="return the whole report in the envelope, whatever its size",
+        ),
+        ArgSpec(
+            "--no-inline",
+            "inline",
+            default=None,
+            help="always return a pointer, never the report itself",
+        ),
+        ArgSpec(
+            "--no-scope",
+            "scope",
+            default=True,
+            help=(
+                "skip the question-sharpening stage. Measured ~27% cheaper and "
+                "~41% faster on a question that is already clear and bounded, "
+                "but loses a blind comparison 6 for 6 on a vague one -- leave it "
+                "on when you are not sure"
+            ),
+        ),
+        ArgSpec(
+            "--max-attempts",
+            "max_attempts",
+            help=(
+                "how many times a stage may be repaired before the run "
+                "fails; unset uses the configured default (3)"
+            ),
+        ),
+        ArgSpec("--quiet", "quiet", default=False, help="do not stream progress to stderr"),
+        ArgSpec(
+            "--detach",
+            "detach",
+            default=False,
+            help=(
+                "return part one immediately and continue the work in the "
+                "background. MEASURED runs have taken 57 to 784 seconds"
+            ),
+        ),
+    ),
+    invocation='{prog} research --query "do state-based CRDTs converge?" --depth low',
+    result=(
+        "`run_id`, `status`, `brief`, `confidence` (low/medium/high -- when it "
+        "says low, believe it), `source_count`, `path` (the run directory), "
+        "`report_bytes`, `inline` (whether `report` came back with the "
+        "envelope or was left on disk), `usage`, `next` (the exact `read`/"
+        "`sources`/`render` commands to go further), `ladder` (brief/report/"
+        "sources/raw, each with its REAL size in bytes), `affordances` (named "
+        "next moves, each free and credential-free), and -- when a citation "
+        "points at a source this run does not have, or the backend omitted a "
+        "malformed source entry -- `warnings`. With `--detach`, part one "
+        "comes back instead: `accepted`, `detached`, `pid`, `not_yet_true` "
+        "(what is not true yet -- read it before treating acceptance as an "
+        "answer), and `poll_again_in_seconds`."
+    ),
+    failures=(
+        "NoProviderError (exit 3): no evidence backend, or no reasoning "
+        "provider, is configured. Run `check` to see what this host resolves.",
+        "NoEvidence (exit 1): the gather stage returned no sources -- nothing "
+        "to base an answer on. The run record is kept; `status <id>` shows "
+        "where it stopped.",
+        "SmartToolError wrapping AttemptsExhausted (exit 1): a stage was "
+        "rejected `max_attempts` times in a row; every attempt is kept in "
+        "the run's `attempts.json`.",
+        "UsageError (exit 2): an unrecognised `--backend` name.",
+    ),
+)
 
 
 #: Every capability, by the name the CLI uses for it. A test asserts this covers
@@ -207,10 +344,14 @@ def skill() -> str:
         },
         model_backed=("research",),
         result_shape=(
-            'One JSON document on stdout. Success is {"result": ...}; failure is'
-            '{"error": {"code", "message", "remedy"}} with a non-zero exit. Progress'
-            "and diagnostics go to stderr, never stdout, so you can parse one without "
-            "filtering the other. A research result is a BRIEF plus a POINTER: `brief` "
+            'One JSON document per call. Success -- {"result": ...} -- is on '
+            "STDOUT. Failure -- "
+            '{"error": {"code", "message", "remedy"}} with a non-zero exit -- is on '
+            "STDERR, with stdout left empty. Progress and diagnostics are always on "
+            "stderr, never stdout, on both success and failure, so you can parse "
+            "stdout for a result without ever filtering a failure out of it -- and "
+            "if stdout is empty, the call failed; read stderr. A research result is "
+            "a BRIEF plus a POINTER: `brief` "
             "is short and IS the answer, not a teaser; `path` names a run directory "
             "that outlives the call; `inline` says whether the full report came back "
             "with the envelope or was left on disk because it was too large. "
@@ -235,7 +376,10 @@ def skill() -> str:
             "view is partial it says so and by how much, and an over-ceiling request is "
             "refused rather than silently truncated -- so never present a slice as the "
             "whole. `sources <id> --category academic` returns citations as filterable "
-            "data. `render <id> --format bibliography` reshapes a stored run without "
+            "data -- add `--verify` (and optionally `--verify-timeout`) to HEAD every "
+            "source's URL and learn which still resolve; it is the one flag here that "
+            "reaches the network, so it is off by default and never required. "
+            "`render <id> --format bibliography` reshapes a stored run without "
             "re-running it. FOR A LONG RUN, use `--detach`. It returns in under a "
             "second with part one: the run id, where the rest will appear, and an "
             "explicit `not_yet_true` list -- read that before treating an accepted "

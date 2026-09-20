@@ -14,16 +14,21 @@ format and the envelope; only their smart verb and its workflow differ.
 deep-research <verb> [options]
 ```
 
-One JSON document on stdout, always. Diagnostics and progress on stderr, never stdout.
-Never waits on input a caller cannot supply: with stdin closed it completes or it fails.
+One JSON document per invocation. A **success** is on stdout. A **failure** is on
+stderr, with stdout left empty -- so a caller parsing stdout for a result never has to
+filter a failure envelope out of it first, and a caller who only reads stdout (as an
+earlier version of this document said to) sees nothing at all on failure, which is
+itself the signal to check stderr and the exit code. Diagnostics and progress are
+always on stderr, never stdout, on both success and failure. Never waits on input a
+caller cannot supply: with stdin closed it completes or it fails.
 
-### Success envelope
+### Success envelope (stdout)
 
 ```json
 {"result": { ... verb-specific ... }}
 ```
 
-### Error envelope
+### Error envelope (stderr)
 
 ```json
 {"error": {"code": "no_provider", "message": "...", "remedy": "..."}}
@@ -289,13 +294,31 @@ A bounded view of a run's prose. Every response carries a completeness block:
 A request over the ceiling is **refused** with exit 2, not silently capped. A partial
 view always says it is partial. A caller can never mistake a slice for the whole.
 
-### `sources <id>` — deterministic
+### `sources <id>` — deterministic by default; `--verify` reaches the network
 
-`deep-research sources <id> [--category CAT] [--format json|list]`
+`deep-research sources <id> [--category CAT] [--format json|list] [--verify] [--verify-timeout SECONDS]`
 
 Citations as structured data: url, title, category, and where in the report each is
 used. This is the reference-navigation path — a caller can walk the evidence without
 pulling the report into context.
+
+When the backend received a source entry it could not keep — not an object, no url, a
+repeat of one already kept — the result also carries `omitted` (one entry per dropped
+source: `index`, `reason`). A partial result is a failure unless it says which parts
+succeeded; this is where a caller finds out.
+
+`--verify` is the one exception to this verb being deterministic and network-free: it
+HEADs (falling back to GET) every source's URL and reports whether it currently
+resolves. Off by default, so a caller who only wants to list what a run recorded never
+pays for N round trips it did not ask for. Each source gains `reachable`
+(true/false/null), `status_code`, and `checked_at`; a source that could not be checked
+at all (DNS failure, timeout, no route) also gains `check_error` and `reachable: null`
+-- distinct from `reachable: false`, which means the URL resolved and answered with an
+error. The envelope gains `verified: true`, `reachable_count`, `unreachable_count`,
+`unknown_count`. `--verify-timeout` (default 5 seconds) bounds how long one source may
+take before it counts as unreachable-to-check. **Reachability is not support**: a
+source can resolve and still not say what a citation claims -- this only catches the
+case where it does not resolve at all. Never raises for a network failure.
 
 ### `render <id>` — deterministic
 

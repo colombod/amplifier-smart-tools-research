@@ -164,3 +164,31 @@ def free(name: str, does: str, command: str, call: str, **kwargs: Any) -> Afford
         needs_credentials=False,
         **kwargs,
     )
+
+
+def no_provider_affordance(*, prog: str, package: str) -> Affordance:
+    """D8: the one next move every ``no_provider`` refusal always has.
+
+    `NoProviderError` is raised from deep inside `research_core.engine`,
+    `reasoning.py`, and the backend modules -- code with no notion of which
+    CLI (``deep-research`` or ``fact-check``) is running it, so it cannot
+    honestly build a `{prog} check` command itself. Rather than paint one on
+    at every raise site (and inevitably miss one, or get the prog wrong), this
+    is attached exactly once, at the one boundary that actually knows `prog`:
+    each tool's own `main()`, only when the raised error did not already carry
+    affordances of its own.
+
+    This is a deliberate, narrower fix than "populate every refusal
+    everywhere" -- most `UsageError` refusals have a next move specific to
+    what was wrong (a bad `--backend` name, a missing claims file) that
+    cannot be guessed generically without becoming exactly the kind of
+    painted-on affordance this module exists to avoid. `no_provider` is the
+    one code where the next move is always the same, so it is the one that
+    is safe to supply centrally.
+    """
+    return free(
+        "check",
+        "what this host resolves for a provider, and what each missing piece would unlock",
+        command=f"{prog} check",
+        call=f"{package}.check()",
+    )

@@ -18,11 +18,11 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from research_core import runs as _runs
-from research_core.affordances import free
+from research_core.affordances import free, no_provider_affordance
 from research_core.config import resolve_settings
-from research_core.errors import NoEvidence, SmartToolError, UsageError
+from research_core.errors import NoEvidence, NoProviderError, SmartToolError, UsageError
 from research_core.reasoning import Reasoner
-from research_core.staging import AttemptsExhausted
+from research_core.staging import AttemptsExhausted, StageResult
 from research_core.writer import SCHEMA as RUN_SCHEMA
 from research_core.writer import RunWriter, new_run_id
 
@@ -30,6 +30,10 @@ from fact_check import stages
 
 STAGES = ("triage", "verify", "compile")
 INLINE_BYTE_THRESHOLD = 8_000
+#: Matches `fact_check.PROG` / `fact_check.cli.PROG`. Not imported from
+#: either -- `fact_check/__init__.py` imports THIS module, so importing back
+#: from it here would be circular.
+_PROG = "fact-check"
 
 
 def _reply_keeper(writer, stage: str):
@@ -160,20 +164,45 @@ def _detach(
     caller. Its output goes to files in the run directory rather than to the
     caller's terminal, because a background process writing to a shared stderr
     is how a caller's own output gets corrupted by something it stopped watching.
+
+    Two checks belong here, before anything is created or spawned, because the
+    attached path already makes them and a `--detach` request that will die on
+    its own preflight moments after `accepted: true` has been misled about
+    what it received:
+
+    D4 -- ``from_run`` must exist. `evidence_from_run` only runs on the
+    attached path (it also builds the writer immediately after), so the
+    detached path used to accept a `--from-run` that did not exist and report
+    it back as `inherited_from` as though it were real provenance.
+
+    D3 -- a relative ``claims_file`` must be resolved against THIS process's
+    cwd before the handoff. The child is spawned with ``cwd=runs_dir``, so a
+    relative path that resolved fine here always failed there -- the parent
+    read the file successfully (and even counted its claims for the
+    acceptance envelope below) and then handed the child a path the child
+    could not open.
     """
     import json as _json
     import shutil
     import subprocess
     import sys
 
+    # D4: fails loudly, before the run directory exists or a child is
+    # spawned, exactly as `evidence_from_run` does on the attached path.
+    _runs.load_run(settings["runs_dir"], from_run)
+
     runs_dir = Path(settings["runs_dir"]).expanduser().resolve()
     run_id = new_run_id("fc")
     run_path = runs_dir / run_id
     run_path.mkdir(parents=True, exist_ok=True)
 
+    # D3: resolved against the CALLER's cwd (this process's, right now) --
+    # the only point at which that cwd is still the one the caller meant.
+    resolved_claims_file = str(Path(claims_file).expanduser().resolve()) if claims_file else None
+
     arguments = {
         "claim": claim,
-        "claims_file": claims_file,
+        "claims_file": resolved_claims_file,
         "from_run": from_run,
         "strict": strict,
         "runs_dir": str(runs_dir),
@@ -335,7 +364,17 @@ def check_claims(
     # the detached one. A `--detach` request that will die on its own preflight
     # moments after the caller was told `accepted: true` has been misled about
     # what it received.
-    thinker.preflight()
+    try:
+        thinker.preflight()
+    except NoProviderError as exc:
+        # D8: the one next move every `no_provider` refusal always has --
+        # `check` -- attached here (the one place that knows both PROG and
+        # this tool's own `check`) so a library caller catching the
+        # exception directly sees it too, not only a CLI caller reading the
+        # envelope.
+        if not exc.affordances:
+            exc.affordances = [no_provider_affordance(prog=_PROG, package="fact_check")]
+        raise
 
     if detach:
         # After the argument checks and the preflight above, and before any
@@ -438,6 +477,12 @@ def check_claims(
                     on_reply=_reply_keeper(writer, f"verify-{index:02d}"),
                 )
             except AttemptsExhausted as exc:
+                # Every attempt was billed for, discarded or not, and
+                # ClaimUncheckable below is a different exception -- the
+                # accounting done here is the ONLY chance to record it before
+                # it is gone. Skipping this is exactly how a run once reported
+                # 1/13th of what it actually spent.
+                writer.record_usage(StageResult(value=None, attempts=exc.attempts).usage)
                 # A claim the tool could not check is NOT `unverifiable`. That
                 # verdict means "checked, and the evidence was inadequate" -- a
                 # finding a caller acts on. Recording a mechanical failure under
@@ -491,6 +536,37 @@ def check_claims(
         writer.finish_stage("compile")
 
         record = writer.complete()
+    except AttemptsExhausted as exc:
+        # Reached only by triage/compile -- verify's own AttemptsExhausted is
+        # already converted to ClaimUncheckable above. Same shape as
+        # deep-research's handling: every attempt was billed for, so the
+        # accounting has to happen on the failing path, not only the path
+        # that succeeds.
+        writer.record_usage(StageResult(value=None, attempts=exc.attempts).usage)
+        writer.write_json("attempts.json", {exc.stage: [a.to_dict() for a in exc.attempts]})
+        writer.fail(
+            stage=exc.stage,
+            code="attempts_exhausted",
+            message=str(exc),
+            remedy=(
+                "Every attempt is kept in attempts.json with the reason it was "
+                "rejected. Raise max_attempts, or reduce the number of claims."
+            ),
+        )
+        raise SmartToolError(
+            str(exc),
+            "See attempts.json in the run directory.",
+            artifact_path=writer.path,
+            affordances=[
+                free(
+                    "status",
+                    "this run's record, including the failure and every stage "
+                    "that completed before it",
+                    command=f"fact-check status {writer.run_id}",
+                    call=f"fact_check.status({writer.run_id!r})",
+                ),
+            ],
+        ) from exc
     except stages.ClaimUncheckable as exc:
         remedy = (
             "This is NOT the same as `unverifiable`, which means the claim was "

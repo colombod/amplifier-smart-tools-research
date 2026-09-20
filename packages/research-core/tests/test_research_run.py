@@ -94,6 +94,27 @@ def test_no_backend_configured_refuses_before_a_prompt_is_built(tmp_path):
     assert excinfo.value.remedy
 
 
+def test_a_no_provider_refusal_carries_the_check_affordance(tmp_path):
+    """D8: every verb document promises "a refusal carries `affordances`
+    too" -- and a real `no_provider` refusal used to carry none, because
+    `NoProviderError` is raised deep inside `research_core`, which has no
+    notion of which CLI is running it and so cannot build a `{prog} check`
+    command itself. Fixed at the one place that knows both: `research()`'s
+    own preflight call. Read straight off the exception -- the LIBRARY path,
+    not just the CLI envelope -- since both are supposed to carry the same
+    list.
+    """
+    with pytest.raises(NoProviderError) as excinfo:
+        run_research(tmp_path, backend=UnconfiguredBackend())
+    affordances = excinfo.value.affordances
+    assert affordances, "a no_provider refusal must not be a dead end"
+    check = next(a for a in affordances if a.name == "check")
+    assert check.command == "deep-research check"
+    assert check.call == "deep_research.check()"
+    assert check.cost_usd == "0.00"
+    assert not check.needs_credentials
+
+
 def test_a_refusal_leaves_no_run_directory_behind(tmp_path):
     with pytest.raises(NoProviderError):
         run_research(tmp_path, backend=UnconfiguredBackend())
@@ -207,6 +228,41 @@ def test_the_budget_being_spent_fails_the_run_carrying_every_attempt(tmp_path):
     assert len(attempts) == 3
     assert not any(a["accepted"] for a in attempts)
     assert not (run / "report.md").exists(), "no draft is left behind"
+
+
+def test_a_failed_run_reports_what_every_rejected_attempt_actually_cost(tmp_path):
+    """D1: a run that fails `attempts_exhausted` used to report ~1/13th of what
+    it really spent, because the discarded-cost arithmetic lives on
+    `StageResult`, and `StageResult` is only constructed when a stage
+    SUCCEEDS -- so the field designed to report wasted money was structurally
+    absent from every run that wasted any. This drives the real failing path
+    (not `record_usage` called directly) and reads run.json off disk, which is
+    what a caller actually sees.
+    """
+    reasoner = ScriptedReasoner(
+        json.dumps({"question": "Does the property hold?"}),
+        *[
+            json.dumps({"brief": "Holds [s9].", "report": "## 1. A\n\nHolds [s9]."})
+            for _ in range(3)
+        ],
+    )
+    with pytest.raises(SmartToolError):
+        run_research(tmp_path, reasoner=reasoner, max_attempts=3)
+
+    run = next((tmp_path / "runs").iterdir())
+    record = json.loads((run / "run.json").read_text())
+    usage = record["usage"]
+
+    # Three rejected synthesise attempts, each billed by ScriptedReasoner at
+    # $0.0010 -- plus the one accepted scope attempt. Every attempt must be
+    # counted, not only the (nonexistent) accepted synthesise attempt.
+    assert usage["attempts"] == 4
+    assert usage["attempts_discarded"] == 3
+    assert usage["discarded_cost_usd"] is not None
+    assert float(usage["discarded_cost_usd"]) == pytest.approx(0.0030)
+    # The bug's own signature: discarded cost silently absent while the
+    # failure message admits the attempts happened.
+    assert float(usage["cost_usd"]) >= float(usage["discarded_cost_usd"])
 
 
 def test_the_reasoning_seam_refuses_before_a_prompt_is_built(tmp_path):
