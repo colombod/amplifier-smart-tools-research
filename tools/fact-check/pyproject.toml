@@ -1,7 +1,7 @@
 [project]
 name = "fact-check"
 # Must match the version in src/fact_check/SMART_TOOL.md.
-version = "0.9.1"
+version = "0.10.0"
 description = "Checks claims against evidence and returns a verdict per claim, with the sources each rests on."
 readme = "README.md"
 # 3.12, not 3.11: research-core[agent] pulls amplifier-agent, which requires

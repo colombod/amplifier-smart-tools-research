@@ -3,7 +3,7 @@ name = "deep-research"
 # Must match the version in src/deep_research/SMART_TOOL.md. A tool that
 # publishes different versions in its package metadata and its manifest has two
 # answers to a question that has one.
-version = "0.9.1"
+version = "0.10.0"
 description = "Answers a research question with evidence: multi-source research, synthesised, with citations a caller can act on."
 readme = "README.md"
 # 3.12, not 3.11: research-core[agent] pulls amplifier-agent, which requires
