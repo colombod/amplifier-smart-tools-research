@@ -4,22 +4,18 @@ description: >-
   Takes things someone has asserted and checks each one against evidence, returning a
   verdict per claim -- supported, refuted, unverifiable or opinion -- with the sources
   each rests on. Reach for it when the ask sounds like "is any of this actually
-  true?", "check the claims in this draft before it goes out", "he says X, is that
-  right?", "which parts of this hold up?", or "where did that number come from?".
-  Claims are checked INDEPENDENTLY, so one false claim does not condemn the rest of a
-  document, and a single verdict can be audited down to the sources under it. Use it
-  on a draft before it ships, on a page or a transcript full of assertions, or to
-  re-check claims against evidence an earlier research run already gathered. Do NOT
-  use it for an open question with no claim in it yet -- that is deep-research -- or
-  to check code against its tests. Use when (1) Check the claims in a document or a
-  draft before it goes out; (2) Find which of several assertions actually hold, and
-  which merely sound right; (3) Audit a single verdict down to the sources it rests
-  on; (4) Re-check claims against evidence a previous research run already gathered.
+  true?", "check the claims in this draft before it goes out", or "where did that
+  number come from?". Claims are checked INDEPENDENTLY, so one false claim does not
+  condemn the rest of a document. Do NOT use it for an open question with no claim in
+  it yet -- that is deep-research -- or to check code against its tests. Use when (1)
+  Check the claims in a draft before it goes out; (2) Find which assertions hold and
+  which merely sound right; (3) Audit a single verdict down to its sources; (4)
+  Re-check claims against evidence a previous research run gathered.
 license: MIT
 metadata:
   author: colombod
   repository: https://github.com/colombod/amplifier-smart-tools-research
-  version: 0.9.0
+  version: 0.9.1
 ---
 
 # Using fact-check
@@ -64,7 +60,7 @@ installation. This file cannot be, and does not try.
 ## Staying current
 
 `fact-check manifest` reports the version installed. This pointer was generated from
-0.9.0. If they differ, the tool is the authority -- re-read `--help`, because flags and
+0.9.1. If they differ, the tool is the authority -- re-read `--help`, because flags and
 costs change between releases.
 
 ```bash

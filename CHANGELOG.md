@@ -3,6 +3,18 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## 0.9.1 - 2026-09-20
+
+### Fixed
+
+- **Agent Skills descriptions exceeded 1024 character limit.** Both `deep-research` (1254 chars)
+  and `fact-check` (1148 chars) breached Agent Skills spec compliance. Trimmed to 784 and 804
+  characters respectively by removing near-duplicate trigger phrasings and mechanism elaboration,
+  while preserving the boundary clause between the two tools — the most load-bearing part of
+  each description for agent discovery. The SKILL.md files are generated from SMART_TOOL.md
+  descriptions, so the edits were made at source and regenerated. Added regression test covering
+  all `skills/*/SKILL.md` to prevent re-introduction.
+
 ## 0.8.0
 
 0.7.0 stopped a confined host losing a paid run. It still made that host **configure two
