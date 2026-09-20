@@ -1,0 +1,55 @@
+{
+  "key": "deep-research",
+  "name": "Deep Research",
+  "kind": "tool",
+  "title": "Deep Research | Amplifier Smart Tools",
+  "accent": "#356e63",
+  "promise": "A good question deserves evidence.",
+  "description": "Turn an open question into a concise brief with sources you can follow. Deep Research gathers evidence, synthesizes the findings, and keeps the full record for the next question.",
+  "image": "site/assets/deep-research.svg",
+  "alt": "Deep Research workflow diagram.",
+  "caption": "Workflow illustration.",
+  "width": 1200,
+  "height": 640,
+  "flow_title": "From question to a sourced answer.",
+  "flow_intro": "Turn an open question into a concise brief with sources you can follow. Deep Research gathers evidence, synthesizes the findings, and keeps the full record for the next question.",
+  "steps": [
+    [
+      "Frame the question.",
+      "Describe the decision, topic, or uncertainty you want to investigate."
+    ],
+    [
+      "Gather and synthesize.",
+      "Research across sources and connect the findings into a concise brief."
+    ],
+    [
+      "Follow the evidence.",
+      "Read the retained report, inspect citations, and export a bibliography."
+    ]
+  ],
+  "detail_title": "Expertise your agent can put to work.",
+  "details": [
+    [
+      "Start with the decision.",
+      "Ask what is known, where sources disagree, and what matters to your choice."
+    ],
+    [
+      "Keep the trail.",
+      "Sources and reports stay on disk so later questions can build on earlier work."
+    ],
+    [
+      "Navigate the result.",
+      "Read bounded sections, filter sources, and render retained reports without another model call."
+    ]
+  ],
+  "prompt": "Use Deep Research to investigate my question. Read deep-research --help, check configuration, and estimate the work before starting. Return a concise brief with citations and a pointer to the retained evidence.",
+  "install": "uv tool install \"deep-research @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/deep-research\"\ndeep-research --help",
+  "prerequisites": "Python 3.12+ and uv. Follow the configuration guide to select an evidence backend and model provider.",
+  "model_note": "Research uses configured evidence and model services. Reading, filtering, and rendering retained runs need no model call.",
+  "guide": "tools/deep-research/src/deep_research/SMART_TOOL.md",
+  "related": [
+    "fact-check",
+    "possibly",
+    "stories"
+  ]
+}

@@ -1,5 +1,7 @@
 # Research smart tools
 
+[Branded website source and publishing guide](site/README.md)
+
 Two [smart tools](https://github.com/microsoft/amplifier-smart-tools) for evidence work:
 
 | | |
