@@ -36,12 +36,27 @@ uv run conformance/run.py /path/to/tools/fact-check
 
 A `pass: 10, skip: 5` verdict means the tool was not on `PATH`, not that it conformed.
 
-## The one thing that will bite you
+## Things that will bite you
 
 **Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import,
 which breaks the `loads-without-provider` conformance check and poisons unrelated code.
 Import it inside the function that needs it. `tests/test_import_isolation.py` enforces this
 in a subprocess, because an import that already happened cannot be un-happened in-process.
+
+**`skills/<slug>/SKILL.md` is GENERATED -- never hand-edit it.** It is committed so a host that
+discovers skills by scanning the repo (`npx skills add`) can find the tool at all, but the
+source of truth is `<tool>.pointer_skill()`. Editing the source description (a tool's
+`SMART_TOOL.md`, `TRIGGERS`, or anything `pointer_skill()` renders) without regenerating the
+file leaves it drifted, and `test_the_committed_skill_file_matches_what_the_library_returns` in
+`packages/research-core/tests/test_skill.py` fails the build -- this has already happened
+twice (commits `35e9d89`, `10b766e`). Regenerate after any such change:
+
+```bash
+uv run python -c "import deep_research, pathlib; pathlib.Path('skills/deep-research/SKILL.md').write_text(deep_research.pointer_skill(), encoding='utf-8')"
+uv run python -c "import fact_check, pathlib; pathlib.Path('skills/fact-check/SKILL.md').write_text(fact_check.pointer_skill(), encoding='utf-8')"
+```
+
+Then re-run the test above to confirm it lands clean before you push.
 
 ## Testing against a model
 
