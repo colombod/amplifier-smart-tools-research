@@ -112,11 +112,18 @@ def classify(urls: list[str]) -> dict[str, Any]:
 def estimate(
     *,
     claims: int | None = None,
+    query: str | None = None,
     depth: str | None = None,
     runs_dir: str | None = None,
+    scope: bool = True,
 ) -> dict[str, Any]:
-    """What a check will cost and how long it will take, before anything is spent."""
-    return api.estimate(claims=claims, depth=depth, runs_dir=runs_dir)
+    """What a check will cost and how long it will take, before anything is spent.
+
+    ``query`` and ``scope`` price a research-shaped or scope-skipped request;
+    they exist here because the CLI's `estimate --query` and `estimate
+    --no-scope` do, and the library must reach everything the CLI reaches.
+    """
+    return api.estimate(claims=claims, query=query, depth=depth, runs_dir=runs_dir, scope=scope)
 
 
 #: Every capability, by the name the CLI uses for it. A test asserts this covers
@@ -186,6 +193,12 @@ def skill() -> str:
 
     The same contract `--help` states, arranged for a reader deciding whether
     and how to CALL something rather than whether to install it.
+
+    Deliberately carries NO install instructions, same as `--help`:
+    `test_acquisition_lives_in_the_pointer_and_never_in_help` holds this to
+    account. A reader of `--help` (or this) already has the binary; the
+    pointer SKILL.md that `pointer_skill()` builds is for the reader who may
+    not.
     """
     from research_core.skill import render_skill
 

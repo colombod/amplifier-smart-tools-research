@@ -15,6 +15,10 @@ import os
 import socket
 from pathlib import Path
 
+import pytest
+from research_core.backends.scripted import ScriptedBackend, UnconfiguredBackend, sample_evidence
+from research_core.errors import NoProviderError
+from research_core.reasoning import ScriptedReasoner
 from research_core.runs import ABANDONED, FINAL, GROWING, Run, liveness_of
 
 
@@ -81,6 +85,18 @@ def test_detach_returns_part_one_and_says_what_is_not_yet_true(tmp_path):
     returns, and that is what this pins. The three liveness states are covered
     above with no subprocess at all, and end-to-end on a real run in the
     resolution for smart_tools-31a.
+
+    The PARENT's preflight is driven through the scripted seam -- a
+    ``ScriptedBackend``/``ScriptedReasoner`` pair, exactly as
+    ``test_research_run.py`` drives the blocking path -- so this passes with
+    no provider configured and no credential of any kind. It must: a test
+    that only passed because the box running it happened to resolve real
+    credentials would read green in dev and red in CI, where the
+    conformance rule scrubs them. The CHILD process still re-resolves its
+    own backend and reasoner from settings once spawned (it cannot inherit
+    Python objects across a subprocess boundary) and may fail there -- but
+    that is its own concern, on its own schedule, and is not what this test
+    is pinning.
     """
     import deep_research
 
@@ -90,6 +106,13 @@ def test_detach_returns_part_one_and_says_what_is_not_yet_true(tmp_path):
         depth="low",
         detach=True,
         quiet=True,
+        backend=ScriptedBackend(sample_evidence()),
+        reasoner=ScriptedReasoner(
+            json.dumps({"question": "a question we never wait for"}),
+            json.dumps(
+                {"brief": "The answer, briefly.", "report": "## 1. A\n\nr", "confidence": "low"}
+            ),
+        ),
     )
 
     assert part_one["accepted"] is True
@@ -110,3 +133,30 @@ def test_detach_returns_part_one_and_says_what_is_not_yet_true(tmp_path):
     # The run directory exists immediately, so a caller asking for status the
     # instant it returns finds a record rather than a gap.
     assert (tmp_path / part_one["run_id"] / "run.json").exists()
+
+
+def test_detach_refuses_with_no_provider_configured_and_leaves_no_run_directory(tmp_path):
+    """The other half of the same preflight change: the refusal side.
+
+    ``research()`` preflights both the backend and the reasoner in the
+    PARENT before anything is accepted, for the detach branch exactly as
+    for the blocking one -- see ``deep_research.research``'s docstring on
+    why both seams are checked before ``--detach`` is ever honoured. An
+    unconfigured backend must refuse here, name what is missing and how to
+    fix it, and leave nothing behind: no run directory for a caller to
+    mistake for one that actually started.
+    """
+    import deep_research
+
+    with pytest.raises(NoProviderError) as excinfo:
+        deep_research.research(
+            "a question we never wait for",
+            runs_dir=str(tmp_path),
+            depth="low",
+            detach=True,
+            quiet=True,
+            backend=UnconfiguredBackend(),
+        )
+
+    assert excinfo.value.remedy, "a refusal must name the way out, not just the gap"
+    assert list(tmp_path.iterdir()) == [], "a refused request must leave no run directory"

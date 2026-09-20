@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from research_core import load_manifest
 from research_core.credentials import CREDENTIALS_PATH_ENV_VAR
-from research_core.prerequisites import DETECTORS, check, check_requirements
+from research_core.prerequisites import DETECTORS, check, check_requirements, provider_availability
 
 TOOLS = {
     "deep_research": "deep-research",
@@ -201,6 +201,53 @@ def test_check_never_reports_a_credential_value(package, monkeypatch):
     rendered = repr(check(load_manifest(package)))
     assert secret not in rendered
     assert secret[:8] not in rendered
+
+
+@pytest.mark.parametrize("package", sorted(TOOLS))
+def test_provider_availability_names_which_specific_provider_is_usable(package, no_host_providers):
+    # `ai-provider` is one requirement covering five credentials; "satisfied"
+    # answers whether a run can start at all, not whether any ONE of them is
+    # ready. A host with a credential and no client library sees the
+    # requirement as a whole go SATISFIED for a different provider while the
+    # one it actually has stays unusable -- silently, unless something reports
+    # per-provider state.
+    pytest.importorskip(package)
+    breakdown = check(load_manifest(package))["provider_availability"]
+    assert [p["provider"] for p in breakdown], "must report at least one candidate provider"
+    for entry in breakdown:
+        assert entry["state"] in ("satisfied", "absent")
+        assert entry["detail"]
+
+
+@pytest.mark.parametrize("package", sorted(TOOLS))
+def test_provider_availability_names_the_install_for_a_credentialled_but_unusable_provider(
+    package, monkeypatch
+):
+    import research_core.engine as engine
+
+    # A real shape this project hit before: a credential resolves, but this
+    # specific provider's client library is not installed. `ai-provider` as a
+    # whole may still be satisfied by a DIFFERENT provider -- the breakdown
+    # has to say so for the one that actually failed, not just the aggregate.
+    monkeypatch.setattr(engine, "available_providers", lambda: [])
+    monkeypatch.setattr(engine, "credentialled_providers", lambda: ["gemini"])
+    pytest.importorskip(package)
+    breakdown = {p["provider"]: p for p in provider_availability()}
+    assert breakdown["gemini"]["state"] == "absent"
+    assert breakdown["gemini"]["install"] == "pip install google.genai"
+    assert "google.genai" in breakdown["gemini"]["detail"]
+
+
+@pytest.mark.parametrize("package", sorted(TOOLS))
+def test_provider_availability_reports_no_credential_when_nothing_resolves(
+    package, no_host_providers
+):
+    pytest.importorskip(package)
+    breakdown = {p["provider"]: p for p in provider_availability()}
+    for entry in breakdown.values():
+        assert entry["state"] == "absent"
+        assert "no credential" in entry["detail"]
+        assert entry["install"] is None
 
 
 def test_check_reports_an_unwritable_runs_directory(tmp_path):

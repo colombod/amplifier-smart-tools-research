@@ -6,7 +6,10 @@ name = "deep-research"
 version = "0.9.1"
 description = "Answers a research question with evidence: multi-source research, synthesised, with citations a caller can act on."
 readme = "README.md"
-requires-python = ">=3.11"
+# 3.12, not 3.11: research-core[agent] pulls amplifier-agent, which requires
+# >=3.12. That is not optional here -- it is this project's only dependency --
+# so a 3.11 floor is unresolvable and `uv run` in this root fails outright.
+requires-python = ">=3.12"
 dependencies = [
     # A direct git reference, not a relative path. Every smart tool must install
     # from a git repository, and a path dependency cannot be resolved when this

@@ -28,9 +28,14 @@ requires:
       Backs the reasoning stages that scope a question and synthesise the gathered
       evidence. Without it the research verb refuses rather than degrading, so what is
       lost is research itself; every deterministic verb -- reading, filtering,
-      re-rendering and listing runs that already exist -- keeps working. Any one of
-      ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, GEMINI_API_KEY or
-      AZURE_OPENAI_API_KEY satisfies it. This tool stores no credentials of its own.
+      re-rendering and listing runs that already exist -- keeps working. Needs BOTH a
+      resolvable credential AND that provider's client library installed -- a credential
+      alone does not satisfy preflight. ANTHROPIC_API_KEY is satisfied out of the box:
+      this tool installs the `anthropic` client by default. OPENAI_API_KEY,
+      AZURE_OPENAI_API_KEY or a GitHub Copilot credential additionally need the
+      `research-core[agent-openai]` extra (or `pip install openai`); GOOGLE_API_KEY or
+      GEMINI_API_KEY additionally need `research-core[agent-gemini]` (or
+      `pip install google-genai`). This tool stores no credentials of its own.
     optional: true
     install: docs/CONFIGURATION.md
 ---
@@ -57,9 +62,11 @@ brief says so, and confidence is stated rather than implied.
 
 ## Straight and smart paths
 
-`manifest` is deterministic and runs with no provider configured. The model-backed verbs
-consume tokens, may answer differently on a second run, and fail saying so when nothing
-is configured.
+`manifest`, `check`, `config`, `list`, `status`, `read`, `sources`, `render`, `classify` and
+`estimate` are deterministic and run with no provider configured. `research` is
+model-backed: it consumes tokens, may answer differently on a second run, and fails saying
+so when nothing is configured rather than returning a lesser answer.
 
-This version ships the manifest verb only; the research and navigation verbs named in
-`contracts/cli.v1.md` arrive next.
+This tool ships its full operational surface today: the manifest verb, the research verb,
+and the deterministic navigation verbs named in `contracts/cli.v1.md`. `<verb> --help`
+documents each one; `skill` renders the whole tool as an Agent Skill.

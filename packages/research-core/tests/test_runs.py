@@ -23,6 +23,7 @@ from research_core import (
     status_of,
     verdicts_of,
 )
+from research_core.errors import RunFailedError
 
 FIXTURES = Path(__file__).parent / "fixtures" / "runs"
 
@@ -206,3 +207,16 @@ def test_the_bibliography_groups_by_category():
 def test_an_unknown_render_format_is_refused():
     with pytest.raises(UsageError):
         render(load_run(FIXTURES, CLEAN), fmt="pdf")
+
+
+@pytest.mark.parametrize("fmt", ["markdown", "json", "bibliography"])
+def test_rendering_a_failed_run_is_refused_in_every_format(fmt):
+    # A failed run keeps whatever brief/report material was gathered before
+    # the failure. Assembling it into a document SHAPED LIKE a finished run
+    # -- this verb's whole job -- would present a partial result as complete,
+    # which this project refuses on principle rather than softening into a
+    # rendered subset.
+    with pytest.raises(RunFailedError) as excinfo:
+        render(load_run(FIXTURES, FAILED), fmt=fmt)
+    assert "gather" in str(excinfo.value)
+    assert "status" in excinfo.value.remedy

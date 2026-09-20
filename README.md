@@ -26,7 +26,7 @@ uv pip install "deep-research @ git+https://github.com/colombod/amplifier-smart-
 uv pip install "fact-check    @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/fact-check"
 ```
 
-Both pull the shared `research-core` automatically. Python 3.11+.
+Both pull the shared `research-core` automatically. Python 3.12+.
 
 ## Start here — this part costs nothing
 

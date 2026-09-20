@@ -289,23 +289,6 @@ def research(
         backend=backend if isinstance(backend, str) else None,
     )
 
-    if detach:
-        # Hand back part one and get out of the way. The work continues in a
-        # child process writing to the same run directory, which was always the
-        # durable state -- detaching names what was already there rather than
-        # building something new.
-        return _detach(
-            query,
-            run_id=run_id or new_run_id("dr"),
-            settings=settings,
-            depth=depth,
-            backend=backend if isinstance(backend, str) else None,
-            max_sources=max_sources,
-            inline=inline,
-            max_attempts=max_attempts,
-            scope=scope,
-        )
-
     engine: ResearchBackend = (
         backend
         if not isinstance(backend, str) and backend is not None
@@ -321,11 +304,34 @@ def research(
     )
     attempts_allowed = max_attempts or settings["max_attempts"]
 
-    # Refuse BEFORE anything is created or sent. BOTH seams are checked here:
-    # discovering halfway through that the reasoning stages cannot run would mean
-    # having already paid for the evidence.
+    # Refuse BEFORE anything is created or sent -- for the blocking path AND the
+    # detached one. BOTH seams are checked here: discovering halfway through
+    # that the reasoning stages cannot run would mean having already paid for
+    # the evidence, and a `--detach` request that dies on its own preflight
+    # moments after the caller was told `accepted: true` has been misled about
+    # what it received.
     engine.preflight()
     thinker.preflight()
+
+    if detach:
+        # Hand back part one and get out of the way. The work continues in a
+        # child process writing to the same run directory, which was always the
+        # durable state -- detaching names what was already there rather than
+        # building something new. The child re-preflights defensively (its own
+        # process, its own environment) but the parent's preflight above is what
+        # keeps an unconfigured request from ever being accepted in the first
+        # place.
+        return _detach(
+            query,
+            run_id=run_id or new_run_id("dr"),
+            settings=settings,
+            depth=depth,
+            backend=backend if isinstance(backend, str) else None,
+            max_sources=max_sources,
+            inline=inline,
+            max_attempts=max_attempts,
+            scope=scope,
+        )
 
     budget = Budget(
         depth=settings["depth"],
@@ -414,7 +420,10 @@ def research(
                 # A refusal is a response, and a response owes the caller a next
                 # move. This one already knows a great deal: which host it ran
                 # on, which run directory it wrote to, and that a run record
-                # exists even though the answer does not.
+                # exists even though the answer does not. `artifact_path` below
+                # carries that location as a first-class, absolute field rather
+                # than leaving it to be inferred from prose.
+                artifact_path=writer.path,
                 affordances=[
                     free(
                         "check",
@@ -513,7 +522,20 @@ def research(
                 "evidence cannot support the question as asked."
             ),
         )
-        raise SmartToolError(str(exc), "See attempts.json in the run directory.") from exc
+        raise SmartToolError(
+            str(exc),
+            "See attempts.json in the run directory.",
+            artifact_path=writer.path,
+            affordances=[
+                free(
+                    "status",
+                    "this run's record, including the failure and every stage "
+                    "that completed before it",
+                    command=f"deep-research status {writer.run_id}",
+                    call=f"deep_research.run_status({writer.run_id!r})",
+                ),
+            ],
+        ) from exc
     except SmartToolError as exc:
         # The run keeps everything gathered before the failure. A failed run that
         # threw its evidence away would make a retry cost twice.
@@ -522,6 +544,10 @@ def research(
             "gather",
         )
         writer.fail(stage=current, code=exc.code, message=exc.message, remedy=exc.remedy)
+        # Enrich the SAME exception in place -- its code and exit_code are the
+        # caller's contract and must not change. `with_artifact` attaches where
+        # the evidence gathered so far is retained as a first-class field.
+        exc.with_artifact(writer.path)
         raise
 
     run = _runs.load_run(settings["runs_dir"], writer.run_id)
@@ -535,7 +561,7 @@ def research(
         "brief": brief,
         "confidence": record.get("confidence"),
         "source_count": len(sources),
-        "path": str(writer.path),
+        "path": str(writer.path.resolve()),
         "report_bytes": report_bytes,
         "inline": bool(show_inline),
         "usage": record.get("usage"),
@@ -565,6 +591,61 @@ def research(
     return envelope
 
 
+def _mark_detached_failure(run_path: Path, *, code: str, message: str, remedy: str) -> None:
+    """Persist a failure into run.json when nothing else will.
+
+    `research()` already calls `writer.fail()` for anything that goes wrong
+    once its own `RunWriter` exists. This is the fallback for everything else:
+    a preflight that somehow still failed inside the child, or any exception
+    `research()` itself never anticipated. Without it, a detached run that
+    dies before it has a writer stays `status: "running"` forever -- the exact
+    silent-failure shape detaching must not introduce.
+    """
+    import json as _json
+
+    run_file = run_path / _runs.RUN_FILE
+    try:
+        record = _json.loads(run_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return  # No record to correct; nothing safe to write from here.
+    if record.get("status") == "failed":
+        return  # research() already persisted the real failure; do not clobber it.
+    record["status"] = "failed"
+    record["updated_at"] = datetime.now(UTC).isoformat()
+    record["failure"] = {
+        "stage": None,
+        "code": code,
+        "message": message,
+        "remedy": f"{remedy} Log retained at {run_path / 'detached.log'}.",
+    }
+    run_file.write_text(_json.dumps(record, sort_keys=True), encoding="utf-8")
+
+
+def _run_detached_child(arguments: dict[str, Any]) -> None:
+    """Entry point for the detached child process.
+
+    Bridges the gap between "the parent already wrote run.json as running"
+    and "research() can only update that record once its own RunWriter
+    exists". Anything that goes wrong before that -- or any exception
+    research() itself does not already turn into a persisted failure -- lands
+    here instead of a run that reads as `running` after its process is gone.
+    """
+    run_path = Path(arguments["runs_dir"]) / arguments["run_id"]
+    try:
+        research(**arguments)
+    except SmartToolError as exc:
+        _mark_detached_failure(run_path, code=exc.code, message=exc.message, remedy=exc.remedy)
+        raise
+    except Exception as exc:  # noqa: BLE001 - last resort so "running" is never permanent
+        _mark_detached_failure(
+            run_path,
+            code="detached_crash",
+            message=f"{type(exc).__name__}: {exc}",
+            remedy="This is a defect in the tool. See the retained log for the traceback.",
+        )
+        raise
+
+
 def _detach(
     query: str,
     *,
@@ -589,10 +670,11 @@ def _detach(
     is how a caller's own output gets corrupted by something it stopped watching.
     """
     import json as _json
+    import shutil
     import subprocess
     import sys
 
-    runs_dir = Path(settings["runs_dir"]).expanduser()
+    runs_dir = Path(settings["runs_dir"]).expanduser().resolve()
     run_path = runs_dir / run_id
     run_path.mkdir(parents=True, exist_ok=True)
 
@@ -609,17 +691,29 @@ def _detach(
         "quiet": True,
     }
     bootstrap = (
-        "import json,sys;import deep_research;deep_research.research(**json.loads(sys.argv[1]))"
+        "import json,sys;from deep_research.research import _run_detached_child;"
+        "_run_detached_child(json.loads(sys.argv[1]))"
     )
-    with (run_path / "detached.log").open("wb") as log:
-        child = subprocess.Popen(  # noqa: S603
-            [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-            cwd=str(runs_dir),
-        )
+    try:
+        with (run_path / "detached.log").open("wb") as log:
+            child = subprocess.Popen(  # noqa: S603
+                [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(runs_dir),
+            )
+    except OSError as exc:
+        # The child never started, so no "running" record should sit there
+        # claiming otherwise. Remove the directory this call claimed rather
+        # than leave a run nobody will ever finish.
+        shutil.rmtree(run_path, ignore_errors=True)
+        raise SmartToolError(
+            f"Could not start the detached run: {exc}",
+            "The claimed run directory has been removed. Retry --detach, or "
+            "run without it to see the failure directly.",
+        ) from exc
 
     # Claim the run before the child gets there, so a caller that asks for status
     # immediately finds a record rather than a gap. The child's RunWriter
@@ -658,7 +752,7 @@ def _detach(
         "run_id": run_id,
         "accepted": True,
         "detached": True,
-        "path": str(run_path),
+        "path": str(run_path.resolve()),
         "pid": child.pid,
         # Said plainly, because an accepted request looks a great deal like an
         # answer if nobody says otherwise.

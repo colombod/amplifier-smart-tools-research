@@ -145,7 +145,11 @@ def render(
     run = _runs.load_run(_runs_dir(runs_dir), run_id)
     rendered = _runs.render(run, fmt=fmt)
     if out:
-        path = Path(out).expanduser()
+        # Resolved, not just expanded: a caller running from an arbitrary
+        # working directory gets back a path that means the same thing
+        # wherever it is read, not one that is only correct relative to a
+        # directory the reader may not share.
+        path = Path(out).expanduser().resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(rendered, encoding="utf-8")
         # A capability that produces an artifact identifies it rather than

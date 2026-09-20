@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 #: What an agent most needs and a person mostly knows already: which calls are
@@ -181,6 +182,140 @@ def add_help_flags(parser: argparse.ArgumentParser, *, skill: Callable[[], str])
     )
 
 
+@dataclass(frozen=True)
+class ArgSpec:
+    """One argument of one capability, described for the reader deciding how
+    to call it -- not for argparse, which already knows how to parse it.
+
+    ``name`` is how a caller spells it on the command line: ``run_id`` for a
+    positional, ``--part`` for a flag. ``param`` is the corresponding keyword
+    in the PUBLIC LIBRARY function (``research_core.api.read``'s ``part``,
+    for instance) -- kept separate from ``name`` because the two are not
+    always the same spelling (``--format`` is ``fmt`` in ``api.render``), and
+    a test cross-checks ``param`` against the library signature so a real
+    parameter cannot go undocumented just because its flag was renamed.
+    """
+
+    name: str
+    param: str
+    required: bool = False
+    positional: bool = False
+    default: Any = None
+    help: str = ""
+    choices: tuple[str, ...] | None = None
+
+    def render(self) -> str:
+        bits = [f"`{self.name}`" if not self.positional else f"`{self.name}` (positional)"]
+        if self.choices:
+            bits.append(f"one of {', '.join(self.choices)}")
+        if not self.required and not self.positional:
+            bits.append(
+                f"default: {self.default!r}" if self.default is not None else "default: none"
+            )
+        line = " -- ".join(bits) if len(bits) == 1 else f"{bits[0]} ({'; '.join(bits[1:])})"
+        return f"{line}: {self.help}" if self.help else line
+
+
+@dataclass(frozen=True)
+class CapabilitySkill:
+    """Everything an agent needs to call ONE capability, library-owned.
+
+    This is the shape ``capability-skills-complete`` asks for: the same shape
+    as the tool's own skill, scoped to one capability, and carrying what the
+    tool's skill leaves out -- every argument with its actual default, a
+    worked invocation, this capability's own result fields, and its concrete
+    failure conditions rather than the generic envelope shape alone.
+
+    Built from the library's own knowledge of the capability (its arguments,
+    defaults, results and failures), NOT from reading an argparse subparser --
+    argparse is a transport detail; the capability is a library concept and
+    documents itself as one. ``invocation`` may contain the literal token
+    ``{prog}``, filled in at render time with the calling tool's name, so one
+    definition serves both `deep-research` and `fact-check` where they share
+    a capability.
+    """
+
+    verb: str
+    description: str
+    spends_money: bool
+    args: tuple[ArgSpec, ...] = ()
+    invocation: str = ""
+    result: str = ""
+    failures: tuple[str, ...] = ()
+
+
+def render_capability_skill(capability: CapabilitySkill, *, prog: str) -> str:
+    """Render one capability's skill from LIBRARY-OWNED metadata.
+
+    The counterpart to :func:`render_verb_skill`, which instead derives its
+    document from an argparse subparser -- a CLI transport detail masquerading
+    as the source of truth. A capability registered with a
+    :class:`CapabilitySkill` (see ``research_core.verbs.register``) gets this
+    renderer; ``wire_verb_help`` falls back to the subparser-derived one only
+    for a verb that has not been given one yet.
+    """
+    lines: list[str] = [
+        "---",
+        f"name: {prog} {capability.verb}",
+        f"description: {' '.join(capability.description.split())}",
+        "---",
+        "",
+        f"# {prog} {capability.verb}",
+        "",
+    ]
+
+    if capability.spends_money:
+        lines += [
+            "**This verb spends money and calls a model.** It may answer differently "
+            "on a second run, and it fails saying so rather than returning a lesser "
+            "answer when no backend is configured.",
+            "",
+        ]
+    else:
+        lines += [
+            "**Deterministic.** Runs with no provider configured and no credentials "
+            "of any kind, costs nothing, and returns the same answer for the same "
+            "input.",
+            "",
+        ]
+
+    required = [a.render() for a in capability.args if a.required or a.positional]
+    optional = [a.render() for a in capability.args if not a.required and not a.positional]
+    if required:
+        lines += ["## Required", "", *[f"- {r}" for r in required], ""]
+    if optional:
+        lines += ["## Optional", "", *[f"- {o}" for o in optional], ""]
+
+    if capability.invocation:
+        lines += [
+            "## Worked invocation",
+            "",
+            "```bash",
+            capability.invocation.format(prog=prog),
+            "```",
+            "",
+        ]
+
+    if capability.result:
+        lines += ["## Result", "", capability.result, ""]
+
+    if capability.failures:
+        lines += ["## Failures", "", *[f"- {f}" for f in capability.failures], ""]
+
+    lines += [
+        "## Reading the result",
+        "",
+        'One JSON document on stdout. Success is `{"result": ...}`; failure is '
+        '`{"error": {"code", "message", "remedy", "affordances"}}` with a '
+        "non-zero exit. **A refusal carries `affordances` too** -- named next moves, "
+        "each free and each needing no credential, so being refused is never a dead "
+        "end. Progress and diagnostics go to stderr, never stdout.",
+        "",
+        f"For the whole tool rather than this one verb: `{prog} --help`.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def render_verb_skill(
     subparser: argparse.ArgumentParser,
     *,
@@ -244,7 +379,17 @@ def render_verb_skill(
         flags = [o for o in action.option_strings if o.startswith("--")]
         if not flags or flags[0] == "--help":
             continue
-        entry = f"- `{flags[0]}`" + (f" — {help_text}" if help_text else "")
+        entry = f"- `{flags[0]}`"
+        # WHAT A CALLER GETS WHEN THEY OMIT THE FLAG, not just that they may.
+        # An optional flag with an unstated default reads as "no effect either
+        # way" when it silently changes behaviour -- `read --part` defaults to
+        # `report`, `render --format` to `markdown`, and neither was visible
+        # here until this was added.
+        if action.choices:
+            entry += f" (one of {', '.join(str(c) for c in action.choices)})"
+        if not action.required and action.default not in (None, argparse.SUPPRESS):
+            entry += f" [default: {action.default!r}]"
+        entry += f" — {help_text}" if help_text else ""
         (required if action.required else optional).append(entry)
 
     if required:
@@ -288,11 +433,18 @@ def add_verb_help_flags(
     verb: str,
     spends_money: bool = False,
     returns: str = "",
+    capability: CapabilitySkill | None = None,
 ) -> None:
     """Wire a subcommand's `-h` to the table and its `--help` to the document.
 
     The subparser must be built with `add_help=False`, because argparse binds
     both spellings to one action and the whole point is that they differ.
+
+    ``capability``, when given, is LIBRARY-OWNED metadata for this verb (see
+    ``CapabilitySkill``), and `--help` renders it unchanged rather than
+    deriving a document from this subparser -- the subparser is a CLI
+    transport detail, not the capability. Verbs with no such metadata yet
+    keep the subparser-derived rendering, so this is purely additive.
     """
     subparser.add_argument(
         "-h",
@@ -300,12 +452,16 @@ def add_verb_help_flags(
         default=argparse.SUPPRESS,
         help="terse summary for a person: this verb's flags",
     )
+    if capability is not None:
+        render: Callable[[], str] = lambda: render_capability_skill(capability, prog=prog)  # noqa: E731
+    else:
+        render = lambda: render_verb_skill(  # noqa: E731
+            subparser, prog=prog, verb=verb, spends_money=spends_money, returns=returns
+        )
     subparser.add_argument(
         "--help",
         action=VerbSkillAction,
-        render=lambda: render_verb_skill(
-            subparser, prog=prog, verb=verb, spends_money=spends_money, returns=returns
-        ),
+        render=render,
         default=argparse.SUPPRESS,
         help="this verb explained for an agent driving it",
     )
@@ -323,6 +479,15 @@ def wire_verb_help(verbs: Any, *, prog: str, model_backed: tuple[str, ...] = ())
 
     argparse installs its own `-h/--help` pair bound to ONE action, so the pair
     is removed first and replaced with two that differ.
+
+    A verb registered with library-owned :class:`CapabilitySkill` metadata
+    (stashed on the subparser's defaults under ``_capability_skill`` --
+    see ``research_core.verbs.register``) gets `--help` rendered from THAT,
+    unchanged; a verb with none -- a tool-specific one defined straight on
+    the CLI, like `research` or `check-claims` -- keeps the subparser-derived
+    rendering it always had. Both paths answer `-h` with the terse table and
+    `--help` with an agent-facing document; only the SOURCE of that document
+    differs.
     """
     for verb, subparser in getattr(verbs, "choices", {}).items():
         existing = [
@@ -336,7 +501,14 @@ def wire_verb_help(verbs: Any, *, prog: str, model_backed: tuple[str, ...] = ())
                 if action in group._group_actions:
                     group._group_actions.remove(action)
 
-        add_verb_help_flags(subparser, prog=prog, verb=verb, spends_money=verb in model_backed)
+        capability = subparser._defaults.get("_capability_skill")
+        add_verb_help_flags(
+            subparser,
+            prog=prog,
+            verb=verb,
+            spends_money=verb in model_backed,
+            capability=capability,
+        )
 
 
 def render_pointer_skill(

@@ -83,6 +83,62 @@ def evidence_from_run(runs_dir: str, run_id: str) -> tuple[list[dict[str, Any]],
     return sources, findings, run_id
 
 
+def _mark_detached_failure(run_path: Path, *, code: str, message: str, remedy: str) -> None:
+    """Persist a failure into run.json when nothing else will.
+
+    `check_claims()` already calls `writer.fail()` for anything that goes
+    wrong once its own `RunWriter` exists. This is the fallback for
+    everything else: a preflight that somehow still failed inside the child,
+    or any exception `check_claims()` itself never anticipated. Without it, a
+    detached run that dies before it has a writer stays `status: "running"`
+    forever -- the exact silent-failure shape detaching must not introduce.
+    """
+    import json as _json
+
+    run_file = run_path / _runs.RUN_FILE
+    try:
+        record = _json.loads(run_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return  # No record to correct; nothing safe to write from here.
+    if record.get("status") == "failed":
+        return  # check_claims() already persisted the real failure; do not clobber it.
+    record["status"] = "failed"
+    record["updated_at"] = datetime.now(UTC).isoformat()
+    record["failure"] = {
+        "stage": None,
+        "code": code,
+        "message": message,
+        "remedy": f"{remedy} Log retained at {run_path / 'detached.log'}.",
+    }
+    run_file.write_text(_json.dumps(record, sort_keys=True), encoding="utf-8")
+
+
+def _run_detached_child(arguments: dict[str, Any]) -> None:
+    """Entry point for the detached child process.
+
+    Bridges the gap between "the parent already wrote run.json as running"
+    and "check_claims() can only update that record once its own RunWriter
+    exists". Anything that goes wrong before that -- or any exception
+    check_claims() itself does not already turn into a persisted failure --
+    lands here instead of a run that reads as `running` after its process is
+    gone.
+    """
+    run_path = Path(arguments["runs_dir"]) / arguments["run_id"]
+    try:
+        check_claims(**arguments)
+    except SmartToolError as exc:
+        _mark_detached_failure(run_path, code=exc.code, message=exc.message, remedy=exc.remedy)
+        raise
+    except Exception as exc:  # noqa: BLE001 - last resort so "running" is never permanent
+        _mark_detached_failure(
+            run_path,
+            code="detached_crash",
+            message=f"{type(exc).__name__}: {exc}",
+            remedy="This is a defect in the tool. See the retained log for the traceback.",
+        )
+        raise
+
+
 def _detach(
     *,
     claims: list[str],
@@ -106,10 +162,11 @@ def _detach(
     is how a caller's own output gets corrupted by something it stopped watching.
     """
     import json as _json
+    import shutil
     import subprocess
     import sys
 
-    runs_dir = Path(settings["runs_dir"]).expanduser()
+    runs_dir = Path(settings["runs_dir"]).expanduser().resolve()
     run_id = new_run_id("fc")
     run_path = runs_dir / run_id
     run_path.mkdir(parents=True, exist_ok=True)
@@ -127,17 +184,29 @@ def _detach(
         "run_id": run_id,
     }
     bootstrap = (
-        "import json,sys;import fact_check;fact_check.check_claims(**json.loads(sys.argv[1]))"
+        "import json,sys;from fact_check.checking import _run_detached_child;"
+        "_run_detached_child(json.loads(sys.argv[1]))"
     )
-    with (run_path / "detached.log").open("wb") as log:
-        child = subprocess.Popen(  # noqa: S603
-            [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-            cwd=str(runs_dir),
-        )
+    try:
+        with (run_path / "detached.log").open("wb") as log:
+            child = subprocess.Popen(  # noqa: S603
+                [sys.executable, "-c", bootstrap, _json.dumps(arguments)],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(runs_dir),
+            )
+    except OSError as exc:
+        # The child never started, so no "running" record should sit there
+        # claiming otherwise. Remove the directory this call claimed rather
+        # than leave a run nobody will ever finish.
+        shutil.rmtree(run_path, ignore_errors=True)
+        raise SmartToolError(
+            f"Could not start the detached run: {exc}",
+            "The claimed run directory has been removed. Retry --detach, or "
+            "run without it to see the failure directly.",
+        ) from exc
 
     # Claim the run before the child gets there, so a caller that asks for status
     # immediately finds a record rather than a gap. The child's RunWriter
@@ -173,7 +242,7 @@ def _detach(
         "run_id": run_id,
         "accepted": True,
         "detached": True,
-        "path": str(run_path),
+        "path": str(run_path.resolve()),
         "pid": child.pid,
         "claim_count": len(claims),
         "inherited_from": from_run,
@@ -251,21 +320,6 @@ def check_claims(
             "`fact-check list` shows what is available.",
         )
 
-    if detach:
-        # After the argument checks above and before any model contact, so a
-        # malformed request still fails in the caller's face rather than inside
-        # a child process nobody is watching.
-        return _detach(
-            claims=claims,
-            claim=claim,
-            claims_file=claims_file,
-            from_run=from_run,
-            strict=strict,
-            settings=settings,
-            inline=inline,
-            max_attempts=max_attempts,
-        )
-
     thinker = reasoner
     if thinker is None:
         from research_core.reasoning import AgentReasoner
@@ -277,9 +331,31 @@ def check_claims(
         )
     attempts_allowed = max_attempts or settings["max_attempts"]
 
-    # Refuse before anything is created. Reading the source run first means a
-    # bad --from-run fails without leaving a half-built run behind it.
+    # Refuse before anything is created or sent -- for the blocking path AND
+    # the detached one. A `--detach` request that will die on its own preflight
+    # moments after the caller was told `accepted: true` has been misled about
+    # what it received.
     thinker.preflight()
+
+    if detach:
+        # After the argument checks and the preflight above, and before any
+        # model contact, so a malformed or unconfigured request still fails in
+        # the caller's face rather than inside a child process nobody is
+        # watching. The child re-preflights defensively, but this is what keeps
+        # an unconfigured request from ever being accepted.
+        return _detach(
+            claims=claims,
+            claim=claim,
+            claims_file=claims_file,
+            from_run=from_run,
+            strict=strict,
+            settings=settings,
+            inline=inline,
+            max_attempts=max_attempts,
+        )
+
+    # Reading the source run first means a bad --from-run fails without
+    # leaving a half-built run behind it.
     sources, findings, inherited = evidence_from_run(settings["runs_dir"], from_run)
 
     writer = RunWriter(
@@ -416,24 +492,41 @@ def check_claims(
 
         record = writer.complete()
     except stages.ClaimUncheckable as exc:
-        writer.fail(
-            stage="verify",
-            code="claim_uncheckable",
-            message=str(exc),
-            remedy=(
-                "This is NOT the same as `unverifiable`, which means the claim was "
-                "checked and the evidence was inadequate. The tool never got as "
-                "far as looking. Verdicts for claims already checked are in "
-                "verdicts.json. Raise max_attempts, or re-run with fewer claims."
-            ),
+        remedy = (
+            "This is NOT the same as `unverifiable`, which means the claim was "
+            "checked and the evidence was inadequate. The tool never got as "
+            "far as looking. Verdicts for claims already checked are in "
+            "verdicts.json. Raise max_attempts, or re-run with fewer claims."
         )
-        raise SmartToolError(str(exc), "See verdicts.json for what was checked.") from exc
+        writer.fail(stage="verify", code="claim_uncheckable", message=str(exc), remedy=remedy)
+        # The SAME corrective remedy travels with the re-raised error -- a
+        # caller reading the exception should not get a worse, less actionable
+        # message than the one already persisted to the run record. The run
+        # directory travels as a first-class `artifact_path` rather than being
+        # folded into the prose.
+        raise SmartToolError(
+            str(exc),
+            remedy,
+            artifact_path=writer.path,
+            affordances=[
+                free(
+                    "verdicts",
+                    "the verdicts already recorded before this run stopped",
+                    command=f"fact-check verdicts {writer.run_id}",
+                    call=f"fact_check.verdicts({writer.run_id!r})",
+                ),
+            ],
+        ) from exc
     except SmartToolError as exc:
         current = next(
             (s["name"] for s in writer.record["stages"] if s.get("status") == "running"),
             "verify",
         )
         writer.fail(stage=current, code=exc.code, message=exc.message, remedy=exc.remedy)
+        # Enrich the SAME exception in place -- its code and exit_code are the
+        # caller's contract and must not change. `with_artifact` attaches where
+        # the evidence gathered so far is retained as a first-class field.
+        exc.with_artifact(writer.path)
         raise
 
     report_bytes = len(report.encode("utf-8"))
@@ -450,7 +543,7 @@ def check_claims(
         "source_count": len(sources),
         "inherited_from": inherited,
         "confidence": record.get("confidence"),
-        "path": str(writer.path),
+        "path": str(writer.path.resolve()),
         "report_bytes": report_bytes,
         "inline": bool(show_inline),
         "usage": record.get("usage"),

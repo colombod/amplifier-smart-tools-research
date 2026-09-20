@@ -7,6 +7,7 @@ empty result.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
@@ -21,6 +22,8 @@ class SmartToolError(RuntimeError):
         message: str,
         remedy: str,
         affordances: list[Any] | None = None,
+        *,
+        artifact_path: str | Path | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -34,6 +37,31 @@ class SmartToolError(RuntimeError):
         # A library caller reads these off the exception; a CLI caller reads them
         # off the envelope. Same list, both paths.
         self.affordances: list[Any] = list(affordances or [])
+        # Where a partial artifact -- most often a run directory -- was left on
+        # disk when this failure happened. A run that was created and then
+        # failed has evidence a caller should not have to reconstruct the runs
+        # directory to find; a library caller reads this off the exception, a
+        # CLI caller off the error envelope's ``artifact.path``. Always
+        # resolved to absolute: whoever reads it may not share this process's
+        # working directory.
+        self.artifact_path: str | None = (
+            str(Path(artifact_path).expanduser().resolve()) if artifact_path is not None else None
+        )
+
+    def with_artifact(self, path: str | Path) -> SmartToolError:
+        """Attach a partial artifact's location after construction.
+
+        Some raise sites only learn where a run directory is -- a
+        ``RunWriter`` already created for this attempt -- after the error
+        that ends the attempt was already built (or after catching one raised
+        lower down). Mutating in place beats forcing every such site to
+        thread the path through the constructor: ``raise exc.with_artifact(
+        writer.path) from exc``. Resolved to absolute, same as the
+        constructor argument, and returns ``self`` so it composes with
+        ``raise``.
+        """
+        self.artifact_path = str(Path(path).expanduser().resolve())
+        return self
 
 
 class UsageError(SmartToolError):
@@ -84,6 +112,23 @@ class NoEvidence(SmartToolError):
     """A run that was supposed to gather evidence gathered none."""
 
     code = "no_evidence"
+    exit_code = 1
+
+
+class RunFailedError(SmartToolError):
+    """A run exists but failed, and there is nothing complete to navigate to.
+
+    A failed run keeps whatever it gathered before the failure -- that is the
+    point of writing artifacts as a run proceeds rather than only at the end --
+    but a partial brief or report rendered as though it were the finished
+    document IS the "partial result silently returned as complete" failure
+    mode this project refuses on principle. `status` is where a caller learns
+    what happened and what survives; navigation verbs that assemble a
+    finished-shaped document (`render`) refuse instead of guessing which
+    partial assembly is honest.
+    """
+
+    code = "run_failed"
     exit_code = 1
 
 

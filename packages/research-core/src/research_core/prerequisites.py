@@ -129,6 +129,64 @@ DETECTORS: dict[str, Callable[[], tuple[str, str]]] = {
 }
 
 
+def provider_availability() -> list[dict[str, Any]]:
+    """Per-PROVIDER breakdown of the ``ai-provider`` requirement.
+
+    The manifest declares one requirement -- ``ai-provider`` -- satisfied by
+    any one of five API-key variables. That is true for whether a run can
+    start at all, and false for whether any SPECIFIC one of the five will
+    actually work: only ``anthropic`` ships its client library in this
+    package's default `agent` extra, so a host with only ``GOOGLE_API_KEY``
+    set sees the requirement reported ``satisfied`` while that specific
+    provider still cannot run a turn until ``google-genai`` is installed.
+
+    Reporting the requirement as a whole hides exactly that gap, which is
+    what a caller actually needs answered before it tries the one credential
+    it has. This says, for each candidate provider: usable, credentialled but
+    missing its client library (and what to install), or no credential at
+    all.
+    """
+    from research_core.engine import (
+        PROVIDER_PREFERENCE,
+        available_providers,
+        client_library_for,
+        credentialled_providers,
+    )
+
+    usable = set(available_providers())
+    credentialled = set(credentialled_providers())
+
+    breakdown: list[dict[str, Any]] = []
+    for name in PROVIDER_PREFERENCE:
+        library = client_library_for(name)
+        if name in usable:
+            state, detail, install = (
+                SATISFIED,
+                "usable: credential and client library both resolve",
+                None,
+            )
+        elif name in credentialled:
+            state = ABSENT
+            detail = (
+                f"credential resolves, but its client library ({library}) is not installed"
+                if library
+                else "credential resolves, but this tool has no known client library for it"
+            )
+            install = f"pip install {library}" if library else None
+        else:
+            state, detail, install = ABSENT, "no credential configured for this provider", None
+        breakdown.append(
+            {
+                "provider": name,
+                "state": state,
+                "detail": detail,
+                "client_library": library,
+                "install": install,
+            }
+        )
+    return breakdown
+
+
 def check_requirements(manifest: Manifest) -> list[Finding]:
     """Look for everything this tool's own manifest says it needs."""
     findings: list[Finding] = []
@@ -207,4 +265,12 @@ def check(manifest: Manifest, *, runs_dir: str | None = None) -> dict[str, Any]:
 
     known_surfaces = sorted(SURFACES)
     document["credential_surfaces"] = known_surfaces
+
+    # `ai-provider` is one requirement covering five possible credentials, and
+    # "satisfied" means only that ONE of them works -- which specific one, and
+    # what the other four would need, is exactly what a caller with a
+    # not-yet-working key needs answered next.
+    if any(r.name == "ai-provider" for r in manifest.requires):
+        document["provider_availability"] = provider_availability()
+
     return document

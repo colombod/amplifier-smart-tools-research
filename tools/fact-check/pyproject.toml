@@ -4,7 +4,10 @@ name = "fact-check"
 version = "0.9.1"
 description = "Checks claims against evidence and returns a verdict per claim, with the sources each rests on."
 readme = "README.md"
-requires-python = ">=3.11"
+# 3.12, not 3.11: research-core[agent] pulls amplifier-agent, which requires
+# >=3.12. That is not optional here -- it is this project's only dependency --
+# so a 3.11 floor is unresolvable and `uv run` in this root fails outright.
+requires-python = ">=3.12"
 dependencies = [
     # A direct git reference, not a relative path. This distribution must be
     # installable on its own from git, and a path dependency cannot resolve then.

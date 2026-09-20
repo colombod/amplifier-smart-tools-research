@@ -139,13 +139,47 @@ A credential value never appears in any output, log line, event record or error 
 What a resolution reports is the tier a credential came from — never the value, never a
 prefix, never a length.
 
+### A provider needs its client library too, not only its credential
+
+**A credential alone does not satisfy preflight.** The embedded agent engine ships no
+provider client of its own, so `research` also needs that provider's Python client
+installed — found the hard way, by a run that preflighted clean on a resolvable
+credential and then died at mount time with `No module named 'anthropic'`.
+
+| Credential | Client library | Shipped by default? |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | `anthropic` | yes — this tool installs it |
+| `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`, a GitHub Copilot credential | `openai` | no — opt in |
+| `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `google-genai` | no — opt in |
+
+To use a provider beyond the default Anthropic one, either reinstall this tool's shared
+core with the matching extra:
+
+```bash
+uv pip install 'research-core[agent-openai] @ git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=packages/research-core'
+# or
+uv pip install 'research-core[agent-gemini] @ git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=packages/research-core'
+```
+
+or add the client library directly into the same environment:
+
+```bash
+pip install openai        # OPENAI_API_KEY, AZURE_OPENAI_API_KEY, GitHub Copilot
+pip install google-genai   # GOOGLE_API_KEY, GEMINI_API_KEY
+```
+
+`check` reports both halves of this precondition — credential resolved and client library
+importable — rather than only the credential, and a preflight failure names whichever
+half is missing.
+
 ## What is lost without each
 
 | Absent | Consequence |
 |---|---|
 | `PERPLEXITY_API_KEY` | the Perplexity backend is unavailable |
-| a model provider | the reasoning stages cannot run |
-| both | every deterministic verb still works; model-backed verbs exit 3 with `no_provider` |
+| a model provider's credential | the reasoning stages cannot run |
+| a model provider's client library, credential present | preflight fails naming the missing library, same as no credential at all |
+| both credential and library | every deterministic verb still works; model-backed verbs exit 3 with `no_provider` |
 
 A model-backed verb with nothing configured fails loudly naming the missing precondition.
 It never falls back to a degraded deterministic answer.

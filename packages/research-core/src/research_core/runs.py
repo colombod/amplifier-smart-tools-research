@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from research_core.errors import RunNotFoundError, RunsDirUnusableError, UsageError
+from research_core.errors import RunFailedError, RunNotFoundError, RunsDirUnusableError, UsageError
 
 RUN_FILE = "run.json"
 BRIEF_FILE = "brief.md"
@@ -477,11 +477,32 @@ def dangling_citations(run: Run) -> list[str]:
 
 
 def render(run: Run, *, fmt: str = "markdown") -> str:
-    """Re-shape a stored run. Costs nothing: the run is already on disk."""
+    """Re-shape a stored run. Costs nothing: the run is already on disk.
+
+    Refused outright for a failed run, in every format. A failed run keeps
+    whatever brief/report material was written before the failure -- that
+    material is real and `read`/`sources` can still see it directly -- but
+    assembling it into a document shaped like a FINISHED run (this verb's
+    whole job) would silently present a partial result as complete, which is
+    exactly the failure mode this project refuses rather than softens. `json`
+    is refused too even though it already embeds ``run.record["status"]``:
+    one rule for the verb, not one rule per format a caller has to remember.
+    """
     if fmt not in RENDER_FORMATS:
         raise UsageError(
             f"There is no format {fmt!r}.",
             f"Formats: {', '.join(RENDER_FORMATS)}.",
+        )
+    if run.failed:
+        failure = run.record.get("failure") or {}
+        stage = failure.get("stage", "an earlier stage")
+        raise RunFailedError(
+            f"Run {run.run_id} failed during the {stage!r} stage; there is "
+            "nothing complete to render.",
+            "Run `status` to see what happened and what survives. Use `read` "
+            "or `sources` to inspect whatever evidence was written before the "
+            "failure -- `render` only assembles a finished-shaped document, "
+            "which this run does not have.",
         )
 
     sources = sources_of(run)["sources"]

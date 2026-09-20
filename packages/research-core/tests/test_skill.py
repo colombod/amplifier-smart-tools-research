@@ -245,6 +245,19 @@ def test_acquisition_lives_in_the_pointer_and_never_in_help(tool, slug, capsys):
     obtain it is incoherent. A host that ran `npx skills add` may hold the
     document WITHOUT the program, because that command installs a document and
     not a program.
+
+    RECORDED DISAGREEMENT, not oversight: a spec reviewer asked for install
+    commands to appear in the rendered `--help`. An earlier agent implemented
+    that suggestion, watched this test go red, and reverted -- correctly. The
+    reasoning above is why this repo declines the reviewer's suggestion: a
+    `--help` reader already HAS the binary that printed it, so "how do I get
+    this" is a question that reader cannot coherently be asking, and the
+    answer belongs in the artifact whose reader might actually lack the tool
+    (the committed pointer `SKILL.md`, which `pointer_skill()` builds and
+    which DOES carry `## Install`). If a future run of that review raises the
+    same suggestion again, this comment is the answer -- re-litigate it here
+    against this reasoning before touching this test, rather than "fixing" it
+    by weakening or deleting the assertion.
     """
     import importlib
 
