@@ -15,7 +15,7 @@ license: MIT
 metadata:
   author: colombod
   repository: https://github.com/colombod/amplifier-smart-tools-research
-  version: 0.9.1
+  version: 0.10.0
 ---
 
 # Using fact-check
@@ -48,7 +48,7 @@ That document comes from the binary you actually have, so it is correct for your
 installation. This file cannot be, and does not try.
 
 `fact-check manifest` reports the version actually installed; this pointer was generated
-from 0.9.1. If they differ, re-read `--help` -- flags and costs can change between
+from 0.10.0. If they differ, re-read `--help` -- flags and costs can change between
 releases. Upgrade in place:
 
 ```bash
