@@ -1,7 +1,7 @@
 line-length = 100
 target-version = "py312"
 
-exclude = [".venv", "dist", "build"]
+exclude = [".venv", "dist", "build", "site/theme", "_site", ".work"]
 
 [lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

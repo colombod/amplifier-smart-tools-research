@@ -1,0 +1,58 @@
+{
+  "key": "research",
+  "name": "Research tools",
+  "kind": "tool",
+  "title": "Research tools | Amplifier Smart Tools",
+  "accent": "#356e63",
+  "promise": "Ask better. Check closer.",
+  "description": "Two tools for working with evidence. Deep Research investigates open questions. Fact Check examines specific claims. Both keep sources and results you can return to.",
+  "image": "site/assets/research.svg",
+  "alt": "Research tools workflow diagram.",
+  "caption": "Workflow illustration.",
+  "width": 1200,
+  "height": 640,
+  "flow_title": "Two starting points. One evidence trail.",
+  "flow_intro": "Two tools for working with evidence. Deep Research investigates open questions. Fact Check examines specific claims. Both keep sources and results you can return to.",
+  "steps": [
+    [
+      "Start with a question.",
+      "Use Deep Research when you need to find out what is known."
+    ],
+    [
+      "Bring a claim.",
+      "Use Fact Check when you have an assertion to test against evidence."
+    ],
+    [
+      "Keep the record.",
+      "Read saved results and reuse gathered evidence across both tools."
+    ]
+  ],
+  "detail_title": "Expertise your agent can put to work.",
+  "details": [
+    [
+      "Deep Research.",
+      "A sourced brief and the fuller evidence behind it."
+    ],
+    [
+      "Fact Check.",
+      "An independent verdict for each claim, with reasoning and citations."
+    ],
+    [
+      "Shared evidence.",
+      "A common runs directory connects research and verification."
+    ]
+  ],
+  "prompt": "Help me choose between Deep Research and Fact Check. Use Deep Research for my open questions and Fact Check for specific claims. Read the selected tool's --help before starting.",
+  "install": "uv tool install \"deep-research @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/deep-research\"\nuv tool install \"fact-check @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/fact-check\"",
+  "prerequisites": "Python 3.12+ and uv. Each tool installs independently.",
+  "model_note": "The setup guide covers evidence acquisition and model access. Saved runs remain readable without provider credentials.",
+  "guide": "README.md",
+  "related": [
+    "deep-research",
+    "fact-check"
+  ],
+  "hero_tools": [
+    "deep-research",
+    "fact-check"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "key": "fact-check",
+  "name": "Fact Check",
+  "kind": "tool",
+  "title": "Fact Check | Amplifier Smart Tools",
+  "accent": "#356e63",
+  "promise": "Give every claim its own hearing.",
+  "description": "Check assertions against evidence, one claim at a time. Fact Check returns individual verdicts with the reasoning and sources behind each one.",
+  "image": "site/assets/fact-check.svg",
+  "alt": "Fact Check workflow diagram.",
+  "caption": "Workflow illustration.",
+  "width": 1200,
+  "height": 640,
+  "flow_title": "From assertion to an auditable verdict.",
+  "flow_intro": "Check assertions against evidence, one claim at a time. Fact Check returns individual verdicts with the reasoning and sources behind each one.",
+  "steps": [
+    [
+      "Name the claims.",
+      "Supply the specific assertions you want checked before sharing a draft or making a decision."
+    ],
+    [
+      "Check each independently.",
+      "Weigh evidence for each claim without letting one result stand in for the others."
+    ],
+    [
+      "Inspect the reasoning.",
+      "Follow each verdict to its sources, or reuse evidence from a previous research run."
+    ]
+  ],
+  "detail_title": "Expertise your agent can put to work.",
+  "details": [
+    [
+      "Separate the outcomes.",
+      "Distinguish supported, refuted, unverifiable, and opinion in the returned verdicts."
+    ],
+    [
+      "Read the evidence.",
+      "Each claim carries its reasoning and source references for inspection."
+    ],
+    [
+      "Build on existing work.",
+      "Check claims against evidence Deep Research has already gathered."
+    ]
+  ],
+  "prompt": "Use Fact Check to review these claims. Read fact-check --help and check configuration. Evaluate each claim independently, then return the verdict, reasoning, and sources for each one.",
+  "install": "uv tool install \"fact-check @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/fact-check\"\nfact-check --help",
+  "prerequisites": "Python 3.12+ and uv. The configuration guide covers evidence backends, model providers, and shared research runs.",
+  "model_note": "Checking new claims uses configured evidence and model services. Reading and filtering saved verdicts need no model call.",
+  "guide": "tools/fact-check/src/fact_check/SMART_TOOL.md",
+  "related": [
+    "deep-research",
+    "possibly",
+    "stories"
+  ]
+}
