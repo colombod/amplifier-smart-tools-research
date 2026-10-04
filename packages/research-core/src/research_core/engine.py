@@ -1,34 +1,10 @@
-"""Running one turn on an embedded agent engine.
+"""One bounded turn on installed public Core/Foundation modules.
 
-Both things that need a model go through here: the backend that gathers evidence
-with web tools mounted, and the reasoning turns that run with no tools at all.
-They differ by exactly one argument, which is worth noticing -- it is the
-evidence behind the open question of whether those two seams should be one.
-
-EVERY engine import lives inside a function body. Importing amplifier_agent_lib
-rewrites os.environ["AMPLIFIER_HOME"] unconditionally at import time -- verified
-on this machine, not taken on faith -- and a module-level import would poison
-that variable for unrelated code in the same process, make every deterministic
-verb pay for a provider stack it never uses, and break the conformance rule that
-runs `--help` with the environment scrubbed. One cause, three symptoms.
-
-WHERE THE ENGINE WRITES is this module's problem too. Left alone it puts several
-hundred megabytes of module clones and prepared-bundle cache under
-``~/.amplifier-agent``, and opens a scratch working directory wherever ``$TMPDIR``
-points. Neither location was chosen by the caller, which is harmless on a
-workstation and fatal in a sandbox that confines writes to a workspace: the first
-model-backed stage dies on a bare ``PermissionError`` naming a path nobody asked
-for -- after the evidence has been gathered and paid for. So this module binds
-that location from a setting (``engine_home``), puts the turn's working directory
-inside it instead of ``$TMPDIR``, removes that directory afterwards, and proves
-the whole tree is writable in preflight, before a prompt is built or a token
-spent.
-
-The variable that moves it is ``AMPLIFIER_AGENT_HOME``, and that is not the
-obvious guess. ``AMPLIFIER_HOME`` is the one the storage resolver underneath
-reads, so it is the one anybody reaching for a lever exports first -- and the
-engine overwrites it at import, so exporting it does nothing whatsoever, in
-silence. Verified by setting it and watching it change, not assumed.
+Gathering mounts only web search/fetch; reasoning mounts no tools. Runtime
+imports stay lazy, so deterministic verbs need no provider dependencies.
+The adapter never downloads code or changes AMPLIFIER_HOME. Retained credentials,
+provider-owned state and the explicit Foundation cache remain under engine_home;
+each turn uses a scratch directory there and removes it after joined cleanup.
 """
 
 from __future__ import annotations
@@ -52,13 +28,12 @@ from research_core.errors import NoProviderError, SmartToolError
 WORKSPACE = "amplifier-research"
 
 #: The one environment variable that moves the engine's on-disk tree. Everything
-#: it writes -- prepared-bundle cache, module clones, session state -- is under
+#: it writes -- preparation cache, provider state, scratch -- is under
 #: this, and our turn working directories are put there too.
 ENGINE_HOME_ENV = "AMPLIFIER_AGENT_HOME"
 
-#: The variable a caller reaches for instead, and which does nothing: the engine
-#: overwrites it at import. Named here so the refusal below can say so, because
-#: the alternative is someone exporting it and believing the problem is elsewhere.
+#: Historical exported name retained for compatibility. AMPLIFIER_HOME does not
+#: select this tool's home and the adapter leaves it unchanged.
 OVERWRITTEN_HOME_ENV = "AMPLIFIER_HOME"
 
 #: Turn working directories live here, under the engine home. A subdirectory
@@ -107,7 +82,7 @@ PROVIDER_CLIENTS: dict[str, str] = {
 #: with any of them. We FILTER rather than clear, which is the one deliberate
 #: divergence from both reference smart tools: they run tool-less turns and so
 #: zero the plan, and zeroing it would leave a research agent unable to research.
-WEB_TOOLS = ("tool-web", "tool-search")
+WEB_TOOLS = ("tool-web",)
 
 
 class EngineUnavailable(SmartToolError):
@@ -203,10 +178,8 @@ def resolved_engine_home() -> tuple[Path, str]:
 def bind_engine_home() -> Path:
     """Point the engine's tree at the configured home. Idempotent.
 
-    Must run before amplifier_agent_lib is imported: the binding it performs on
-    its own storage happens at import time, so a value set afterwards is read by
-    nothing. Calling it from _load, immediately above the only import site in
-    this package, is what makes "before" structural rather than remembered.
+    Preserve the established environment alias for embedded callers. The public
+    adapter also receives this exact Path; it never rewrites AMPLIFIER_HOME.
     """
     home, _ = resolved_engine_home()
     os.environ[ENGINE_HOME_ENV] = str(home)
@@ -254,10 +227,10 @@ def engine_home_status() -> dict[str, Any]:
     if _INHERITED_OVERWRITTEN_HOME:
         # Cheap to report and expensive to discover: this is the variable a
         # caller exports when they want to move the tree, and the engine
-        # overwrites it at import, so it has no effect at all.
+        # uses its own explicit home, so it has no effect here.
         status["ignored"] = (
-            f"${OVERWRITTEN_HOME_ENV} is set and has no effect here: the engine "
-            f"overwrites it when it is imported. ${ENGINE_HOME_ENV}, or the "
+            f"${OVERWRITTEN_HOME_ENV} is set but does not select this tool's home. "
+            f"${ENGINE_HOME_ENV}, or the "
             "engine_home setting, is what moves the tree."
         )
     return status
@@ -284,7 +257,7 @@ def ensure_engine_home_usable() -> Path:
         if _INHERITED_OVERWRITTEN_HOME:
             note = (
                 f" Note that ${OVERWRITTEN_HOME_ENV} is set and does nothing: "
-                "the engine overwrites it at import."
+                "use engine_home or AMPLIFIER_AGENT_HOME for this tool."
             )
         if source == SOURCE_DEFAULT:
             # Reaching here with the default means the fallback was tried and
@@ -368,45 +341,12 @@ def _turn_workspace() -> Iterator[str]:
 
 def _load():
     """Import the engine. Deferred, and the only place it happens."""
-    bind_engine_home()
-    try:
-        from amplifier_agent_cli.provider_sources import (
-            enumerate_resolvable_providers,
-            inject_provider,
-            inject_routing_matrix,
-        )
-        from amplifier_agent_lib import __version__
-        from amplifier_agent_lib._runtime import make_turn_handler
-        from amplifier_agent_lib.bundle.cache import load_and_prepare_cached
-        from amplifier_agent_lib.engine import Engine
-        from amplifier_agent_lib.protocol import (
-            PROTOCOL_VERSION,
-            server_default_capabilities,
-        )
-        from amplifier_agent_lib.protocol_points.defaults_cli import (
-            ApprovalOverride,
-            CliApprovalSystem,
-        )
-    except ModuleNotFoundError as exc:
-        raise NoProviderError(
-            f"The agent engine is not installed: {exc}",
-            "It ships as a resolved dependency, so its absence means a broken "
-            "install rather than a missing option: reinstall the tool. Every "
-            "deterministic verb keeps working meanwhile.",
-        ) from exc
+    from research_core import foundation_runtime
 
+    home = bind_engine_home()
     return {
-        "enumerate_resolvable_providers": enumerate_resolvable_providers,
-        "inject_provider": inject_provider,
-        "inject_routing_matrix": inject_routing_matrix,
-        "version": __version__,
-        "make_turn_handler": make_turn_handler,
-        "load_and_prepare_cached": load_and_prepare_cached,
-        "Engine": Engine,
-        "PROTOCOL_VERSION": PROTOCOL_VERSION,
-        "server_default_capabilities": server_default_capabilities,
-        "ApprovalOverride": ApprovalOverride,
-        "CliApprovalSystem": CliApprovalSystem,
+        "enumerate_resolvable_providers": lambda: foundation_runtime.configured_providers(home),
+        "execute": foundation_runtime.execute,
     }
 
 
@@ -422,12 +362,8 @@ class _Display:
     def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_event = on_event
         self.usage: dict[str, Any] = {}
-        #: How many tool calls the engine actually reported. This is the ONLY
-        #: evidence available that the tools we asked for really mounted and
-        #: really ran. There is no post-boot window in which to check: the engine
-        #: holds a PreparedBundle, not a session, and the coordinator that owns
-        #: the mount registry does not exist until a turn creates one. So the
-        #: post-condition can only be observed from the outcome.
+        #: Count the public runtime's actual tool events. Declared or mounted
+        #: tools alone do not establish that evidence was gathered.
         self.tool_calls = 0
 
     async def emit(self, event: dict[str, Any]) -> None:
@@ -509,7 +445,11 @@ def available_providers() -> list[str]:
     mount time with "No module named 'anthropic'". A preflight that checks the
     credential answers a different question from the one the caller asked.
     """
-    return [p for p in credentialled_providers() if client_library_present(p)]
+    from research_core.foundation_runtime import runtime_present
+
+    return [
+        p for p in credentialled_providers() if client_library_present(p) and runtime_present(p)
+    ]
 
 
 def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
@@ -580,73 +520,30 @@ async def _run_turn_async(
     _announce_fallback_home(on_event)
 
     with _turn_workspace() as cwd:
-        prepared = await symbols["load_and_prepare_cached"](aaa_version=symbols["version"])
-
-        # Injection is a no-op while any provider is mounted, and the vendored
-        # bundle ships stubs -- so clearing first is load-bearing, not tidiness.
-        prepared.mount_plan["providers"] = []
-        symbols["inject_provider"](prepared, chosen, model_override=model)
-        symbols["inject_routing_matrix"](prepared, chosen)
-
-        # Filter, never clear: keeping the plan's own entries is what leaves the
-        # web tools mounted for a gather, and an empty tuple is how a reasoning
-        # turn asks for none of them.
-        prepared.mount_plan["tools"] = [
-            entry
-            for entry in (prepared.mount_plan.get("tools") or [])
-            if entry.get("module") in set(tools)
-        ]
-        # Sub-agents and hooks are never wanted: a hook observes a session this
-        # tool does not have, and each is a third-party module whose failure to
-        # load would fail the turn.
-        prepared.mount_plan["agents"] = {}
-        prepared.mount_plan["hooks"] = []
-
-        handler = symbols["make_turn_handler"](
-            prepared, cwd=cwd, is_resumed=False, workspace=WORKSPACE
-        )
-        engine = symbols["Engine"](
-            turn_handler=handler,
-            protocol_points={
-                # Nothing that could ask for approval is mounted. Declining
-                # anything that somehow does keeps the filtering above from
-                # being the only defence.
-                "approval": symbols["CliApprovalSystem"](override=symbols["ApprovalOverride"].NO),
-                "display": display,
-            },
-        )
-        await engine.boot(
-            {
-                "protocolVersion": symbols["PROTOCOL_VERSION"],
-                "clientInfo": {"name": WORKSPACE, "version": "0.1.0"},
-                "capabilities": dict(symbols["server_default_capabilities"]()),
-                "sessionId": "",
-                "resume": False,
-                "cwd": cwd,
-            },
-            bundle_override=prepared,
-        )
         try:
             result = await asyncio.wait_for(
-                engine.submit_turn(
-                    {
-                        "sessionId": "",
-                        "turnId": f"turn-{uuid.uuid4().hex}",
-                        "prompt": prompt,
-                    }
+                symbols["execute"](
+                    prompt,
+                    chosen=chosen,
+                    model=model,
+                    home=resolved_engine_home()[0],
+                    cwd=cwd,
+                    tools=tools,
+                    display=display,
                 ),
                 timeout=max(timeout_ms, 1) / 1000.0,
             )
         except TimeoutError as exc:
             raise EngineUnavailable(
                 f"The turn exceeded its {timeout_ms} ms budget and was aborted.",
-                "Raise timeout_ms, or check the provider is reachable. A partial "
-                "judgment is not returned, because a partial answer that looks "
-                "whole is worse than none.",
+                "Raise timeout_ms, or check the provider is reachable. "
+                "A partial judgment is not returned.",
             ) from exc
-        finally:
-            with contextlib.suppress(Exception):
-                await engine.shutdown()
+        except ImportError as exc:
+            raise EngineUnavailable(
+                "The selected installed runtime is incomplete.",
+                "Reinstall research-core[agent] and the selected provider dependencies.",
+            ) from exc
 
     tokens_in = int(result.get("tokensIn") or 0)
     tokens_out = int(result.get("tokensOut") or 0)

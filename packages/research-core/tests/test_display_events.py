@@ -1,30 +1,7 @@
-"""_Display, driven with the engine's real event shapes -- no model, no credential.
+"""Stable research event DTOs and their public Core hook-registry wiring.
 
-The engine's ``DisplaySystem`` protocol point is exactly one async method,
-``emit(event)`` (see ``amplifier_agent_lib.protocol_points.base.DisplaySystem``,
-and the shipped ``CliDisplaySystem`` -- both implement nothing wider). So a
-missing-events symptom cannot be an interface mismatch; if it ever recurs, look
-at whether the tool that ran was dispatched through the kernel's tool registry
-at all (``tool:pre``/``tool:post`` only fire for THAT path -- a provider's own
-server-side tool, e.g. Anthropic's ``web_search_20250305`` when
-``enable_web_search`` is set, never reaches it) before touching this file again.
-
-Two layers of evidence here:
-
-* ``Test*DirectlyDriven`` -- feeds ``_Display.emit`` the exact dict shapes the
-  installed ``bundle/hook_streaming.py`` constructs (read from its source, not
-  invented), and asserts what gets forwarded to ``on_event``.
-* ``test_full_wiring_*`` -- mounts the REAL shipped streaming hook onto a REAL
-  Rust-backed coordinator (``amplifier_core.testing.create_test_coordinator``,
-  the same compiled ``HookRegistry`` production uses), wraps our ``_Display``
-  in the REAL ``UsageAccumulator`` exactly as ``Engine.__init__`` does, and
-  registers it as the ``display.emit`` capability exactly as
-  ``amplifier_agent_lib._runtime.make_turn_handler`` does. Then fires
-  ``tool:pre`` / ``tool:post`` / ``llm:response`` through ``coordinator.hooks``
-  -- the same object identity the real orchestrator is handed
-  (``amplifier_core._session_exec.run_orchestrator`` passes
-  ``hooks = coordinator.hooks`` straight through). This is the strongest
-  offline proof available that engine events reach our display object.
+Direct tests need no engine extra. The two registry tests use the installed
+Core implementation, without credentials or requests.
 """
 
 from __future__ import annotations
@@ -33,9 +10,6 @@ import asyncio
 
 import pytest
 from research_core.engine import _Display
-
-amplifier_agent_lib = pytest.importorskip("amplifier_agent_lib")
-amplifier_core = pytest.importorskip("amplifier_core")
 
 
 def run(coro):
@@ -51,8 +25,7 @@ def test_tool_started_and_completed_are_forwarded():
     forwarded = []
     display = _Display(forwarded.append)
 
-    # Shapes exactly as amplifier_agent_lib/bundle/hook_streaming.py's
-    # on_tool_pre / on_tool_post construct them.
+    # Stable internal DTOs retained by the new public hook adapter.
     run(
         display.emit(
             {
@@ -179,27 +152,24 @@ def test_no_on_event_callback_does_not_raise():
 
 
 # ---------------------------------------------------------------------------
-# Layer 2: the real Rust hook registry + the real shipped streaming hook +
-# the real UsageAccumulator, wired exactly as production code wires them.
+# Layer 2: installed Core hook registry + research-owned public hook adapter.
 # ---------------------------------------------------------------------------
 
 
-def test_full_wiring_delivers_tool_events_through_the_real_hook_registry():
-    from amplifier_agent_lib.bundle.hook_streaming import mount as mount_streaming_hook
-    from amplifier_agent_lib.protocol_points.usage_accumulator import UsageAccumulator
+def test_full_wiring_delivers_tool_events_through_the_real_hook_registry(tmp_path):
+    pytest.importorskip("amplifier_core")
     from amplifier_core.testing import create_test_coordinator
+    from research_core.foundation_runtime import Events
 
     forwarded = []
     display = _Display(forwarded.append)
-    # Exactly what Engine.__init__ does to the display protocol point.
-    usage = UsageAccumulator(display)
+    events = Events(display, tmp_path, {"web_search", "web_fetch"})
 
     coordinator = create_test_coordinator()
-    # Exactly what _runtime.py's make_turn_handler does per turn.
-    coordinator.register_capability("display.emit", usage.emit)
+    for event in ("tool:pre", "tool:post"):
+        coordinator.hooks.register(event, events.handle, name="research-events", priority=0)
 
     async def scenario():
-        await mount_streaming_hook(coordinator, {})
         # Exactly the payload shape amplifier_module_loop_streaming's
         # _execute_tool_with_result / _execute_tool_only send to hooks.emit
         # (session_id/turn_id are NOT among its keys -- confirmed by reading
@@ -231,20 +201,19 @@ def test_full_wiring_delivers_tool_events_through_the_real_hook_registry():
     ]
 
 
-def test_full_wiring_delivers_usage_through_the_real_hook_registry():
-    from amplifier_agent_lib.bundle.hook_streaming import mount as mount_streaming_hook
-    from amplifier_agent_lib.protocol_points.usage_accumulator import UsageAccumulator
+def test_full_wiring_delivers_usage_through_the_real_hook_registry(tmp_path):
+    pytest.importorskip("amplifier_core")
     from amplifier_core.testing import create_test_coordinator
+    from research_core.foundation_runtime import Events
 
     forwarded = []
     display = _Display(forwarded.append)
-    usage = UsageAccumulator(display)
+    events = Events(display, tmp_path, set())
 
     coordinator = create_test_coordinator()
-    coordinator.register_capability("display.emit", usage.emit)
+    coordinator.hooks.register("llm:response", events.handle, name="research-events", priority=0)
 
     async def scenario():
-        await mount_streaming_hook(coordinator, {})
         await coordinator.hooks.emit(
             "llm:response",
             {
@@ -260,6 +229,5 @@ def test_full_wiring_delivers_usage_through_the_real_hook_registry():
     assert usage_events == [
         {"type": "usage", "tokens_in": 200, "tokens_out": 50, "cost_usd": "0.0042"}
     ]
-    # UsageAccumulator itself also summed it, independent of our display.
-    assert usage.gross_input == 200
-    assert usage.output_tokens == 50
+    assert events.tokens_in == 200
+    assert events.tokens_out == 50

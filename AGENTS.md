@@ -39,16 +39,16 @@ makes a deterministic verb need a credential, the change is wrong.
 **The library is the tool.** The CLI parses arguments, calls the library, formats the result.
 Logic in the CLI is capability the library cannot reach. A test enforces this.
 
-**Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import.
-Import inside the function that needs it.
+**Never import the runtime at module level.** Core/Foundation and provider imports
+belong inside the function that needs them. Deterministic verbs need no engine extra.
 
 **Two write locations, both settings: `runs_dir` and `engine_home`.** Nothing may write
 anywhere else — not `$TMPDIR`, not a home directory the caller never named. A host that
 confines writes should have to point two settings, not discover a third at the first
-model-backed stage of a run it has already paid for. `AMPLIFIER_HOME` is not the lever
-(the engine overwrites it at import); `AMPLIFIER_AGENT_HOME` is, and
-`packages/research-core/tests/test_engine_home.py` holds the engine to both halves of
-that claim, since our refusal message states them.
+model-backed stage of a run it has already paid for. `AMPLIFIER_AGENT_HOME` remains
+the compatibility setting; the adapter passes the resolved home explicitly and leaves
+`AMPLIFIER_HOME` unchanged. `test_engine_home.py` and `test_foundation_runtime.py`
+cover this binding and joined turn cleanup.
 
 **Fill a gap, never overrule an intention.** A host that named nothing gets a working
 path chosen for it (inside `runs_dir`) and is told so. A host that named one that does not

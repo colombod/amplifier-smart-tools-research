@@ -143,8 +143,8 @@ def test_a_claim_that_could_not_be_checked_reports_what_every_rejected_attempt_c
     with pytest.raises(SmartToolError):
         check(tmp_path, ["A claim."], reasoner, max_attempts=2)
 
-    run = next((tmp_path / "runs").iterdir())
-    record = json.loads((run / "run.json").read_text())
+    records = [json.loads((run / "run.json").read_text()) for run in (tmp_path / "runs").iterdir()]
+    (record,) = [record for record in records if record["tool"] == "fact-check"]
     usage = record["usage"]
 
     # 1 accepted triage attempt + 2 rejected verify attempts.

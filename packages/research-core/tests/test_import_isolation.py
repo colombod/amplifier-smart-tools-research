@@ -1,9 +1,8 @@
 """The engine must not be imported until something actually needs it.
 
 This assertion has existed since the first milestone and passed trivially,
-because nothing depended on the engine. It is real now: `amplifier-agent` is a
-declared dependency and importable, so "no engine in sys.modules" is a claim that
-can fail.
+because nothing depended on the engine. The optional public Core/Foundation
+runtime must remain absent from imports of deterministic library surfaces.
 
 Every check here runs in a FRESH SUBPROCESS rather than in the test process.
 Monkeypatching is not enough: another test importing the engine would leave it in
@@ -26,7 +25,7 @@ import json, os, sys
 before = os.environ.get("AMPLIFIER_HOME")
 {body}
 print(json.dumps({{
-    "engine_modules": sorted(m for m in sys.modules if m.startswith("amplifier_agent")),
+    "engine_modules": sorted(m for m in sys.modules if m.startswith(("amplifier_agent", "amplifier_core", "amplifier_foundation", "amplifier_module_"))),
     "amplifier_home_before": before,
     "amplifier_home_after": os.environ.get("AMPLIFIER_HOME"),
 }}))
@@ -87,17 +86,11 @@ def test_importing_does_not_rewrite_amplifier_home(body):
     assert found["amplifier_home_after"] == found["amplifier_home_before"]
 
 
-def test_the_hazard_this_guards_against_is_real():
-    # Not folklore. If importing the engine ever stops rewriting the variable,
-    # this fails and the deferred imports elsewhere can be reconsidered --
-    # rather than being cargo-culted forever because a docstring said so.
-    pytest.importorskip("amplifier_agent_lib")
-    found = probe("import amplifier_agent_lib")
-    assert found["engine_modules"], "the engine did not import"
-    assert found["amplifier_home_after"] != found["amplifier_home_before"], (
-        "importing the engine no longer rewrites AMPLIFIER_HOME; the deferred "
-        "imports guarding against it can be revisited"
-    )
+def test_the_probe_detects_the_current_runtime():
+    pytest.importorskip("amplifier_core")
+    found = probe("import amplifier_core")
+    assert found["engine_modules"]
+    assert found["amplifier_home_after"] == found["amplifier_home_before"]
 
 
 def test_the_deterministic_surface_runs_with_the_engine_unimported():

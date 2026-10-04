@@ -11,8 +11,7 @@ matter:
 1. Everything the engine writes is under ONE configured path, refused up front
    when it is unusable rather than discovered mid-run.
 2. ``AMPLIFIER_HOME`` -- the variable anyone reaching for a lever exports first
-   -- is NOT that path, because the engine overwrites it at import. Our refusal
-   says so in as many words, so a test has to hold the engine to it.
+   -- does not select this tool's home, and is left unchanged by the adapter.
 """
 
 from __future__ import annotations
@@ -199,52 +198,27 @@ def test_check_reports_where_the_engine_will_write(isolated, monkeypatch):
     assert reported["writable"] is True
 
 
-PROBE = """
-import json, os, sys
-import amplifier_agent_lib
-from amplifier_agent_lib.persistence import amplifier_agent_home, cache_root
-print(json.dumps({
-    "agent_home": str(amplifier_agent_home()),
-    "cache": str(cache_root()),
-    "amplifier_home_after": os.environ.get("AMPLIFIER_HOME"),
-}))
-"""
-
-
-def test_the_two_claims_our_message_makes_about_the_engine_are_true(tmp_path):
-    """Hold the engine to what the refusal above tells people.
-
-    The message asserts two things about someone else's code: that
-    ``AMPLIFIER_AGENT_HOME`` moves the tree, and that ``AMPLIFIER_HOME`` does
-    not. Both are true of the version we embed, neither is ours to guarantee,
-    and a message that quietly stopped being true would send the next person to
-    check the wrong thing -- which is the failure this whole file exists to
-    prevent, one level up.
-    """
-    pytest.importorskip("amplifier_agent_lib")
+def test_public_adapter_preserves_unrelated_amplifier_home(tmp_path):
     environment = dict(os.environ)
-    environment[ENGINE_HOME_ENV] = str(tmp_path / "agent")
-    environment[OVERWRITTEN_HOME_ENV] = str(tmp_path / "ignored")
-
+    environment[ENGINE_HOME_ENV] = str(tmp_path / "engine")
+    environment[OVERWRITTEN_HOME_ENV] = str(tmp_path / "unrelated")
+    environment["RESEARCH_CONFIG"] = str(tmp_path / "absent.toml")
+    environment.pop("RESEARCH_ENGINE_HOME", None)
     result = subprocess.run(
-        [sys.executable, "-c", PROBE],
+        [
+            sys.executable,
+            "-c",
+            "import json, os; from research_core.engine import "
+            "bind_engine_home; print(json.dumps([str(bind_engine_home()), "
+            "os.environ['AMPLIFIER_HOME']]))",
+        ],
         capture_output=True,
         text=True,
-        cwd="/tmp",
+        cwd=tmp_path,
         env=environment,
     )
     assert result.returncode == 0, result.stderr
-    found = json.loads(result.stdout.strip().splitlines()[-1])
-
-    assert found["agent_home"] == str(tmp_path / "agent"), (
-        f"${ENGINE_HOME_ENV} no longer moves the engine's tree; the setting and "
-        "the refusal message both need revisiting"
-    )
-    assert found["cache"].startswith(str(tmp_path / "agent"))
-    assert found["amplifier_home_after"] != str(tmp_path / "ignored"), (
-        f"the engine no longer overwrites ${OVERWRITTEN_HOME_ENV}; the refusal "
-        "message saying it has no effect has become false"
-    )
+    assert json.loads(result.stdout) == [str(tmp_path / "engine"), str(tmp_path / "unrelated")]
 
 
 def test_a_confined_host_that_configured_nothing_gets_a_working_path(isolated, monkeypatch):

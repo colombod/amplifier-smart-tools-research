@@ -127,3 +127,27 @@ jobs:
             "/tmp/$tool/bin/$tool" manifest < /dev/null
             echo "::endgroup::"
           done
+
+  installed-runtime:
+    # Exercise the public runtime, not just base installs that skip optional imports.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build and install this core and both consumer wheels
+        run: |
+          uv build --wheel --out-dir dist packages/research-core
+          uv build --wheel --out-dir dist tools/deep-research
+          uv build --wheel --out-dir dist tools/fact-check
+          uv venv --python 3.13 .venv
+          core=$(find dist -name 'research_core-*.whl' -print)
+          uv pip install --python .venv/bin/python --only-binary amplifier-core "${core}[agent,perplexity]" pytest
+          uv pip install --python .venv/bin/python --no-deps dist/deep_research-*.whl dist/fact_check-*.whl
+          uv pip check --python .venv/bin/python
+      - name: Offline real runtime and deterministic consumer checks
+        run: |
+          .venv/bin/python -m pytest packages/research-core/tests -q
+          .venv/bin/deep-research --help
+          .venv/bin/deep-research manifest
+          .venv/bin/fact-check --help
+          .venv/bin/fact-check manifest

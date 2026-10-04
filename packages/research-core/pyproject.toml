@@ -6,9 +6,7 @@ name = "research-core"
 version = "0.10.0"
 description = "Shared core for the research smart tools: manifest, envelope, errors, run artifacts."
 readme = "README.md"
-# 3.12, not 3.11: the `agent` extra pulls amplifier-agent, which requires >=3.12.
-# Declaring a floor an extra cannot meet leaves `uv run` unresolvable in any
-# dependent's root -- which is exactly what it did to both tools below.
+# Preserve the public Python floor; the optional runtime is declared below.
 requires-python = ">=3.12"
 dependencies = [
     "pyyaml>=6.0",
@@ -19,27 +17,23 @@ dependencies = [
 # refused at call time until a credential is configured. Neither is needed by any
 # deterministic capability.
 perplexity = ["perplexityai>=0.27.0"]
-# The embedded agent engine, behind the reasoning turns and the agent backend.
-# Heavy and git-only: it pulls amplifier-foundation, the Rust-backed
-# amplifier-core, and an ASGI stack this tool never uses. Named as an extra so
-# the weight is a visible decision rather than a silent one.
+# Public Core/Foundation and installed modules; model turns do not download code.
+# Keep the established extra name for consumers of research-core[agent].
 agent = [
-  "amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@main",
-  # The engine declares NO provider client library and has no extras offering
-  # one, so a credential alone cannot run a turn. Found by a live run that
-  # preflighted clean and then died at mount time with "No module named
-  # 'anthropic'". One default client ships so the agent path works out of the
-  # box; the others are opt-in below.
-  "anthropic>=0.40",
-  # What tool-web and tool-search need, and the engine brings NONE of it. Found
-  # one at a time, the hard way: aiohttp, then bs4, then ddgs -- each fix
-  # revealed the next, because the engine logs a module that fails to load and
-  # carries on without it. With any one missing there is no web search, and a
-  # research agent with no search does not fail: it answers from memory and
-  # records URLs it never opened as sources.
-  "aiohttp>=3.9",
-  "beautifulsoup4>=4.12",
-  "ddgs>=9.0",
+  "amplifier-core>=2.0.1,<3",
+  "amplifier-foundation @ git+https://github.com/microsoft/amplifier-foundation@main",
+  "amplifier-module-context-simple @ git+https://github.com/microsoft/amplifier-module-context-simple@main",
+  "amplifier-module-loop-streaming @ git+https://github.com/microsoft/amplifier-module-loop-streaming@main",
+  "amplifier-module-tool-web @ git+https://github.com/microsoft/amplifier-module-tool-web@main",
+  "amplifier-module-provider-anthropic @ git+https://github.com/microsoft/amplifier-module-provider-anthropic@main",
+  "amplifier-module-provider-openai @ git+https://github.com/microsoft/amplifier-module-provider-openai@main",
+  "amplifier-module-provider-azure-openai @ git+https://github.com/microsoft/amplifier-module-provider-azure-openai@main",
+  "amplifier-module-provider-gemini @ git+https://github.com/microsoft/amplifier-module-provider-gemini@main",
+  "amplifier-module-provider-github-copilot @ git+https://github.com/microsoft/amplifier-module-provider-github-copilot@main",
+  "amplifier-module-provider-openai-chatgpt @ git+https://github.com/microsoft/amplifier-module-provider-openai-chatgpt@main",
+  "amplifier-module-provider-ollama @ git+https://github.com/microsoft/amplifier-module-provider-ollama@main",
+  "amplifier-module-provider-chat-completions @ git+https://github.com/microsoft/amplifier-module-provider-chat-completions@main",
+  "amplifier-module-provider-vllm @ git+https://github.com/microsoft/amplifier-module-provider-vllm@main",
 ]
 agent-openai = ["openai>=1.50"]
 agent-gemini = ["google-genai>=0.8"]

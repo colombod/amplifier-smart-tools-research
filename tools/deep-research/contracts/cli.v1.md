@@ -133,20 +133,16 @@ arrive by accident from a parent process.
 Configurable: `runs_dir`, `engine_home`, `backend`, `depth`, `provider`, `model`,
 `host_config`, `max_read_lines`, `max_attempts`, `timeout_ms`.
 
-**Two paths, and this tool writes nowhere else.** `runs_dir` holds the evidence;
-`engine_home` holds everything the embedded engine needs to run — its prepared-bundle
-cache, its module clones, and one working directory per turn, created inside it and
-removed when the turn ends. A host that confines writes to a workspace points both
-somewhere it allows and is done. `engine_home` defaults to whatever the engine itself
-would have used (`$AMPLIFIER_AGENT_HOME`, else `~/.amplifier-agent`), so a host that
-never had a problem is not moved; it is several hundred megabytes and worth keeping
-between runs. It has no `--flag` tier: the binding has to be in place before the engine
-is imported, and a detached run is a separate process that re-resolves its own settings —
-the config file and the environment reach it, an argument does not.
+**Two paths, and this tool writes nowhere else.** `runs_dir` holds evidence;
+`engine_home` holds retained credentials/provider state, the explicit preparation cache,
+and a working directory per turn, removed after cleanup. The default remains
+`$AMPLIFIER_AGENT_HOME`, else `~/.amplifier-agent`; no existing state is moved.
+There is no `--flag` tier: detached runs re-resolve the config and environment.
 
-`AMPLIFIER_HOME` is **not** the lever, however much it looks like one: the engine
-overwrites that variable when it is imported, so exporting it changes nothing. `check`
-says so when it sees it set.
+The `agent` extra uses installed public Core/Foundation modules. Turns do not clone
+repositories or install dependencies. Gathering mounts web search/fetch only; reasoning
+mounts no tools. `AMPLIFIER_HOME` does not select this tool's home and is left unchanged;
+`check` explains the supported setting when it sees that variable set.
 
 **When the default is unwritable and nothing named a path**, the tree goes to
 `<runs_dir>/.engine` instead of failing, reported as `source: "fallback"` with a `because`

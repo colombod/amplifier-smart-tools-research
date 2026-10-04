@@ -188,45 +188,45 @@ run(query, depth, budget) -> RawEvidence
 
 - **`PerplexityBackend`** — lifted from the bundle's already-portable code; its parsing,
   citation extraction and URL categorisation carry no Amplifier imports today.
-- **`AgentBackend`** — an embedded `amplifier-agent` with web tools mounted.
+- **`AgentBackend`** — installed public Core/Foundation with web tools mounted.
 
 Two implementations behind one protocol, which is what makes the provider-interface
 question answerable with evidence instead of opinion.
 
 ### The engine, embedded
 
-Orchestration is `amplifier-agent`, in-process. Four constraints, each a divergence from
-what the reference smart tools do, and each with a reason:
+The `agent` extra keeps its public name, but uses public Core/Foundation APIs.
+Each turn creates an isolated session from a source-less Bundle containing installed
+`loop-streaming`, `context-simple`, the selected provider, and (only for gathering)
+`tool-web`. `prepare(install_deps=False, cache_dir=engine_home/cache, strict=True)`
+never installs code. No private Agent API, bundle lookup, caller settings or global
+source override is consulted. Provider/module revisions resolve at package installation.
 
-- **Keep the tools mounted.** The reference tools run tool-less single turns and clear the
-  mount plan. We filter it down to web search and fetch instead — that access is the job.
-- **Stages are turns.** A stable session id plus resume-enabled handler construction is
-  what lets a workflow walk its stages while keeping the thread. Within one turn the model
-  already loops over tool calls by itself; that loop is not hand-rolled.
-- **Progress comes from our own display implementation.** A one-method protocol with a
-  closed event taxonomy, push-based. The reference tools pin it to quiet and discard
-  exactly the events a long run needs.
-- **Every engine import lives inside a function body.** Importing the engine package
-  rewrites `AMPLIFIER_HOME` in the environment at import time. A module-level import would
-  poison the environment for unrelated code, make deterministic verbs pay for a provider
-  stack, and fail the conformance check that runs `--help` with the environment scrubbed.
-  One cause, three symptoms.
-- **Where the engine writes is ours to decide.** Left alone it puts hundreds of megabytes
-  under `~/.amplifier-agent` and a scratch directory wherever `$TMPDIR` points — two
-  locations the caller never chose, which is harmless on a workstation and fatal in a
-  sandbox that confines writes. `engine_home` names the first, the turn's working
-  directory moved inside it, and preflight proves it is writable before a token is spent.
-  The lever is `AMPLIFIER_AGENT_HOME`, **not** `AMPLIFIER_HOME`: the engine overwrites
-  that one at import, so exporting it does nothing — and a test holds the engine to both
-  halves of that claim, because our refusal message states them.
-- **Fill a gap, never overrule an intention.** When the engine's usual directory is
-  unusable and *nothing* named another, the tree goes inside `runs_dir`, reported as its
-  own `fallback` tier. When a path *was* named and does not work, we refuse instead.
-  Silently ignoring a stated setting is the failure mode we were just bitten by; doing it
-  ourselves would be worse for knowing better.
+- Reasoning mounts no tools; gathering verifies the mounted set is exactly
+  `web_search` and `web_fetch` before execution. `tool-search` is filesystem search,
+  so it is not part of the web evidence surface. No agents, MCP or extra hooks mount.
+- Public Core hooks forward tool progress and usage. Actual tool events still gate
+  evidence; zero tokens and zero-tool gathers keep their existing refusals. Provider
+  costs are summed only when every call reports them; absent cost remains unknown.
+  Input totals retain charged-input semantics: fresh input plus cache writes, with
+  cache reads not counted again as fresh input.
+- The existing provider selection, explicit model, turn timeout and error envelopes
+  remain. Cancellation joins session cleanup before deleting scratch. Workflow state
+  stays in run artifacts; no conversational authority is resumed between stages.
+- Runtime imports stay lazy. Base installs, manifest/help and deterministic navigation
+  need neither the engine extra nor credentials.
+- Existing environment credentials take precedence over retained version-1 or legacy
+  `engine_home/credentials.json`. ChatGPT OAuth retains `engine_home/state` and uses
+  public provider token helpers; no interactive login is started. No credentials move.
+- Writes remain under `runs_dir` and `engine_home`. The adapter passes cache and scratch
+  paths explicitly, retains `AMPLIFIER_AGENT_HOME` compatibility, and leaves unrelated
+  `AMPLIFIER_HOME` unchanged. Unusable explicitly named homes refuse; the established
+  fallback applies only when the caller named no home.
 
-**The rule that keeps this honest:** `research_core` imports nothing from the engine at
-module level, ever.
+Offline acceptance uses installed Core/Foundation, a real OpenAI mount with scripted
+provider responses, and the real web tool mount with scripted search. It proves
+mounting, exact tool authority, model propagation, usage, events and cleanup. It does
+not establish account authentication, network service behavior or research quality.
 
 ## 6. The deterministic spine
 

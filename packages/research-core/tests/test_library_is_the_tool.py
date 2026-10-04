@@ -124,9 +124,12 @@ def test_every_third_party_import_in_the_core_is_declared():
     for module, distribution in (
         ("import yaml", "pyyaml"),
         ("from perplexity import", "perplexityai"),
-        ("import amplifier_agent_lib", "amplifier-agent"),
-        ("from amplifier_agent_lib", "amplifier-agent"),
-        ("from amplifier_agent_cli", "amplifier-agent"),
+        ("from amplifier_core", "amplifier-core"),
+        ("from amplifier_foundation", "amplifier-foundation"),
+        (
+            "from amplifier_module_provider_openai_chatgpt",
+            "amplifier-module-provider-openai-chatgpt",
+        ),
     ):
         if module in source:
             assert distribution in declared, (

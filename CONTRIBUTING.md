@@ -98,8 +98,8 @@ than silently SKIPping (see the comment in
 
 ## Things that will bite you
 
-**Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import,
-which breaks the `loads-without-provider` conformance check and poisons unrelated code.
+**Never import the runtime at module level.** Loading optional Core/Foundation
+imports eagerly breaks the `loads-without-provider` conformance check.
 Import it inside the function that needs it. `tests/test_import_isolation.py` enforces this
 in a subprocess, because an import that already happened cannot be un-happened in-process.
 
