@@ -384,9 +384,10 @@ def test_a_cost_the_backend_did_not_report_is_null_not_zero(tmp_path):
         backend="scripted",
     )
     envelope = run_research(tmp_path, backend=ScriptedBackend(evidence), cites=["s1"])
-    # The reasoning turns reported a cost even though the backend did not, so
-    # the run's total is not null -- but nothing was invented for the backend.
-    assert envelope["usage"]["cost_usd"] is not None
+    # A known reasoning subtotal does not establish the unknown run total.
+    assert envelope["usage"]["cost_usd"] is None
+    assert envelope["usage"]["complete"]["cost_usd"] is False
+    assert float(envelope["usage"]["known_subtotals"]["cost_usd"]) > 0
 
 
 def test_a_failure_mid_gather_keeps_the_run_and_says_where(tmp_path):

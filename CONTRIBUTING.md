@@ -98,10 +98,10 @@ than silently SKIPping (see the comment in
 
 ## Things that will bite you
 
-**Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import,
-which breaks the `loads-without-provider` conformance check and poisons unrelated code.
-Import it inside the function that needs it. `tests/test_import_isolation.py` enforces this
-in a subprocess, because an import that already happened cannot be un-happened in-process.
+**Never import the optional Agent runtime at module level.** Import it inside the
+function that needs it so deterministic paths load no provider stack.
+`tests/test_import_isolation.py` enforces this in a subprocess. The public v0.22
+binding no longer rewrites `AMPLIFIER_HOME`, unlike the old private library.
 
 **`skills/<slug>/SKILL.md` is GENERATED -- never hand-edit it.** It is committed so a host that
 discovers skills by scanning the repo (`npx skills add`) can find the tool at all, but the

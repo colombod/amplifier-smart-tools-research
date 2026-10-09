@@ -124,6 +124,7 @@ def test_every_third_party_import_in_the_core_is_declared():
     for module, distribution in (
         ("import yaml", "pyyaml"),
         ("from perplexity import", "perplexityai"),
+        ("import amplifier_agent", "amplifier-agent"),
         ("import amplifier_agent_lib", "amplifier-agent"),
         ("from amplifier_agent_lib", "amplifier-agent"),
         ("from amplifier_agent_cli", "amplifier-agent"),

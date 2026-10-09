@@ -11,6 +11,7 @@ Nothing in this module imports an agent engine, at module level or otherwise.
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import version
 from typing import Any, NoReturn
 
 from research_core import (
@@ -115,6 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
         add_help=False,
     )
     add_help_flags(parser, skill=fact_check.skill)
+    parser.add_argument("-V", "--version", action="version", version=version(PROG))
     verbs = parser.add_subparsers(dest="verb", metavar="<verb>", required=True)
 
     manifest = verbs.add_parser(

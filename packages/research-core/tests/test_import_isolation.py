@@ -87,17 +87,13 @@ def test_importing_does_not_rewrite_amplifier_home(body):
     assert found["amplifier_home_after"] == found["amplifier_home_before"]
 
 
-def test_the_hazard_this_guards_against_is_real():
-    # Not folklore. If importing the engine ever stops rewriting the variable,
-    # this fails and the deferred imports elsewhere can be reconsidered --
-    # rather than being cargo-culted forever because a docstring said so.
-    pytest.importorskip("amplifier_agent_lib")
-    found = probe("import amplifier_agent_lib")
+def test_public_binding_import_does_not_rewrite_host_environment():
+    # v0.22 fixes the old private library's import-time environment mutation.
+    # Keep import deferral so deterministic users still pay for no agent stack.
+    pytest.importorskip("amplifier_agent")
+    found = probe("import amplifier_agent")
     assert found["engine_modules"], "the engine did not import"
-    assert found["amplifier_home_after"] != found["amplifier_home_before"], (
-        "importing the engine no longer rewrites AMPLIFIER_HOME; the deferred "
-        "imports guarding against it can be revisited"
-    )
+    assert found["amplifier_home_after"] == found["amplifier_home_before"]
 
 
 def test_the_deterministic_surface_runs_with_the_engine_unimported():

@@ -12,11 +12,15 @@ evidence that search actually happened is that search happened.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from research_core import NoEvidence
 from research_core.backends.agent import AgentBackend
 from research_core.backends.base import Budget
 from research_core.engine import TurnResult
+from research_core.parsing import extract_json
 
 
 @pytest.fixture
@@ -24,26 +28,34 @@ def budget() -> Budget:
     return Budget(depth="low", max_sources=8, timeout_ms=1000)
 
 
-def _turn(monkeypatch, *, tool_calls: int, text: str) -> None:
-    """Replace the engine turn. No model, no credential, no spend."""
+def _turn(monkeypatch, *, tool_calls: int) -> None:
+    """Replay a recorded real turn, not a hand-written Agent response."""
     import research_core.engine as engine
 
-    def fake_run_turn(prompt, **kwargs):
-        return TurnResult(text=text, usage={}, provider="fake", tool_calls=tool_calls)
+    recording = json.loads(
+        (Path(__file__).parent / "fixtures" / "agent-v022-events.json").read_text()
+    )
+    result = recording["zero_tool_result" if tool_calls == 0 else "gather_result"]
+    result = {
+        **result,
+        "tool_successes": 0
+        if tool_calls == 0
+        else sum(
+            e["type"] == "tool_result" and e["payload"]["resolution"]["outcome"] == "completed"
+            for e in recording["events"]
+        ),
+    }
+    assert extract_json(result["text"])["sources"], "recording must carry the source being refused"
 
-    monkeypatch.setattr(engine, "run_turn", fake_run_turn)
+    def replay_run_turn(prompt, **kwargs):
+        return TurnResult(**result)
+
+    monkeypatch.setattr(engine, "run_turn", replay_run_turn)
     monkeypatch.setattr(engine, "preflight", lambda **kw: "fake")
 
 
-REPLY = (
-    '{"findings": "The capital is Lisbon [1].", '
-    '"sources": [{"url": "https://en.wikipedia.org/wiki/Lisbon", "title": "Lisbon"}], '
-    '"confidence": "high"}'
-)
-
-
 def test_a_gather_that_called_no_tool_is_refused(monkeypatch, budget):
-    _turn(monkeypatch, tool_calls=0, text=REPLY)
+    _turn(monkeypatch, tool_calls=0)
     with pytest.raises(NoEvidence) as excinfo:
         AgentBackend().gather("anything", budget)
     assert "without calling a single tool" in str(excinfo.value)
@@ -55,27 +67,22 @@ def test_a_gather_that_called_no_tool_is_refused(monkeypatch, budget):
 def test_the_refusal_fires_even_though_the_reply_carried_a_source(monkeypatch, budget):
     # The whole point: a plausible source was present, which is exactly why
     # every other guard let it through.
-    _turn(monkeypatch, tool_calls=0, text=REPLY)
+    _turn(monkeypatch, tool_calls=0)
     with pytest.raises(NoEvidence):
         AgentBackend().gather("anything", budget)
 
 
 def test_a_gather_that_used_tools_is_returned(monkeypatch, budget):
-    _turn(monkeypatch, tool_calls=3, text=REPLY)
+    _turn(monkeypatch, tool_calls=1)
     evidence = AgentBackend().gather("anything", budget)
-    assert evidence.sources[0].url == "https://en.wikipedia.org/wiki/Lisbon"
+    assert evidence.sources[0].url == (
+        "https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md"
+    )
 
 
 def test_the_counter_comes_from_the_display_not_from_a_guess():
-    # tool_calls is incremented by _Display on a real engine event, so the
-    # count is the engine's own report rather than anything we inferred.
-    import asyncio
+    # The public event counter is tested against the real-runtime recording,
+    # not against a fabricated event dictionary.
+    from test_display_events import test_recorded_runtime_events_reach_progress_and_count_calls
 
-    from research_core.engine import _Display
-
-    display = _Display(None)
-    assert display.tool_calls == 0
-    asyncio.run(display.emit({"type": "tool/started", "name": "web_search"}))
-    asyncio.run(display.emit({"type": "tool/completed", "name": "web_search"}))
-    asyncio.run(display.emit({"type": "irrelevant"}))
-    assert display.tool_calls == 1
+    test_recorded_runtime_events_reach_progress_and_count_calls()

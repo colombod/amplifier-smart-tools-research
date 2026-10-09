@@ -39,16 +39,51 @@ makes a deterministic verb need a credential, the change is wrong.
 **The library is the tool.** The CLI parses arguments, calls the library, formats the result.
 Logic in the CLI is capability the library cannot reach. A test enforces this.
 
-**Never import the agent engine at module level.** It rewrites `AMPLIFIER_HOME` on import.
-Import inside the function that needs it.
+**Never import the optional Agent runtime at module level.** Deterministic users must
+not load the provider stack. Import inside the function that needs it.
 
 **Two write locations, both settings: `runs_dir` and `engine_home`.** Nothing may write
 anywhere else — not `$TMPDIR`, not a home directory the caller never named. A host that
 confines writes should have to point two settings, not discover a third at the first
 model-backed stage of a run it has already paid for. `AMPLIFIER_HOME` is not the lever
-(the engine overwrites it at import); `AMPLIFIER_AGENT_HOME` is, and
-`packages/research-core/tests/test_engine_home.py` holds the engine to both halves of
-that claim, since our refusal message states them.
+for public Agent state placement. Preserve `AMPLIFIER_AGENT_HOME` as this tool's
+legacy default alias: config file > `RESEARCH_ENGINE_HOME` > inherited
+`AMPLIFIER_AGENT_HOME` > `~/.amplifier-agent`. Temporarily remove the legacy key
+only while discovering/constructing the upstream Agent and always restore it;
+upstream v0.22 does not recognize that key. Pass public `working_directory` and
+`sessions_directory` beneath it. The public binding no longer mutates the host
+environment on import, and tests hold that fact directly.
+
+**Use only the public Agent API, pinned to v0.22.0.** The Python distribution is
+`#subdirectory=packages/python`, with the same-tag engine dependency at
+`packages/engine`. Use typed options and turns, explicit `web_search` / `web_fetch`
+only for gathering, narrow approvals, and `tool_error_policy="stop"`. Count real
+`tool_call` events and refuse zero-tool gathers. On timeout, cancel and join the
+event consumer through terminal before closing handles and removing workspace.
+Unknown usage stays unknown through `StageResult` and `RunWriter`; additive
+`components`, `known_subtotals`, and `complete` fields distinguish observations
+from complete totals. Currencies are never relabelled as USD.
+Legacy-environment discovery/construction is serialized with one process-wide
+thread lock, acquired nonblocking with async waits, across loops and threads.
+Count completed correlated `tool_result` records separately from tool calls;
+gathering refuses when no tool completed.
+Provider/model policy: Anthropic may inherit the public upstream model default.
+Any other selected provider must name a model; refuse actionably in preflight
+and again at turn admission. Never replace an explicit model or effort.
+
+Agent turns run in an owned separate process group (`research_core.agent_worker`).
+Request serialization precedes launch; asynchronous subprocess pipe delivery is
+owned by the deadline supervisor, including broken-pipe cleanup. A result and
+settled receipt never authorize success when the worker exit status is nonzero.
+Retain that workspace and report exit status.
+Parent timeout includes worker startup; SIGTERM requests cancellation, with a
+30-second graceful budget, then SIGKILL and one-second exit verification.
+Never replay. Parent callbacks are disabled after their first exception and
+cannot override timeout/cancellation. Delete a workspace only after a settled
+receipt, verified child exit, and absent owned process group. Otherwise retain
+and report its path/PID. Arbitrarily blocking synchronous caller callbacks are
+not bounded by this process policy. Upstream `run_orchestrator` and
+`emit_raw_field_if_configured` coroutine warnings remain unsuppressed.
 
 **Fill a gap, never overrule an intention.** A host that named nothing gets a working
 path chosen for it (inside `runs_dir`) and is told so. A host that named one that does not

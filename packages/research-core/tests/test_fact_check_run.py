@@ -143,7 +143,9 @@ def test_a_claim_that_could_not_be_checked_reports_what_every_rejected_attempt_c
     with pytest.raises(SmartToolError):
         check(tmp_path, ["A claim."], reasoner, max_attempts=2)
 
-    run = next((tmp_path / "runs").iterdir())
+    # check() also creates a deep-research run. Directory iteration order is
+    # unspecified; measuring that sibling reports its two attempts instead.
+    run = next((tmp_path / "runs").glob("fc-*"))
     record = json.loads((run / "run.json").read_text())
     usage = record["usage"]
 

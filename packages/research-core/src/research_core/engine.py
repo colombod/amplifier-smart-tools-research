@@ -5,12 +5,9 @@ with web tools mounted, and the reasoning turns that run with no tools at all.
 They differ by exactly one argument, which is worth noticing -- it is the
 evidence behind the open question of whether those two seams should be one.
 
-EVERY engine import lives inside a function body. Importing amplifier_agent_lib
-rewrites os.environ["AMPLIFIER_HOME"] unconditionally at import time -- verified
-on this machine, not taken on faith -- and a module-level import would poison
-that variable for unrelated code in the same process, make every deterministic
-verb pay for a provider stack it never uses, and break the conformance rule that
-runs `--help` with the environment scrubbed. One cause, three symptoms.
+EVERY Agent import lives inside a function body. Deterministic users do not
+load the optional runtime or provider stack. The v0.22 public binding does not
+rewrite the host's environment on import.
 
 WHERE THE ENGINE WRITES is this module's problem too. Left alone it puts several
 hundred megabytes of module clones and prepared-bundle cache under
@@ -24,21 +21,23 @@ inside it instead of ``$TMPDIR``, removes that directory afterwards, and proves
 the whole tree is writable in preflight, before a prompt is built or a token
 spent.
 
-The variable that moves it is ``AMPLIFIER_AGENT_HOME``, and that is not the
-obvious guess. ``AMPLIFIER_HOME`` is the one the storage resolver underneath
-reads, so it is the one anybody reaching for a lever exports first -- and the
-engine overwrites it at import, so exporting it does nothing whatsoever, in
-silence. Verified by setting it and watching it change, not assumed.
+``engine_home`` / ``RESEARCH_ENGINE_HOME`` owns state placement. Public
+AgentOptions explicitly names working_directory and sessions_directory below
+that tree. AMPLIFIER_AGENT_HOME remains our legacy default alias, not an
+upstream v0.22 setting; it is stripped around discovery/construction and restored.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 import shutil
+import signal
 import sys
 import tempfile
+import threading
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
@@ -48,17 +47,11 @@ from typing import Any
 from research_core.config import SOURCE_DEFAULT, SOURCE_FALLBACK
 from research_core.errors import NoProviderError, SmartToolError
 
-#: Where the engine keeps this tool's own session state.
-WORKSPACE = "amplifier-research"
+#: Our setting, not an Agent host environment variable.
+ENGINE_HOME_ENV = "RESEARCH_ENGINE_HOME"
+LEGACY_ENGINE_HOME_ENV = "AMPLIFIER_AGENT_HOME"
 
-#: The one environment variable that moves the engine's on-disk tree. Everything
-#: it writes -- prepared-bundle cache, module clones, session state -- is under
-#: this, and our turn working directories are put there too.
-ENGINE_HOME_ENV = "AMPLIFIER_AGENT_HOME"
-
-#: The variable a caller reaches for instead, and which does nothing: the engine
-#: overwrites it at import. Named here so the refusal below can say so, because
-#: the alternative is someone exporting it and believing the problem is elsewhere.
+#: AMPLIFIER_HOME does not select the public Agent's sessions directory.
 OVERWRITTEN_HOME_ENV = "AMPLIFIER_HOME"
 
 #: Turn working directories live here, under the engine home. A subdirectory
@@ -73,12 +66,8 @@ WORK_SUBDIR = "work"
 #: did exactly that.
 _INHERITED_OVERWRITTEN_HOME = os.environ.get(OVERWRITTEN_HOME_ENV)
 
-#: What the CALLER set the engine's own variable to, snapshotted before anything
-#: here could bind it. Reading it live would mean reading our own writing:
-#: `bind_engine_home` sets it, so after one bind every later read would report a
-#: path "the caller chose" that we chose -- and a fallback, once taken, would
-#: look like a deliberate setting forever after.
-_INHERITED_ENGINE_HOME = os.environ.get(ENGINE_HOME_ENV)
+#: Snapshot the caller's initial research state placement.
+_INHERITED_ENGINE_HOME = os.environ.get(LEGACY_ENGINE_HOME_ENV)
 
 #: Whether this process has already told its caller that a fallback home is in
 #: use. Once per process, not once per turn: a four-stage run would otherwise
@@ -102,12 +91,8 @@ PROVIDER_CLIENTS: dict[str, str] = {
     "gemini": "google.genai",
 }
 
-#: The tools a research gather is allowed. The engine's default plan carries far
-#: more -- filesystem, bash, delegation - and a research run has no business
-#: with any of them. We FILTER rather than clear, which is the one deliberate
-#: divergence from both reference smart tools: they run tool-less turns and so
-#: zero the plan, and zeroing it would leave a research agent unable to research.
-WEB_TOOLS = ("tool-web", "tool-search")
+#: Explicit public built-in names; no filesystem, bash, or delegation.
+WEB_TOOLS = ("web_search", "web_fetch")
 
 
 class EngineUnavailable(SmartToolError):
@@ -128,6 +113,7 @@ class TurnResult:
     #: Tool calls the engine reported during this turn. Zero, on a turn that
     #: asked for tools, means the turn ran without them.
     tool_calls: int = 0
+    tool_successes: int = 0
 
 
 def default_engine_home() -> Path:
@@ -201,15 +187,11 @@ def resolved_engine_home() -> tuple[Path, str]:
 
 
 def bind_engine_home() -> Path:
-    """Point the engine's tree at the configured home. Idempotent.
+    """Resolve state placement without mutating the host environment.
 
-    Must run before amplifier_agent_lib is imported: the binding it performs on
-    its own storage happens at import time, so a value set afterwards is read by
-    nothing. Calling it from _load, immediately above the only import site in
-    this package, is what makes "before" structural rather than remembered.
+    v0.22 uses AgentOptions.sessions_directory, not AMPLIFIER_AGENT_HOME.
     """
     home, _ = resolved_engine_home()
-    os.environ[ENGINE_HOME_ENV] = str(home)
     return home
 
 
@@ -238,7 +220,7 @@ def engine_home_status() -> dict[str, Any]:
         "source": source,
         "writable": writable,
         "detail": (
-            "the engine's cache, module clones and per-turn working directories go here"
+            "the Agent's per-turn working and sessions directories go here"
             if writable
             else "cannot be written to; every model-backed verb would fail here"
         ),
@@ -256,8 +238,7 @@ def engine_home_status() -> dict[str, Any]:
         # caller exports when they want to move the tree, and the engine
         # overwrites it at import, so it has no effect at all.
         status["ignored"] = (
-            f"${OVERWRITTEN_HOME_ENV} is set and has no effect here: the engine "
-            f"overwrites it when it is imported. ${ENGINE_HOME_ENV}, or the "
+            f"${OVERWRITTEN_HOME_ENV} is set and has no effect here. ${ENGINE_HOME_ENV}, or the "
             "engine_home setting, is what moves the tree."
         )
     return status
@@ -284,7 +265,7 @@ def ensure_engine_home_usable() -> Path:
         if _INHERITED_OVERWRITTEN_HOME:
             note = (
                 f" Note that ${OVERWRITTEN_HOME_ENV} is set and does nothing: "
-                "the engine overwrites it at import."
+                "state placement is selected by engine_home, not this variable."
             )
         if source == SOURCE_DEFAULT:
             # Reaching here with the default means the fallback was tried and
@@ -303,9 +284,7 @@ def ensure_engine_home_usable() -> Path:
         raise EngineUnavailable(
             f"The engine's own directory at {home} ({source}) cannot be written to: {exc}",
             "Point it somewhere writable: set engine_home in the config file, "
-            f"or ${ENGINE_HOME_ENV}. It holds a module cache of several hundred "
-            "megabytes, so prefer a path that survives between runs over a "
-            "temporary one. Every deterministic verb keeps working meanwhile." + note,
+            f"or ${ENGINE_HOME_ENV}. Every deterministic verb keeps working meanwhile." + note,
         ) from exc
     return home
 
@@ -330,7 +309,7 @@ def _announce_fallback_home(on_event: Callable[[dict[str, Any]], None] | None) -
             "type": "progress",
             "message": (
                 f"{default_engine_home()} is not writable here, so the engine's "
-                f"cache and working directories are going to {home}. Set "
+                f"state and working directories are going to {home}. Set "
                 "engine_home to choose somewhere else."
             ),
         }
@@ -370,23 +349,7 @@ def _load():
     """Import the engine. Deferred, and the only place it happens."""
     bind_engine_home()
     try:
-        from amplifier_agent_cli.provider_sources import (
-            enumerate_resolvable_providers,
-            inject_provider,
-            inject_routing_matrix,
-        )
-        from amplifier_agent_lib import __version__
-        from amplifier_agent_lib._runtime import make_turn_handler
-        from amplifier_agent_lib.bundle.cache import load_and_prepare_cached
-        from amplifier_agent_lib.engine import Engine
-        from amplifier_agent_lib.protocol import (
-            PROTOCOL_VERSION,
-            server_default_capabilities,
-        )
-        from amplifier_agent_lib.protocol_points.defaults_cli import (
-            ApprovalOverride,
-            CliApprovalSystem,
-        )
+        import amplifier_agent
     except ModuleNotFoundError as exc:
         raise NoProviderError(
             f"The agent engine is not installed: {exc}",
@@ -395,74 +358,88 @@ def _load():
             "deterministic verb keeps working meanwhile.",
         ) from exc
 
-    return {
-        "enumerate_resolvable_providers": enumerate_resolvable_providers,
-        "inject_provider": inject_provider,
-        "inject_routing_matrix": inject_routing_matrix,
-        "version": __version__,
-        "make_turn_handler": make_turn_handler,
-        "load_and_prepare_cached": load_and_prepare_cached,
-        "Engine": Engine,
-        "PROTOCOL_VERSION": PROTOCOL_VERSION,
-        "server_default_capabilities": server_default_capabilities,
-        "ApprovalOverride": ApprovalOverride,
-        "CliApprovalSystem": CliApprovalSystem,
-    }
+    return amplifier_agent
+
+
+_CONSTRUCTION_LOCK = threading.Lock()
+
+
+@contextlib.asynccontextmanager
+async def _agent_environment():
+    """Consume our legacy alias without handing an unknown host key upstream.
+
+    The process-global compatibility window contains no turn/provider work;
+    always restore the caller's exact value, including on construction failure.
+    """
+    # A threading lock spans all event loops/threads. Never block an event loop
+    # acquiring it and never leave an executor acquisition running on cancel.
+    while not _CONSTRUCTION_LOCK.acquire(blocking=False):
+        await asyncio.sleep(0.01)
+    legacy = os.environ.pop(LEGACY_ENGINE_HOME_ENV, None)
+    try:
+        yield
+    finally:
+        if legacy is not None:
+            os.environ[LEGACY_ENGINE_HOME_ENV] = legacy
+        _CONSTRUCTION_LOCK.release()
+
+
+async def _providers(api):
+    async with _agent_environment():
+        return await api.list_providers()
+
+
+def _web_approvals(api, tools: Sequence[str]):
+    async def approve(request):
+        allowed = request.name in tools and request.name in WEB_TOOLS
+        return api.ApprovalResponse(decision="allow" if allowed else "deny")
+
+    return approve
 
 
 class _Display:
-    """Receives the engine's structured events and forwards them to a callback.
-
-    The reference smart tools pin the shipped display to verbosity "quiet" and
-    throw these away, because they run one tool-less turn and want silence. A run
-    that takes minutes wants the opposite: this is the only seam that reports
-    what is happening WHILE it happens.
-    """
+    """Project public turn-events/1 records onto research progress."""
 
     def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
         self._on_event = on_event
         self.usage: dict[str, Any] = {}
-        #: How many tool calls the engine actually reported. This is the ONLY
-        #: evidence available that the tools we asked for really mounted and
-        #: really ran. There is no post-boot window in which to check: the engine
-        #: holds a PreparedBundle, not a session, and the coordinator that owns
-        #: the mount registry does not exist until a turn creates one. So the
-        #: post-condition can only be observed from the outcome.
         self.tool_calls = 0
+        self.tool_successes = 0
+        self.calls: dict[str, str] = {}
 
-    async def emit(self, event: dict[str, Any]) -> None:
-        kind = event.get("type", "")
-        if kind == "tool/started":
+    async def emit(self, event) -> None:
+        kind, payload = event.type, event.payload
+        if kind == "tool_call":
             self.tool_calls += 1
+            self.calls[payload.call.call_id] = payload.call.name
         if kind == "usage":
-            self.usage = {
-                "tokens_in": event.get("inputTokens"),
-                "tokens_out": event.get("outputTokens"),
-                "cost_usd": str(event["cost"]) if event.get("cost") is not None else None,
-            }
+            self.usage = _usage(payload.snapshot)
+        if (
+            kind == "tool_result"
+            and payload.resolution.outcome == "completed"
+            and payload.resolution.call_id in self.calls
+        ):
+            self.tool_successes += 1
         if self._on_event is None:
             return
-        if kind in ("tool/started", "tool/completed"):
+        if kind == "tool_call":
+            self._on_event({"type": "tool", "name": payload.call.name, "status": "started"})
+        elif kind == "tool_result":
+            resolution = payload.resolution
             self._on_event(
                 {
                     "type": "tool",
-                    "name": event.get("name"),
-                    "status": "started" if kind.endswith("started") else "complete",
-                    "duration_ms": event.get("durationMs"),
+                    "name": self.calls.get(resolution.call_id),
+                    "status": "complete"
+                    if resolution.outcome == "completed"
+                    else resolution.outcome,
                 }
             )
         elif kind == "progress":
-            self._on_event({"type": "progress", "message": event.get("message")})
-        elif kind == "error":
-            self._on_event({"type": "engine_error", "message": event.get("message")})
+            self._on_event({"type": "progress", "message": str(payload.data)})
+        elif kind == "terminal" and payload.error:
+            self._on_event({"type": "engine_error", "message": payload.error.message})
         elif kind == "usage":
-            # Was tracked into self.usage above but never handed to the
-            # caller -- a run with several LLM calls (a gather with tool use
-            # is exactly that) never surfaced usage as it happened, only
-            # self.usage's last value, which nothing downstream reads either.
-            # Forwarding here is what makes a long turn's cost visible live,
-            # matching the five event types this class's own contract claims
-            # to map (tool/started, tool/completed, progress, error, usage).
             self._on_event({"type": "usage", **self.usage})
 
 
@@ -494,10 +471,11 @@ def client_library_present(provider: str) -> bool:
 def credentialled_providers() -> list[str]:
     """Providers whose credentials resolve, which is not the same as usable."""
     try:
-        symbols = _load()
+        api = _load()
     except NoProviderError:
         return []
-    return list(symbols["enumerate_resolvable_providers"]())
+    records = asyncio.run(_providers(api))
+    return [p.provider for p in records if p.credentials in ("found", "not_required")]
 
 
 def available_providers() -> list[str]:
@@ -509,7 +487,15 @@ def available_providers() -> list[str]:
     mount time with "No module named 'anthropic'". A preflight that checks the
     credential answers a different question from the one the caller asked.
     """
-    return [p for p in credentialled_providers() if client_library_present(p)]
+    try:
+        api = _load()
+    except NoProviderError:
+        return []
+    return [
+        p.provider
+        for p in asyncio.run(_providers(api))
+        if p.installed and p.credentials in ("found", "not_required")
+    ]
 
 
 def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
@@ -550,7 +536,7 @@ def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
     return resolvable[0]
 
 
-def preflight(*, provider: str | None = None) -> str:
+def preflight(*, provider: str | None = None, model: str | None = None) -> str:
     """Confirm a turn could run, before any prompt is built.
 
     Two questions, and the second was learned from a real failure: a provider
@@ -560,8 +546,142 @@ def preflight(*, provider: str | None = None) -> str:
     discovering it after the evidence has been bought.
     """
     chosen = select_provider(available_providers(), override=provider)
+    _validate_model_selection(chosen, model)
     ensure_engine_home_usable()
     return chosen
+
+
+def _validate_model_selection(provider: str, model: str | None) -> None:
+    """Anthropic alone may inherit the upstream documented default."""
+    if provider != "anthropic" and model is None:
+        raise EngineUnavailable(
+            f"Provider {provider!r} requires an explicit model.",
+            "Set model alongside provider in the research config file, set "
+            "RESEARCH_MODEL, or pass model to the library adapter. Agent v0.22 "
+            "has no provider-specific model defaults; its omitted model is "
+            "Anthropic's default, not a model for the selected provider.",
+        )
+
+
+async def _run_turn_local(
+    prompt: str,
+    *,
+    tools: Sequence[str] = (),
+    provider: str | None = None,
+    model: str | None = None,
+    reasoning_effort: str | None = None,
+    timeout_ms: int = 600_000,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
+    workspace: str | None = None,
+) -> TurnResult:
+    if not set(tools).issubset(WEB_TOOLS):
+        raise EngineUnavailable(
+            "Research turns may expose only web_search and web_fetch.",
+            "Use the web allowlist for gathering, or an empty tool list for reasoning.",
+        )
+    api = _load()
+    records = await _providers(api)
+    chosen = select_provider(
+        [p.provider for p in records if p.installed and p.credentials in ("found", "not_required")],
+        override=provider,
+    )
+    _validate_model_selection(chosen, model)
+    _announce_fallback_home(on_event)
+    display = _Display(on_event)
+    actual_provider, actual_model = chosen, model
+    result: Any = None
+
+    async def consume(turn):
+        nonlocal result, actual_provider, actual_model
+        async for event in turn.events():
+            payload = event.payload
+            if event.type == "turn_started":
+                actual_provider = payload.primary_actual.provider
+                actual_model = payload.primary_actual.model
+            elif event.type == "terminal":
+                result = payload
+            await display.emit(event)
+
+    with contextlib.nullcontext(workspace) if workspace else _turn_workspace() as cwd:
+        async with _agent_environment():
+            agent = await api.create_agent(
+                api.AgentOptions(
+                    provider=chosen,
+                    model=model,
+                    reasoning_effort=reasoning_effort,
+                    tools=list(tools),
+                    skills=[],
+                    mcp_servers=[],
+                    approvals=_web_approvals(api, tools),
+                    tool_error_policy="stop",
+                    working_directory=cwd,
+                    sessions_directory=Path(cwd) / "sessions",
+                )
+            )
+        async with (
+            agent,
+            await agent.create_session(api.SessionOptions(persistence="ephemeral")) as session,
+        ):
+            turn = await session.start_turn(api.TurnInput(content=[api.TextPart(text=prompt)]))
+            consumer = asyncio.create_task(consume(turn))
+            try:
+                await asyncio.wait_for(asyncio.shield(consumer), timeout=max(timeout_ms, 1) / 1000)
+            except (TimeoutError, asyncio.CancelledError) as exc:
+                # Never cancel the sole event consumer: terminal is the
+                # runtime's proof that in-flight tool pairs have settled.
+                await turn.cancel()
+                await asyncio.shield(consumer)
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                raise EngineUnavailable(
+                    f"The turn exceeded its {timeout_ms} ms budget and was cancelled.",
+                    "Raise timeout_ms, or check the provider is reachable.",
+                ) from exc
+    if result is None or result.state != "success":
+        error = result.error if result else None
+        raise EngineUnavailable(
+            error.message if error else "The agent stream ended without a successful terminal.",
+            error.remedy if error else "Run `check` and inspect the provider/runtime installation.",
+        )
+    return TurnResult(
+        text="".join(part.text for part in (result.content or [])),
+        usage=_usage(result.usage),
+        provider=actual_provider,
+        tool_calls=display.tool_calls,
+        tool_successes=display.tool_successes,
+        model=actual_model,
+    )
+
+
+def _usage(usage) -> dict[str, Any]:
+    """Aggregate known totals without treating unknown as zero or non-USD as USD."""
+    entries = usage.entries if usage else []
+
+    def tokens(name):
+        values = [getattr(entry, name) for entry in entries]
+        return sum(values) if values and all(v is not None for v in values) else None
+
+    costs = {}
+    for entry in entries:
+        for currency, amount in (entry.cost or {}).items():
+            costs[currency] = costs.get(currency, 0) + amount
+    return {
+        "tokens_in": tokens("tokens_in"),
+        "tokens_out": tokens("tokens_out"),
+        "cost_usd": (
+            str(costs["USD"])
+            if entries and all(e.cost is not None and "USD" in e.cost for e in entries)
+            else None
+        ),
+        "cost": (
+            {currency: str(amount) for currency, amount in costs.items()}
+            if costs and all(e.cost is not None for e in entries)
+            else None
+        ),
+    }
+
+
+SHUTDOWN_SECONDS = 30.0
 
 
 async def _run_turn_async(
@@ -570,109 +690,186 @@ async def _run_turn_async(
     tools: Sequence[str] = (),
     provider: str | None = None,
     model: str | None = None,
+    reasoning_effort: str | None = None,
     timeout_ms: int = 600_000,
-    on_event: Callable[[dict[str, Any]], None] | None = None,
+    on_event=None,
+    _worker_command=None,
 ) -> TurnResult:
-    symbols = _load()
-    chosen = select_provider(list(symbols["enumerate_resolvable_providers"]()), override=provider)
-
-    display = _Display(on_event)
-    _announce_fallback_home(on_event)
-
-    with _turn_workspace() as cwd:
-        prepared = await symbols["load_and_prepare_cached"](aaa_version=symbols["version"])
-
-        # Injection is a no-op while any provider is mounted, and the vendored
-        # bundle ships stubs -- so clearing first is load-bearing, not tidiness.
-        prepared.mount_plan["providers"] = []
-        symbols["inject_provider"](prepared, chosen, model_override=model)
-        symbols["inject_routing_matrix"](prepared, chosen)
-
-        # Filter, never clear: keeping the plan's own entries is what leaves the
-        # web tools mounted for a gather, and an empty tuple is how a reasoning
-        # turn asks for none of them.
-        prepared.mount_plan["tools"] = [
-            entry
-            for entry in (prepared.mount_plan.get("tools") or [])
-            if entry.get("module") in set(tools)
-        ]
-        # Sub-agents and hooks are never wanted: a hook observes a session this
-        # tool does not have, and each is a third-party module whose failure to
-        # load would fail the turn.
-        prepared.mount_plan["agents"] = {}
-        prepared.mount_plan["hooks"] = []
-
-        handler = symbols["make_turn_handler"](
-            prepared, cwd=cwd, is_resumed=False, workspace=WORKSPACE
-        )
-        engine = symbols["Engine"](
-            turn_handler=handler,
-            protocol_points={
-                # Nothing that could ask for approval is mounted. Declining
-                # anything that somehow does keeps the filtering above from
-                # being the only defence.
-                "approval": symbols["CliApprovalSystem"](override=symbols["ApprovalOverride"].NO),
-                "display": display,
-            },
-        )
-        await engine.boot(
-            {
-                "protocolVersion": symbols["PROTOCOL_VERSION"],
-                "clientInfo": {"name": WORKSPACE, "version": "0.1.0"},
-                "capabilities": dict(symbols["server_default_capabilities"]()),
-                "sessionId": "",
-                "resume": False,
-                "cwd": cwd,
-            },
-            bundle_override=prepared,
-        )
-        try:
-            result = await asyncio.wait_for(
-                engine.submit_turn(
-                    {
-                        "sessionId": "",
-                        "turnId": f"turn-{uuid.uuid4().hex}",
-                        "prompt": prompt,
-                    }
-                ),
-                timeout=max(timeout_ms, 1) / 1000.0,
-            )
-        except TimeoutError as exc:
-            raise EngineUnavailable(
-                f"The turn exceeded its {timeout_ms} ms budget and was aborted.",
-                "Raise timeout_ms, or check the provider is reachable. A partial "
-                "judgment is not returned, because a partial answer that looks "
-                "whole is worse than none.",
-            ) from exc
-        finally:
-            with contextlib.suppress(Exception):
-                await engine.shutdown()
-
-    tokens_in = int(result.get("tokensIn") or 0)
-    tokens_out = int(result.get("tokensOut") or 0)
-    reply = result.get("reply") or ""
-    if tokens_in == 0 and tokens_out == 0:
-        # The engine reports a mount failure as a reply rather than raising.
-        # Passing that on would present a tool that never ran as a model that
-        # answered badly.
-        raise EngineUnavailable(
-            f"The engine returned without reaching a model: {reply or 'no reply'}",
-            "Check that the provider's credentials and client library are both "
-            "present. Run `check` to see which providers this host resolves.",
-        )
-
-    cost = result.get("costUsd")
-    return TurnResult(
-        text=reply,
-        usage={
-            "tokens_in": tokens_in,
-            "tokens_out": tokens_out,
-            "cost_usd": str(cost) if cost is not None else None,
-        },
-        provider=chosen,
-        tool_calls=display.tool_calls,
+    """Supervise a disposable Agent process; never replay a submitted turn."""
+    home = ensure_engine_home_usable()
+    cwd = tempfile.mkdtemp(prefix="turn-", dir=str(home / WORK_SUBDIR))
+    environment = dict(os.environ)
+    environment.pop(LEGACY_ENGINE_HOME_ENV, None)
+    environment[ENGINE_HOME_ENV] = str(home)
+    request = dict(
+        prompt=prompt,
+        tools=list(tools),
+        provider=provider,
         model=model,
+        reasoning_effort=reasoning_effort,
+        timeout_ms=timeout_ms,
+        workspace=cwd,
     )
+    # Serialize before any child exists. No blocking pipe write can precede
+    # ownership or deadline admission.
+    wire_request = (json.dumps(request) + "\n").encode()
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + max(timeout_ms, 1) / 1000
+    grace = None
+    primary = None
+    presentation = None
+    result = None
+    runtime_error = None
+    settled = False
+    buffer = b""
+    process = None
+
+    def group_alive():
+        if process is None:
+            return False
+        try:
+            os.killpg(process.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    def signal_group(value):
+        if process is None:
+            return
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, value)
+
+    async def supervise():
+        nonlocal grace, primary, presentation, result, runtime_error, settled, buffer, process
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *(_worker_command or [sys.executable, "-m", "research_core.agent_worker"]),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                env=environment,
+                start_new_session=True,
+            )
+        except OSError as error:
+            raise EngineUnavailable(
+                f"Agent worker launch failed: {error}", f"Workspace retained at {cwd}."
+            ) from error
+        assert process.stdin is not None and process.stdout is not None
+        output = process.stdout
+        input_stream = process.stdin
+
+        async def deliver():
+            input_stream.write(wire_request)
+            await input_stream.drain()
+            input_stream.close()
+            await input_stream.wait_closed()
+
+        delivery = asyncio.create_task(deliver())
+        reader = asyncio.create_task(output.read(65536))
+        reaper = asyncio.create_task(process.wait())
+        escalation = None
+        while True:
+            now = loop.time()
+            if primary is None and now >= deadline:
+                primary = EngineUnavailable(
+                    f"The turn exceeded its {timeout_ms} ms budget and was cancelled.",
+                    "Raise timeout_ms or check provider availability.",
+                )
+                grace = now + SHUTDOWN_SECONDS
+                signal_group(signal.SIGTERM)
+            if grace is not None and now >= grace and escalation is None:
+                signal_group(signal.SIGKILL)
+                escalation = now + 1.0
+            if delivery.done():
+                try:
+                    delivery.result()
+                except (BrokenPipeError, ConnectionResetError, OSError) as error:
+                    if runtime_error is None:
+                        runtime_error = EngineUnavailable(
+                            f"Agent request delivery failed: {error}", "No turn is replayed."
+                        )
+                        if grace is None:
+                            grace = now + SHUTDOWN_SECONDS
+                            signal_group(signal.SIGTERM)
+            data = b""
+            if reader.done():
+                data = reader.result()
+                if data:
+                    reader = asyncio.create_task(output.read(65536))
+            if data:
+                buffer += data
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    try:
+                        record = json.loads(line)
+                        kind = record["type"]
+                        if kind == "result":
+                            result = TurnResult(**record["result"])
+                        elif kind == "settled":
+                            settled = True
+                        elif kind == "error":
+                            runtime_error = EngineUnavailable(record["message"], record["remedy"])
+                        elif kind == "event" and on_event and presentation is None:
+                            try:
+                                on_event(record["event"])
+                            except Exception as error:
+                                presentation = error
+                    except (ValueError, KeyError, TypeError) as error:
+                        runtime_error = EngineUnavailable(str(error), "Malformed worker protocol.")
+            exited = reaper.done()
+            if exited and reader.done() and not data and not group_alive():
+                break
+            if escalation is not None and now >= escalation:
+                break
+            await asyncio.sleep(0.01)
+        for task in (delivery, reader, reaper):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(delivery, reader, reaper, return_exceptions=True)
+        input_stream.close()
+        verified = process.returncode is not None and not group_alive()
+        if process.returncode not in (None, 0):
+            runtime_error = EngineUnavailable(
+                f"Agent worker exited with status {process.returncode}.",
+                f"Workspace retained at {cwd}; PID/PGID {process.pid}.",
+            )
+        if verified and settled and process.returncode == 0 and runtime_error is None:
+            shutil.rmtree(cwd)
+        else:
+            detail = (
+                f"Workspace retained at {cwd}; PID/PGID {process.pid}; "
+                f"exit={process.returncode}; group_absent={not group_alive()}."
+            )
+            if primary:
+                primary.add_note(detail)
+            elif runtime_error:
+                runtime_error.add_note(detail)
+            else:
+                runtime_error = EngineUnavailable("Agent cleanup settlement unresolved.", detail)
+        if primary:
+            if presentation:
+                primary.add_note(f"Presentation error: {presentation!r}")
+            raise primary
+        if runtime_error:
+            if presentation:
+                runtime_error.add_note(f"Presentation error: {presentation!r}")
+            raise runtime_error
+        if result is None:
+            raise EngineUnavailable("Agent worker exited without a result.", f"Inspect {cwd}.")
+        if presentation:
+            raise presentation
+        return result
+
+    owned = asyncio.create_task(supervise())
+    while True:
+        try:
+            return await asyncio.shield(owned)
+        except asyncio.CancelledError:
+            if owned.done():
+                raise
+            if primary is None:
+                primary = asyncio.CancelledError()
+                grace = loop.time() + SHUTDOWN_SECONDS
+                signal_group(signal.SIGTERM)
 
 
 def run_turn(
@@ -681,6 +878,7 @@ def run_turn(
     tools: Sequence[str] = (),
     provider: str | None = None,
     model: str | None = None,
+    reasoning_effort: str | None = None,
     timeout_ms: int = 600_000,
     on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> TurnResult:
@@ -690,16 +888,21 @@ def run_turn(
     no tools at all. That single argument is the whole difference between a
     gather and a reasoning turn.
     """
-    return asyncio.run(
-        _run_turn_async(
-            prompt,
-            tools=tools,
-            provider=provider,
-            model=model,
-            timeout_ms=timeout_ms,
-            on_event=on_event,
+    api = _load()
+    try:
+        return asyncio.run(
+            _run_turn_async(
+                prompt,
+                tools=tools,
+                provider=provider,
+                model=model,
+                reasoning_effort=reasoning_effort,
+                timeout_ms=timeout_ms,
+                on_event=on_event,
+            )
         )
-    )
+    except api.AgentError as exc:
+        raise EngineUnavailable(exc.message, exc.remedy) from exc
 
 
 def engine_home() -> str:

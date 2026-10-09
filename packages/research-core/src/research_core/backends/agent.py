@@ -43,16 +43,18 @@ class AgentBackend:
         *,
         provider: str | None = None,
         model: str | None = None,
+        reasoning_effort: str | None = None,
         prompt_template: str | None = None,
     ) -> None:
         self._provider = provider
         self._model = model
+        self._reasoning_effort = reasoning_effort
         self._template = prompt_template
 
     def preflight(self) -> str:
         from research_core.engine import preflight
 
-        return preflight(provider=self._provider)
+        return preflight(provider=self._provider, model=self._model)
 
     def gather(
         self,
@@ -69,12 +71,11 @@ class AgentBackend:
 
         result = run_turn(
             prompt,
-            # Filter, never clear. Both reference smart tools zero the mount plan
-            # because they run tool-less turns; zeroing it here would leave a
-            # research agent unable to research.
+            # Public built-ins only; reasoning stages use the empty tool set.
             tools=WEB_TOOLS,
             provider=self._provider,
             model=self._model,
+            reasoning_effort=self._reasoning_effort,
             timeout_ms=budget.timeout_ms,
             on_event=on_event,
         )
@@ -91,12 +92,17 @@ class AgentBackend:
         # every downstream check because a source was PRESENT. One live run
         # said, in its own words, "No live access to the two listed sources"
         # while two sat in the record.
-        if result.tool_calls == 0:
+        if result.tool_calls == 0 or result.tool_successes == 0:
             from research_core.errors import NoEvidence
 
             raise NoEvidence(
-                "The agent completed without calling a single tool, so nothing "
-                "was searched or fetched.",
+                (
+                    "The agent completed without calling a single tool, "
+                    "so nothing was searched or fetched."
+                    if result.tool_calls == 0
+                    else "The agent completed without a successful tool result, "
+                    "so no evidence was gathered."
+                ),
                 "Any sources it named would be recalled, not gathered. This is "
                 "usually a tool that failed to load -- the engine's stderr names "
                 "the missing dependency. Run `check`, or use --backend perplexity.",

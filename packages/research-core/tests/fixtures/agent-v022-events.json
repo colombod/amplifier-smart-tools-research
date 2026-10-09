@@ -1,0 +1,3324 @@
+{
+  "recorded_at": "2026-10-08T23:33:15.076369+00:00",
+  "version": "0.22.0",
+  "tag_commit": "915edf9372312d4c8244df4b2b16b094cf455cff",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "prompt": "Use web_fetch once to read https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md and report the name of the agent factory. Do not search. Return only JSON: {\"findings\": \"your finding with [1]\", \"sources\": [{\"url\": \"the URL fetched\", \"title\": \"Python reference\"}], \"confidence\": \"high\"}.",
+  "approvals": [
+    "web_fetch"
+  ],
+  "tool_calls": 1,
+  "usage": {
+    "tokens_in": 1112,
+    "tokens_out": 664,
+    "cost_usd": "0.031656",
+    "cost": {
+      "USD": "0.031656"
+    }
+  },
+  "zero_tool_result": {
+    "text": "```json\n{\"findings\": \"create_agent is the factory [1]\", \"sources\": [{\"url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\", \"title\": \"Python reference\"}], \"confidence\": \"high\"}\n```",
+    "usage": {
+      "tokens_in": 1096,
+      "tokens_out": 102,
+      "cost_usd": "0.004818",
+      "cost": {
+        "USD": "0.004818"
+      }
+    },
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "tool_calls": 0
+  },
+  "gather_result": {
+    "text": "The document was fetched successfully and read in full. However, **the phrase \"agent factory\" does not appear anywhere in the reference**. The document describes a module-level async function `create_agent(options: AgentOptions) -> Agent` which serves the factory role for creating `Agent` objects \u2014 but no named \"agent factory\" class or component is defined or referenced.\n\n```json\n{\n  \"findings\": \"The reference document does not name any component an 'agent factory'. The closest construct is the module-level async function `create_agent(options: AgentOptions) -> Agent` [1], which is the only factory-style entry point for producing Agent instances. No class or symbol with the words 'agent factory' appears in the document.\",\n  \"sources\": [\n    {\n      \"url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\",\n      \"title\": \"Python reference\"\n    }\n  ],\n  \"confidence\": \"high\"\n}\n```",
+    "usage": {
+      "tokens_in": 1112,
+      "tokens_out": 664,
+      "cost_usd": "0.031656",
+      "cost": {
+        "USD": "0.031656"
+      }
+    },
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "tool_calls": 1
+  },
+  "events": [
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 1,
+      "type": "turn_started",
+      "payload": {
+        "$record": "TurnStarted",
+        "continuation": "fresh",
+        "primary_actual": {
+          "$record": "Selection",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6"
+        },
+        "reasoning_effort": "medium"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 2,
+      "type": "usage",
+      "payload": {
+        "$record": "UsageEvent",
+        "snapshot": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": null,
+              "tokens_out": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": null
+            }
+          ]
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 3,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "Let"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 4,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " me fetch the URL provided"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 5,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 6,
+      "type": "reasoning_final",
+      "payload": {
+        "$record": "ReasoningFinal",
+        "text": "Let me fetch the URL provided."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 7,
+      "type": "usage",
+      "payload": {
+        "$record": "UsageEvent",
+        "snapshot": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": 1111,
+              "tokens_out": 103,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": {
+                "USD": {
+                  "$decimal": "0.004878"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 8,
+      "type": "tool_call",
+      "payload": {
+        "$record": "ToolCallEvent",
+        "call": {
+          "$record": "ToolCall",
+          "call_id": "toolu_016g75Xx3Byb1EcdqL1rciU5",
+          "name": "web_fetch",
+          "source": "built-in",
+          "arguments": {
+            "url": "https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md"
+          },
+          "deadline": null
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 9,
+      "type": "approval_request",
+      "payload": {
+        "$record": "ApprovalRequestEvent",
+        "request": {
+          "$record": "ApprovalRequest",
+          "request_id": "69092166-173b-4f0c-8f43-c2316c4ef7bd",
+          "summary": "Run built-in tool \"web_fetch\". Context: {\"working_directory\": \"/mnt/linuxdata/workspaces/hackathon-smart-tools/amplifier-smart-tools-research/.agent-migration-runtime/work/turn-01e2x98a\"}. Arguments: {\"url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\"}",
+          "call_id": "toolu_016g75Xx3Byb1EcdqL1rciU5",
+          "name": "web_fetch"
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 10,
+      "type": "approval_decision",
+      "payload": {
+        "$record": "ApprovalDecision",
+        "resolution": {
+          "$record": "ApprovalResolution",
+          "request_id": "69092166-173b-4f0c-8f43-c2316c4ef7bd",
+          "decision": "allow",
+          "reason": null
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 11,
+      "type": "tool_result",
+      "payload": {
+        "$record": "ToolResultEvent",
+        "resolution": {
+          "$record": "ToolResolution",
+          "call_id": "toolu_016g75Xx3Byb1EcdqL1rciU5",
+          "outcome": "completed",
+          "content": "{\"url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\", \"requested_url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\", \"source_url\": \"https://raw.githubusercontent.com/microsoft/amplifier-agent/v0.22.0/docs/python/reference.md\", \"source_id\": \"web-2e5715c5b81951b0\", \"retrieved_at\": \"2026-10-08T23:33:01.470700+00:00\", \"status_code\": 200, \"content\": \"# Python reference\\n\\nSignatures. What each one means lives in [concepts](../concepts/).\\n\\n## Module\\n\\n```python\\namplifier_agent.contract_version: str   # \\\"agent-interface/1\\\"\\namplifier_agent.contract_versions: tuple[str, ...]\\namplifier_agent.__version__: str        # the package version\\n\\nasync def create_agent(options: AgentOptions) -> Agent\\nasync def list_providers(options: DiscoveryOptions | None = None) -> list[ProviderRecord]\\nasync def list_models(provider: str, options: DiscoveryOptions | None = None) -> list[ModelRecord]\\n```\\n\\n`contract_versions` is immutable and contains `agent-interface/1`, `turn-events/1`,\\n`language-binding/1`, and `host-config/1`. Reading either version value creates no agent.\\n`list_providers` and `list_models` need no agent; see\\n[discovering providers and models](../concepts/models.md#discovering-providers-and-models).\\n\\n## Agent\\n\\n```python\\nclass Agent:\\n    async def create_session(self, options: SessionOptions | None = None) -> Session\\n    async def resume_session(self, session_id: str) -> Session\\n    async def list_sessions(self) -> list[SessionRecord]\\n    async def delete_session(self, session_id: str) -> None\\n    async def close(self) -> None\\n    async def __aenter__(self) -> Agent\\n    async def __aexit__(self, *exc) -> None\\n```\\n\\n[agents](../concepts/agents.md)\\n\\n## Session\\n\\n```python\\nclass Session:\\n    info: SessionRecord\\n    history: list[TurnRecord]\\n\\n    async def run(self, input: TurnInput) -> TurnResult\\n    async def start_turn(self, input: TurnInput) -> Turn\\n    async def fork(self) -> Session\\n    async def set_model(self, provider: str, model: str, reasoning_effort: str | None = None) -> None\\n    async def close(self) -> None\\n    async def __aenter__(self) -> Session\\n    async def __aexit__(self, *exc) -> None\\n```\\n\\n[sessions](../concepts/sessions.md), [switching models](../concepts/sessions.md#switching-models)\\n\\n`info` and `history` are read-only observations. `history` is a snapshot of completed\\nturns; read it again after a turn reaches `terminal` to get the updated conversation.\\nClosing the session makes both properties unavailable with `closed`.\\n\\n## Turn\\n\\n```python\\nclass Turn:\\n    info: TurnInfo\\n\\n    def events(self) -> AsyncIterator[Event]\\n    async def cancel(self) -> None\\n```\\n\\n[turns](../concepts/turns.md)\\n\\n## Options\\n\\n```python\\n@dataclass\\nclass AgentOptions:\\n    provider: str | None = None\\n    model: str | None = None\\n    instructions: str | None = None\\n    tools: list[Tool | str] | None = None\\n    skills: list[str] | None = None\\n    mcp_servers: list[McpServer] | None = None\\n    approvals: ApprovalHandler | Literal[\\\"allow\\\", \\\"deny\\\"] | None = None\\n    tool_error_policy: Literal[\\\"stop\\\", \\\"continue\\\"] = \\\"continue\\\"\\n    tool_result_max_bytes: int | None = 131072\\n    working_directory: str | Path | None = None\\n    additional_directories: list[str | Path] | None = None\\n    sessions_directory: str | Path | None = None\\n    environment: dict[str, str] | None = None\\n    reasoning_effort: str | None = None\\n\\n\\n@dataclass\\nclass SessionOptions:\\n    session_id: str | None = None\\n    persistence: Literal[\\\"durable\\\", \\\"ephemeral\\\"] = \\\"durable\\\"\\n    model: str | None = None\\n    reasoning_effort: str | None = None\\n\\n\\n@dataclass\\nclass DiscoveryOptions:\\n    environment: dict[str, str] | None = None\\n```\\n\\n[agents](../concepts/agents.md), [models](../concepts/models.md)\\n\\nOmitted provider, model, reasoning_effort, sessions_directory, and approvals values\\nresolve through [configuration](../configuration.md). `tool_result_max_bytes=None`\\nremoves the cap.\\n`working_directory=None` uses the process's current directory; see\\n[working directory](../concepts/agents.md#working-directory). Options are snapshotted\\nat construction. Changing the original options does not reconfigure an existing agent.\\n\\n## Records\\n\\n```python\\n@dataclass\\nclass TextPart:\\n    text: str\\n    type: Literal[\\\"text\\\"] = \\\"text\\\"\\n\\n\\n@dataclass\\nclass ImagePart:\\n    media_type: str  # image/png, image/jpeg, image/gif, image/webp\\n    data: str  # standard base64\\n    type: Literal[\\\"image\\\"] = \\\"image\\\"\\n\\n\\nContentPart = TextPart | ImagePart\\n\\n\\n@dataclass\\nclass ConversationMessage:\\n    role: Literal[\\\"system\\\", \\\"developer\\\", \\\"user\\\", \\\"assistant\\\"]\\n    content: list[ContentPart]\\n\\n\\n@dataclass\\nclass TurnInput:\\n    content: list[ContentPart]\\n    model: str | None = None\\n    history: list[ConversationMessage] | None = None\\n    reasoning_effort: str | None = None\\n\\n\\n@dataclass\\nclass TurnResult:\\n    state: Literal[\\\"success\\\", \\\"failure\\\", \\\"rejected\\\", \\\"cancelled\\\"]\\n    content: list[TextPart] | None = None\\n    error: AgentError | None = None\\n    usage: Usage | None = None\\n\\n\\n@dataclass(frozen=True)\\nclass SessionRecord:\\n    session_id: str\\n    persistence: Literal[\\\"durable\\\", \\\"ephemeral\\\"]\\n    provider: str\\n    model: str\\n    reasoning_effort: str | None = None  # always set, \\\"medium\\\" when named nowhere\\n\\n\\n@dataclass(frozen=True)\\nclass TurnInfo:\\n    session_id: str\\n    turn_id: str\\n\\n\\n@dataclass\\nclass TurnRecord:\\n    turn_id: str\\n    input: TurnInput\\n    result: TurnResult\\n\\n\\n@dataclass(frozen=True)\\nclass ProviderRecord:\\n    provider: str\\n    display_name: str\\n    installed: bool\\n    credentials: Literal[\\\"found\\\", \\\"missing\\\", \\\"not_required\\\"]\\n    credential_variables: list[str]\\n\\n\\n@dataclass(frozen=True)\\nclass ModelRecord:\\n    id: str\\n    display_name: str\\n    context_window: int | None = None\\n    max_output_tokens: int | None = None\\n    reasoning_efforts: list[str] | None = None\\n```\\n\\n[turns](../concepts/turns.md), [models](../concepts/models.md#discovering-providers-and-models)\\n\\n## Events\\n\\n```python\\n@dataclass\\nclass Event:\\n    contract_version: str  # \\\"turn-events/1\\\"\\n    session_id: str\\n    turn_id: str\\n    sequence: int\\n    type: str\\n    payload: object\\n    at: datetime | None = None\\n```\\n\\n`payload` by `type`:\\n\\n```\\nturn_started        TurnStarted        continuation, primary_actual, reasoning_effort\\noutput_delta        OutputDelta        content\\nreasoning_delta     ReasoningDelta     text\\nreasoning_final     ReasoningFinal     text\\ntool_call           ToolCallEvent      call\\ntool_result         ToolResultEvent    resolution\\napproval_request    ApprovalRequestEvent request\\napproval_decision   ApprovalDecision   resolution\\nprogress            Progress           data\\nusage               UsageEvent         snapshot\\nterminal            TurnResult         state, content, error, usage\\n```\\n\\nOwned extension types arrive as `Event` with the extension name in `type` and the raw\\npayload preserved.\\n\\n`TurnStarted.primary_actual` is a `Selection` with `provider` and `model` fields.\\n`TurnStarted.reasoning_effort` is a `str | None`, `None` when no reasoning effort was sent.\\n`ApprovalDecision.resolution` is an `ApprovalResolution` with `request_id`, `decision`,\\nand optional `reason`. `ApprovalRequestEvent.request` is an `ApprovalRequest`.\\nDecision values and the compaction payload are in\\n[events](../concepts/events.md#the-eleven-types) and [approvals](../concepts/approvals.md).\\n\\n[events](../concepts/events.md)\\n\\n## Tools\\n\\n```python\\n@dataclass(frozen=True)\\nclass ToolContext:\\n    call_id: str\\n    deadline: datetime | None = None\\n\\n\\nToolHandler = Callable[[dict, ToolContext], Awaitable[str | list[TextPart | ImagePart]]]\\n\\nBUILTIN_TOOLS: tuple[str, ...]  # the nine built-in tool names\\n\\n\\n@dataclass\\nclass Tool:\\n    name: str\\n    description: str\\n    input_schema: dict\\n    handler: ToolHandler\\n    safety: dict | None = None\\n\\n\\n@dataclass\\nclass ToolCall:\\n    call_id: str\\n    name: str\\n    source: Literal[\\\"built-in\\\", \\\"caller\\\", \\\"mcp\\\"]\\n    arguments: dict\\n    deadline: datetime | None = None\\n\\n\\n@dataclass\\nclass ToolResolution:\\n    call_id: str\\n    outcome: Literal[\\\"completed\\\", \\\"failed\\\", \\\"cancelled\\\", \\\"unknown\\\"]\\n    content: str | None = None\\n    error: AgentError | None = None\\n    truncated: bool = False\\n    original_bytes: int | None = None\\n\\n\\nclass ToolFailed(Exception): ...\\n\\n\\nclass ToolOutcomeUnknown(Exception): ...\\n```\\n\\n[tools](../concepts/tools.md)\\n\\n## MCP servers\\n\\n```python\\n@dataclass\\nclass McpServer:\\n    name: str\\n    transport: Literal[\\\"stdio\\\", \\\"http\\\"]\\n    command: str | None = None\\n    args: list[str] | None = None\\n    env: dict[str, str] | None = None\\n    url: str | None = None\\n    headers: dict[str, str] | None = None\\n```\\n\\nFor `stdio`, supply `command` and optional `args` and `env`. For `http`, supply `url`\\nand optional `headers`. Fields for the other transport are refused. See\\n[MCP servers](../concepts/tools.md#mcp-servers).\\n\\n## Approvals\\n\\n```python\\nApprovalHandler = Callable[[ApprovalRequest], Awaitable[ApprovalResponse]]\\n\\n\\n@dataclass\\nclass ApprovalRequest:\\n    request_id: str\\n    summary: str\\n    call_id: str | None = None\\n    name: str | None = None\\n\\n\\n@dataclass\\nclass ApprovalResponse:\\n    decision: Literal[\\\"allow\\\", \\\"deny\\\", \\\"cancel\\\"]\\n    reason: str | None = None\\n```\\n\\n[approvals](../concepts/approvals.md)\\n\\n## Usage\\n\\n```python\\n@dataclass\\nclass UsageEntry:\\n    provider: str\\n    model: str\\n    tokens_in: int | None = None\\n    tokens_out: int | None = None\\n    cache_read_tokens: int | None = None\\n    cache_write_tokens: int | None = None\\n    cost: dict[str, Decimal] | None = None\\n\\n\\n@dataclass\\nclass Usage:\\n    entries: list[UsageEntry]\\n```\\n\\n[usage](../concepts/usage.md)\\n\\n## Errors\\n\\n```python\\nclass AgentError(Exception):\\n    code: str\\n    category: str\\n    message: str\\n    remedy: str\\n    retryable: bool\\n    correlation_id: str | None = None\\n    details: dict | None = None\\n```\\n\\n[errors](../concepts/errors.md)\\n\\n## Logging\\n\\nThe library and the modules it loads log through the standard `logging` module under\\ntheir package names: `amplifier_agent`, `amplifier_agent_engine`, `amplifier_core`,\\n`amplifier_foundation`, and `amplifier_module_<name>` (for example\\n`amplifier_module_provider_anthropic`). The library configures no handlers. If your\\nprocess configures none either, Python prints records at `WARNING` and above to stderr,\\nso a failure can appear there in raw provider form alongside the typed error on the\\nresult.\\n\\nTo silence them:\\n\\n```python\\nimport logging\\nimport pkgutil\\n\\nfor module in pkgutil.iter_modules():\\n    if module.name.startswith(\\\"amplifier_\\\"):\\n        logging.getLogger(module.name).setLevel(logging.CRITICAL + 1)\\n```\\n\\nSilencing logs does not change results, events, or errors.\\n\", \"content_type\": \"text/plain\", \"truncated\": false, \"total_bytes\": 10173, \"offset\": 0, \"limit\": 204800, \"returned_bytes\": 10173}",
+          "error": null,
+          "truncated": false,
+          "original_bytes": null
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 12,
+      "type": "usage",
+      "payload": {
+        "$record": "UsageEvent",
+        "snapshot": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": null,
+              "tokens_out": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": null
+            }
+          ]
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 13,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "The"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 14,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " document"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 15,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " was"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 16,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " fet"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 17,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "ched successfully. Looking"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 18,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " through"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 19,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " it for"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 20,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " an"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 21,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " \""
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 22,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "agent"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 23,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " factory"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 24,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "\" -"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 25,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " the"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 26,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " module"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 27,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "-"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 28,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "level function"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 29,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " `create_agent` is the"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 30,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " factory"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 31,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " function that creates agents. There"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 32,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "'s no explicit"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 33,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " \"agent factory\" class"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 34,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " named"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 35,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " in the document."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 36,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " The"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 37,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " function"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 38,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " `"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 39,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "create_agent` takes"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 40,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " `"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 41,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "Ag"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 42,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "entOptions"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 43,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "` and returns an `Agent`."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 44,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " "
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 45,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "\n\nLooking"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 46,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " carefully"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 47,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " -"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 48,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " there's no class"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 49,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " called"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 50,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " \"AgentFactory\" or similar"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 51,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": ". The agent"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 52,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " factory"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 53,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " in"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 54,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " this reference"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 55,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " is"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 56,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " the"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 57,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " `"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 58,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "create_agent` async"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 59,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " function at"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 60,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " the module level."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 61,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " There is"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 62,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " no named"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 63,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " \""
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 64,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "agent factory\" class"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 65,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": ".\n\nThe document does"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 66,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " not"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 67,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " contain the phrase"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 68,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " \"agent factory\" at"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 69,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " all."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 70,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " The closest thing is the"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 71,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " `"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 72,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "create_agent` function which acts"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 73,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " as a factory for"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 74,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " agents.\n"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 75,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "I should be honest that the document"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 76,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " never uses the term \"agent"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 77,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " factory\" anywhere -"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 78,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " the clos"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 79,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "est analog is the `create_"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 80,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "agent` function,"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 81,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": " which serves as the factory p"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 82,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "attern for inst"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 83,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "antiating agents."
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 84,
+      "type": "reasoning_delta",
+      "payload": {
+        "$record": "ReasoningDelta",
+        "text": "\n\n"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 85,
+      "type": "reasoning_final",
+      "payload": {
+        "$record": "ReasoningFinal",
+        "text": "The document was fetched successfully. Looking through it for an \"agent factory\" - the module-level function `create_agent` is the factory function that creates agents. There's no explicit \"agent factory\" class named in the document. The function `create_agent` takes `AgentOptions` and returns an `Agent`. \n\nLooking carefully - there's no class called \"AgentFactory\" or similar. The agent factory in this reference is the `create_agent` async function at the module level. There is no named \"agent factory\" class.\n\nThe document does not contain the phrase \"agent factory\" at all. The closest thing is the `create_agent` function which acts as a factory for agents.\nI should be honest that the document never uses the term \"agent factory\" anywhere - the closest analog is the `create_agent` function, which serves as the factory pattern for instantiating agents.\n\n"
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 86,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "The document was",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 87,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " fetched successfully and",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 88,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " read",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 89,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " in",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 90,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " full",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 91,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ". However",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 92,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ", **",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 93,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "the",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 94,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " phrase",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 95,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " \"agent factory\" does not appear",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 96,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " anywhere in the",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 97,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " reference",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 98,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "**",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 99,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ". The",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 100,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " document describes",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 101,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " a",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 102,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " module-level async",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 103,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " function `create_agent(",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 104,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "options",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 105,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ": AgentOptions) -> Agent",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 106,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "` which",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 107,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " serves the",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 108,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " factory",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 109,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " role",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 110,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " for",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 111,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " creating `",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 112,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "Agent` objects",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 113,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " \u2014",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 114,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " but no",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 115,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " named \"",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 116,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "agent factory\" class or",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 117,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " component is defined or",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 118,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " referenced.\n\n```",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 119,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "json",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 120,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\n{\n  \"findings",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 121,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\": \"",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 122,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "The reference",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 123,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " document does not name",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 124,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " any component",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 125,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " an",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 126,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " 'agent factory'. The closest",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 127,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " construct",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 128,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " is the module-level async function",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 129,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " `",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 130,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "create_agent(options: Ag",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 131,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "entOptions) -> Agent`",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 132,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " [",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 133,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "1",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 134,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "], which is the only",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 135,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " factory",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 136,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "-",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 137,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "style",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 138,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " entry",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 139,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " point for",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 140,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " producing",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 141,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " Agent",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 142,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " instances. No",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 143,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " class",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 144,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " or symbol",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 145,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " with",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 146,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " the",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 147,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " words",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 148,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " 'agent factory' appears",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 149,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " in the document.\",\n  \"",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 150,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "sources",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 151,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\": [",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 152,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\n    {",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 153,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\n      \"url\": \"https",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 154,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "://raw",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 155,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ".githubusercontent.com/microsoft/",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 156,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "amplifier-agent/v",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 157,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "0.22",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 158,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ".0/docs",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 159,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "/python",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 160,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "/reference",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 161,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": ".",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 162,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "md\",\n      \"title\":",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 163,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " \"Python",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 164,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": " reference\"",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 165,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\n    }\n  ],",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 166,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\n  \"confidence\": \"",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 167,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "high",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 168,
+      "type": "output_delta",
+      "payload": {
+        "$record": "OutputDelta",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "\"\n}\n```",
+            "type": "text"
+          }
+        ]
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 169,
+      "type": "usage",
+      "payload": {
+        "$record": "UsageEvent",
+        "snapshot": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": 1112,
+              "tokens_out": 664,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": {
+                "USD": {
+                  "$decimal": "0.031656"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 170,
+      "type": "usage",
+      "payload": {
+        "$record": "UsageEvent",
+        "snapshot": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": 1112,
+              "tokens_out": 664,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": {
+                "USD": {
+                  "$decimal": "0.031656"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "at": null
+    },
+    {
+      "$record": "Event",
+      "contract_version": "turn-events/1",
+      "session_id": "4590555c-91fa-4008-8a97-b18e537a2aa6",
+      "turn_id": "2c0719f3-9354-4a40-a87b-0e75f60398b0",
+      "sequence": 171,
+      "type": "terminal",
+      "payload": {
+        "$record": "TurnResult",
+        "state": "success",
+        "content": [
+          {
+            "$record": "TextPart",
+            "text": "The document was",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " fetched successfully and",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " read",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " in",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " full",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ". However",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ", **",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "the",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " phrase",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " \"agent factory\" does not appear",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " anywhere in the",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " reference",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "**",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ". The",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " document describes",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " a",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " module-level async",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " function `create_agent(",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "options",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ": AgentOptions) -> Agent",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "` which",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " serves the",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " factory",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " role",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " for",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " creating `",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "Agent` objects",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " \u2014",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " but no",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " named \"",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "agent factory\" class or",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " component is defined or",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " referenced.\n\n```",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "json",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\n{\n  \"findings",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\": \"",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "The reference",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " document does not name",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " any component",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " an",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " 'agent factory'. The closest",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " construct",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " is the module-level async function",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " `",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "create_agent(options: Ag",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "entOptions) -> Agent`",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " [",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "1",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "], which is the only",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " factory",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "-",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "style",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " entry",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " point for",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " producing",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " Agent",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " instances. No",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " class",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " or symbol",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " with",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " the",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " words",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " 'agent factory' appears",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " in the document.\",\n  \"",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "sources",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\": [",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\n    {",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\n      \"url\": \"https",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "://raw",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ".githubusercontent.com/microsoft/",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "amplifier-agent/v",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "0.22",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ".0/docs",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "/python",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "/reference",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": ".",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "md\",\n      \"title\":",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " \"Python",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": " reference\"",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\n    }\n  ],",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\n  \"confidence\": \"",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "high",
+            "type": "text"
+          },
+          {
+            "$record": "TextPart",
+            "text": "\"\n}\n```",
+            "type": "text"
+          }
+        ],
+        "error": null,
+        "usage": {
+          "$record": "Usage",
+          "entries": [
+            {
+              "$record": "UsageEntry",
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "tokens_in": 1112,
+              "tokens_out": 664,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost": {
+                "USD": {
+                  "$decimal": "0.031656"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "at": null
+    }
+  ]
+}

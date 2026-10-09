@@ -39,6 +39,54 @@ def new_run_id(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(4)}"
 
 
+def aggregate_usage(parts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Totals only when complete; known subtotals explicitly labelled.
+
+    Components survive stages/retries so an unknown can never be erased by a
+    later known observation. Legacy USD-only reports become a USD map, without
+    converting any other currency.
+    """
+    components = [c for p in parts for c in p.get("components", [p])]
+    result: dict[str, Any] = {"components": components}
+    known: dict[str, Any] = {}
+    completeness: dict[str, bool] = {}
+    for key in ("tokens_in", "tokens_out", "cost_usd", "discarded_cost_usd"):
+        values = [
+            c.get(
+                key,
+                "0" if key == "discarded_cost_usd" and not c.get("attempts_discarded") else None,
+            )
+            for c in components
+        ]
+        complete = bool(values) and all(v is not None for v in values)
+        completeness[key] = complete
+        subtotal = sum(
+            (Decimal(str(v)) if "cost" in key else int(v) for v in values if v is not None),
+            Decimal(0) if "cost" in key else 0,
+        )
+        known[key] = str(subtotal) if "cost" in key else subtotal
+        result[key] = known[key] if complete else None
+    maps = [
+        c.get("cost")
+        if "cost" in c
+        else ({"USD": c["cost_usd"]} if c.get("cost_usd") is not None else None)
+        for c in components
+    ]
+    currencies: dict[str, Decimal] = {}
+    for cost in maps:
+        for currency, amount in (cost or {}).items():
+            currencies[currency] = currencies.get(currency, Decimal(0)) + Decimal(str(amount))
+    known["cost"] = {currency: str(amount) for currency, amount in currencies.items()} or None
+    completeness["cost"] = bool(maps) and all(c is not None for c in maps)
+    result["cost"] = known["cost"] if completeness["cost"] else None
+    result["known_subtotals"] = known
+    result["complete"] = completeness
+    for key in ("attempts", "attempts_discarded"):
+        if any(key in p for p in parts):
+            result[key] = sum(int(p.get(key) or 0) for p in parts)
+    return result
+
+
 class RunWriter:
     """Creates a run directory and keeps it honest as the run proceeds."""
 
@@ -231,8 +279,10 @@ class RunWriter:
             serialise = getattr(payload, method, None)
             if callable(serialise):
                 try:
-                    text = serialise(indent=2) if method == "model_dump_json" else serialise()
-                    break
+                    serialised = serialise(indent=2) if method == "model_dump_json" else serialise()
+                    if isinstance(serialised, str):
+                        text = serialised
+                        break
                 except (TypeError, ValueError):
                     text = None
         if text is None:
@@ -252,27 +302,8 @@ class RunWriter:
         return self.write_file(f"{RAW_DIR}/{name}", text)
 
     def record_usage(self, usage: dict[str, Any]) -> None:
-        merged = dict(self._record.get("usage") or {})
-        for key in ("tokens_in", "tokens_out", "attempts", "attempts_discarded"):
-            if usage.get(key) is not None:
-                merged[key] = merged.get(key, 0) + int(usage[key])
-
-        # COST ACCUMULATES. It used to be ASSIGNED here while tokens beside it
-        # accumulated, so a run reported whatever the LAST stage to record spent
-        # rather than its own total. Run dr-82baa98f reported $1.008705 -- exactly
-        # the synthesise stage, with scope's $0.031287 silently overwritten. Every
-        # run this tool ever reported under-stated what it cost.
-        #
-        # Two lines above sits a comment about not under-stating a run's cost. The
-        # reasoning was right for attempts within a stage and the code beside it
-        # was wrong across stages, which is why reading did not catch it: only
-        # summing attempts.json and comparing did.
-        for key in ("cost_usd", "discarded_cost_usd"):
-            if usage.get(key) is not None:
-                merged[key] = str(Decimal(str(merged.get(key) or "0")) + Decimal(str(usage[key])))
-            elif key not in merged:
-                # Unknown, said out loud. A silent 0.00 would be a claim, and false.
-                merged[key] = None
+        previous = self._record.get("usage") or {}
+        merged = aggregate_usage(([previous] if previous else []) + [usage])
         self._record["usage"] = merged
         self._flush_record()
         self.event("usage", **merged)
