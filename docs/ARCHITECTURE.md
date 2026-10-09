@@ -195,30 +195,48 @@ question answerable with evidence instead of opinion.
 
 ### The engine, embedded
 
+The public API is embedded in a disposable worker process, not the caller's
+event loop. The parent owns workspace deletion, turn deadline, and process-group
+termination. SIGTERM begins a 30-second grace period; SIGKILL follows, with one
+second to verify exit. Callback exceptions disable further presentation but
+never stop protocol draining or replace a latched timeout. Terminal observation
+precedes presentation in the worker.
+
+Requests are serialized before launch and delivered through asynchronous pipes
+inside the owned supervisor. Delivery failures never replay. Nonzero exit always
+refuses and retains diagnostic state, even following result/settled receipts.
+
+An interrupted turn without a positive settlement receipt retains its workspace,
+even after verified process death. Forced quiescence is not graceful settlement.
+No turn is replayed. A hostile blocking synchronous callback remains caller code
+outside the worker deadline guarantee. Upstream unawaited `run_orchestrator`
+and `emit_raw_field_if_configured` warnings are not suppressed.
+
 Orchestration is `amplifier-agent`, in-process. Four constraints, each a divergence from
 what the reference smart tools do, and each with a reason:
 
-- **Keep the tools mounted.** The reference tools run tool-less single turns and clear the
-  mount plan. We filter it down to web search and fetch instead — that access is the job.
-- **Stages are turns.** A stable session id plus resume-enabled handler construction is
-  what lets a workflow walk its stages while keeping the thread. Within one turn the model
-  already loops over tool calls by itself; that loop is not hand-rolled.
-- **Progress comes from our own display implementation.** A one-method protocol with a
-  closed event taxonomy, push-based. The reference tools pin it to quiet and discard
-  exactly the events a long run needs.
-- **Every engine import lives inside a function body.** Importing the engine package
-  rewrites `AMPLIFIER_HOME` in the environment at import time. A module-level import would
-  poison the environment for unrelated code, make deterministic verbs pay for a provider
-  stack, and fail the conformance check that runs `--help` with the environment scrubbed.
-  One cause, three symptoms.
+- **Explicit authority.** Public `AgentOptions.tools` contains only `web_search`
+  and `web_fetch` for gathering, or an empty list for reasoning. Approvals allow
+  only those named web tools; every other request is denied. Tool errors stop.
+- **Stages are independent turns.** Each creates a public Agent and ephemeral
+  Session. The workflow supplies its own staged evidence and history in prompts;
+  it does not rely on a private resumed handler or persistent Agent conversation.
+- **Progress is observed.** A single consumer drains public `turn-events/1`
+  records. Tool counts come from `tool_call`, usage from typed snapshots, and
+  the outcome only from terminal. Timeout cancels and drains before cleanup.
+- **Every Agent import lives inside a function body.** v0.22's public binding
+  does not mutate the host environment, but deferred imports still keep the
+  optional provider stack off deterministic paths.
 - **Where the engine writes is ours to decide.** Left alone it puts hundreds of megabytes
   under `~/.amplifier-agent` and a scratch directory wherever `$TMPDIR` points — two
   locations the caller never chose, which is harmless on a workstation and fatal in a
   sandbox that confines writes. `engine_home` names the first, the turn's working
   directory moved inside it, and preflight proves it is writable before a token is spent.
-  The lever is `AMPLIFIER_AGENT_HOME`, **not** `AMPLIFIER_HOME`: the engine overwrites
-  that one at import, so exporting it does nothing — and a test holds the engine to both
-  halves of that claim, because our refusal message states them.
+  The public `working_directory` and `sessions_directory` options both name paths
+  beneath `engine_home` / `RESEARCH_ENGINE_HOME`. `AMPLIFIER_AGENT_HOME` is
+  retained as our legacy default alias, below both settings. It is removed only
+  during upstream discovery/construction and restored afterward, because it is
+  no longer an Agent v0.22 host setting.
 - **Fill a gap, never overrule an intention.** When the engine's usual directory is
   unusable and *nothing* named another, the tree goes inside `runs_dir`, reported as its
   own `fallback` tier. When a path *was* named and does not work, we refuse instead.

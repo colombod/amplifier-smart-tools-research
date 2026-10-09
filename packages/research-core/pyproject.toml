@@ -24,7 +24,7 @@ perplexity = ["perplexityai>=0.27.0"]
 # amplifier-core, and an ASGI stack this tool never uses. Named as an extra so
 # the weight is a visible decision rather than a silent one.
 agent = [
-  "amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@main",
+  "amplifier-agent @ git+https://github.com/microsoft/amplifier-agent@v0.22.0#subdirectory=packages/python",
   # The engine declares NO provider client library and has no extras offering
   # one, so a credential alone cannot run a turn. Found by a live run that
   # preflighted clean and then died at mount time with "No module named

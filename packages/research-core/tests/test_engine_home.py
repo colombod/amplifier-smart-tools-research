@@ -104,12 +104,62 @@ def test_the_setting_moves_it_and_says_which_tier_said_so(isolated, monkeypatch)
     assert status["path"] == str(isolated / "from-file")
 
 
-def test_binding_points_the_engines_own_variable_at_the_configured_home(isolated, monkeypatch):
-    # The binding, not the setting, is what the engine reads. It has to reach the
-    # environment before the engine is imported, and this is the proof it does.
+def test_binding_resolves_home_without_mutating_host_environment(isolated, monkeypatch):
     monkeypatch.setenv("RESEARCH_ENGINE_HOME", str(isolated / "bound"))
+    before = dict(os.environ)
     assert bind_engine_home() == isolated / "bound"
-    assert os.environ[ENGINE_HOME_ENV] == str(isolated / "bound")
+    assert dict(os.environ) == before
+
+
+def test_legacy_alias_precedence_and_scoped_restore(isolated, monkeypatch):
+    from research_core.engine import LEGACY_ENGINE_HOME_ENV, _agent_environment
+
+    legacy = str(isolated / "legacy")
+    monkeypatch.setenv(LEGACY_ENGINE_HOME_ENV, legacy)
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", legacy)
+    assert engine_home() == legacy
+    monkeypatch.setenv(ENGINE_HOME_ENV, str(isolated / "research"))
+    assert engine_home() == str(isolated / "research")
+    write_config(isolated, f'engine_home = "{isolated / "config"}"\n')
+    assert engine_home() == str(isolated / "config")
+
+    async def failure():
+        async with _agent_environment():
+            assert LEGACY_ENGINE_HOME_ENV not in os.environ
+            raise RuntimeError("construction failed")
+
+    import asyncio
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(failure())
+    assert os.environ[LEGACY_ENGINE_HOME_ENV] == legacy
+
+
+def test_actual_inherited_legacy_environment_remains_a_default_alias(tmp_path):
+    from research_core.engine import LEGACY_ENGINE_HOME_ENV
+
+    environment = {
+        "HOME": str(tmp_path),
+        "PATH": "/usr/bin:/bin",
+        CONFIG_PATH_ENV_VAR: str(tmp_path / "absent-config.toml"),
+        LEGACY_ENGINE_HOME_ENV: str(tmp_path / "legacy"),
+    }
+    program = (
+        "import json; from research_core.engine import engine_home_status; "
+        "print(json.dumps(engine_home_status()))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", program],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    status = json.loads(result.stdout)
+    assert status["path"] == str(tmp_path / "legacy")
+    assert status["source"] == "default"
+    assert status["writable"]
 
 
 def test_an_unwritable_home_is_refused_before_anything_is_spent(isolated, monkeypatch):
@@ -200,28 +250,17 @@ def test_check_reports_where_the_engine_will_write(isolated, monkeypatch):
 
 
 PROBE = """
-import json, os, sys
-import amplifier_agent_lib
-from amplifier_agent_lib.persistence import amplifier_agent_home, cache_root
+import json, os
+import amplifier_agent
 print(json.dumps({
-    "agent_home": str(amplifier_agent_home()),
-    "cache": str(cache_root()),
     "amplifier_home_after": os.environ.get("AMPLIFIER_HOME"),
 }))
 """
 
 
 def test_the_two_claims_our_message_makes_about_the_engine_are_true(tmp_path):
-    """Hold the engine to what the refusal above tells people.
-
-    The message asserts two things about someone else's code: that
-    ``AMPLIFIER_AGENT_HOME`` moves the tree, and that ``AMPLIFIER_HOME`` does
-    not. Both are true of the version we embed, neither is ours to guarantee,
-    and a message that quietly stopped being true would send the next person to
-    check the wrong thing -- which is the failure this whole file exists to
-    prevent, one level up.
-    """
-    pytest.importorskip("amplifier_agent_lib")
+    """The public binding no longer rewrites the caller's AMPLIFIER_HOME."""
+    pytest.importorskip("amplifier_agent")
     environment = dict(os.environ)
     environment[ENGINE_HOME_ENV] = str(tmp_path / "agent")
     environment[OVERWRITTEN_HOME_ENV] = str(tmp_path / "ignored")
@@ -236,15 +275,7 @@ def test_the_two_claims_our_message_makes_about_the_engine_are_true(tmp_path):
     assert result.returncode == 0, result.stderr
     found = json.loads(result.stdout.strip().splitlines()[-1])
 
-    assert found["agent_home"] == str(tmp_path / "agent"), (
-        f"${ENGINE_HOME_ENV} no longer moves the engine's tree; the setting and "
-        "the refusal message both need revisiting"
-    )
-    assert found["cache"].startswith(str(tmp_path / "agent"))
-    assert found["amplifier_home_after"] != str(tmp_path / "ignored"), (
-        f"the engine no longer overwrites ${OVERWRITTEN_HOME_ENV}; the refusal "
-        "message saying it has no effect has become false"
-    )
+    assert found["amplifier_home_after"] == str(tmp_path / "ignored")
 
 
 def test_a_confined_host_that_configured_nothing_gets_a_working_path(isolated, monkeypatch):

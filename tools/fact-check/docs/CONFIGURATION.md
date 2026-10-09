@@ -35,6 +35,24 @@ depth    = "medium"
 Settings: `runs_dir`, `engine_home`, `backend`, `depth`, `provider`, `model`,
 `host_config`, `max_read_lines`, `max_attempts`, `timeout_ms`.
 
+### Agent v0.22 provider/model migration
+
+Anthropic may omit `model` and inherit the documented upstream default.
+Every other selected provider needs an explicit model, including a provider
+automatically selected from credentials. Previously the private adapter obtained
+provider-specific defaults; the public API has no equivalent. Refusal occurs
+in preflight, before gathering or reasoning spends tokens. Explicit model and
+reasoning effort are not replaced.
+
+```toml
+provider = "openai"
+model = "gpt-4.1"
+```
+
+Use a model available to your provider account. Alternatively set
+`RESEARCH_PROVIDER` and `RESEARCH_MODEL` together. Azure deployment names belong
+in `model`; the tool does not guess them.
+
 ### The two places this tool writes
 
 Everything it puts on disk goes to one of two paths, and both are settings:
@@ -42,7 +60,7 @@ Everything it puts on disk goes to one of two paths, and both are settings:
 | Setting | Holds | Default |
 |---|---|---|
 | `runs_dir` | the evidence: reports, sources, events, raw replies | `$XDG_STATE_HOME/amplifier-research/runs` |
-| `engine_home` | what the embedded engine needs to run: prepared-bundle cache, module clones, one working directory per turn | `$AMPLIFIER_AGENT_HOME`, else `~/.amplifier-agent` |
+| `engine_home` | one isolated working and sessions directory per turn | `~/.amplifier-agent` |
 
 **If your host confines writes to a workspace, point both there and you are done.** That
 is the whole of it — there is no third location, and in particular nothing is written to
@@ -54,10 +72,9 @@ runs_dir    = "/workspace/.runs"
 engine_home = "/workspace/.engine"
 ```
 
-`engine_home` defaults to what the engine itself would have used, so nobody who never had
-a problem gets moved, and the cache — several hundred megabytes of module clones — is
-shared between runs rather than rebuilt per invocation. Prefer a path that survives
-between runs over a temporary one.
+`engine_home` keeps the existing default root, `~/.amplifier-agent`. Each turn
+uses an isolated child with explicit working and sessions directories, and
+removes it after the runtime settles.
 
 **If that default is unwritable and you named nothing, the tree goes inside your runs
 directory** (`<runs_dir>/.engine`) rather than failing. One setting, not two: a host that
@@ -71,16 +88,20 @@ refused: your setting doing nothing while nothing says so is the exact trap desc
 below. And if the runs directory is unwritable too, the refusal names *both*, so you do
 not fix the second problem and meet the first one immediately afterwards.
 
-Set `engine_home` explicitly if several machines share one runs directory — this cache is
-not written to be shared.
+Set `engine_home` explicitly if several machines share one runs directory, so
+their working and sessions directories remain machine-local.
 
-**`AMPLIFIER_HOME` is not the lever, however much it looks like one.** The engine
-overwrites that variable when it is imported, so exporting it does nothing at all.
-`check` says so when it sees it set. Use `engine_home`, `RESEARCH_ENGINE_HOME`, or the
-engine's own `AMPLIFIER_AGENT_HOME`.
+**Use `engine_home` or `RESEARCH_ENGINE_HOME`.** Public Agent v0.22 receives explicit
+working and sessions directories beneath this tree. It does not overwrite
+`AMPLIFIER_HOME` on import and does not use it for state placement.
+`AMPLIFIER_AGENT_HOME` remains a tool-owned legacy alias, below the config file
+and `RESEARCH_ENGINE_HOME`, above the built-in default. A named unusable path is
+refused, never replaced. The tool temporarily removes this key only around
+upstream discovery/construction, then restores it: Agent v0.22 itself no longer
+recognizes it.
 
-`engine_home` has no `--flag` tier, unlike every other setting. The binding has to happen
-before the engine is imported, and `--detach` starts a **separate process** that resolves
+`engine_home` has no `--flag` tier, unlike every other setting. `--detach` starts a
+**separate process** that resolves
 its own settings: the config file and the environment reach it, an argument would not.
 
 A model-backed verb **refuses before it starts** when `engine_home` cannot be written to,

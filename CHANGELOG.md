@@ -3,6 +3,19 @@
 Both tools and `research-core` share a version. They are developed together and a
 caller installing one gets the other, so a split version would be a fiction.
 
+## Unreleased
+
+- Migrate the embedded adapter to public Amplifier Agent v0.22.0 typed APIs.
+- **Compatibility:** non-default providers now require an explicit model.
+  Previously the private adapter obtained provider-specific defaults; the public
+  API exposes no equivalent. Set `model` alongside `provider` in research config,
+  or `RESEARCH_MODEL`. Anthropic alone may omit the model and inherit the
+  documented upstream default. Explicit model and reasoning effort are preserved.
+- Preserve the tool-owned `AMPLIFIER_AGENT_HOME` alias with serialized scoped
+  upstream construction; retain unknown usage and distinct currencies across
+  retries/stages; require successful tool results for gathered evidence.
+- Add credential-free `-V` / `--version` to both CLIs.
+
 ## 0.10.0 - 2026-09-20
 
 The specification review (`check-spec-adherence`, round two) and the output-correctness sweep

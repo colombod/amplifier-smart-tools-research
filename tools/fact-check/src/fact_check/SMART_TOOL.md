@@ -40,8 +40,8 @@ requires:
     install: docs/CONFIGURATION.md
   - name: engine-home
     purpose: >
-      A writable directory for the embedded engine's own cache, module clones and
-      per-turn working directories -- $AMPLIFIER_AGENT_HOME if set, else
+      A writable directory for the embedded Agent's isolated per-turn working
+      and sessions directories -- engine_home / RESEARCH_ENGINE_HOME, else
       ~/.amplifier-agent. Checked as part of preflight for check-claims, alongside
       ai-provider: without a writable one the run refuses before it starts, naming
       the path and the setting that moves it, rather than failing with a bare
