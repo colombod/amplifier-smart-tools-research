@@ -524,6 +524,7 @@ def render_pointer_skill(
     repository: str,
     author: str,
     triggers: tuple[str, ...] = (),
+    discovery_guidance: str = "",
 ) -> str:
     """The installed SKILL.md: a POINTER, not a copy of `--help`.
 
@@ -588,7 +589,11 @@ def render_pointer_skill(
         # NOT the description again. It is already in the frontmatter directly
         # above, and repeating ~900 characters verbatim pushed this file past
         # the size guard that keeps it a POINTER rather than a copy of --help.
-        _wrap(f"`{name} --help` is the real document. This file only says how to get the tool."),
+        _wrap(
+            f"`{name} --help` documents the installed tool. Read it before choosing commands."
+            if discovery_guidance
+            else f"`{name} --help` is the real document. This file only says how to get the tool."
+        ),
         "",
         "## Install",
         "",
@@ -603,9 +608,12 @@ def render_pointer_skill(
         lines += [f"# {comment}", command]
     lines += ["```"]
 
+    if discovery_guidance:
+        lines += ["", "## When to bring it into a task", "", _wrap(discovery_guidance)]
+
     # THIN ON PURPOSE: the manifest's name and description (in the frontmatter
-    # above), the install commands (above), and the instruction below to run
-    # `--help` and follow it -- nothing more. A prior version also carried a
+    # above), installation, optional task-selection guidance, and the instruction
+    # below to run `--help` and follow it. A prior version also carried a
     # "What needs setting up" prerequisites section and a "Staying current"
     # section with a live `git ls-remote` check: both duplicated content
     # `--help`/`manifest`/`check` already state authoritatively, on the

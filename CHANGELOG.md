@@ -5,6 +5,17 @@ caller installing one gets the other, so a split version would be a fiction.
 
 ## Unreleased
 
+## 0.10.1 - 2026-10-28
+
+- Adapt Brian Krabach's PR #3 installed-wheel runtime CI coverage to the public
+  Agent implementation from PR #4, on Python 3.13 and 3.14, with zero skipped tests.
+- Validate terse help with and without Python 3.14 terminal color, and bound
+  lifecycle-test readiness waits independently of cold Agent startup.
+- Make the version-bump script portable to macOS and verify the requested installed versions.
+- Honor explicit `runs_dir` when choosing the confined-host engine fallback, including preflight, checks and worker state.
+- Preserve gathered source excerpts for synthesis and inherited fact-checking.
+- Improve deep-research skill discovery for evidence needs within planning, comparisons, feasibility and implementation tasks.
+
 - Migrate the embedded adapter to public Amplifier Agent v0.22.0 typed APIs.
 - **Compatibility:** non-default providers now require an explicit model.
   Previously the private adapter obtained provider-specific defaults; the public

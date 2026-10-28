@@ -143,15 +143,12 @@ def fallback_engine_home(runs_dir: str | Path) -> Path:
     return Path(runs_dir).expanduser() / ".engine"
 
 
-def resolved_engine_home() -> tuple[Path, str]:
+def resolved_engine_home(*, runs_dir: str | None = None) -> tuple[Path, str]:
     """The configured engine home and which tier supplied it.
 
-    Settings are resolved here rather than threaded down from the caller, and
-    the reason is the detached child: it is a fresh process that re-resolves
-    everything for itself, so a value that travelled as a function argument in
-    the parent would be lost precisely in the long-running case this exists for.
-    The config file and the environment reach both processes; an argument does
-    not, so this setting has no argument tier.
+    The engine-home setting has no argument tier. The effective runs directory
+    does: callers pass it through for fallback placement, including detached
+    workflows which already serialize their runs directory into the child.
 
     ONE case resolves to a path nobody named: the default is unusable and the
     caller expressed no preference. A host that confines writes hits exactly
@@ -166,7 +163,7 @@ def resolved_engine_home() -> tuple[Path, str]:
     """
     from research_core.config import resolve_settings
 
-    settings = resolve_settings()
+    settings = resolve_settings(runs_dir=runs_dir)
     setting = settings.resolved["engine_home"]
     home = Path(str(setting.value)).expanduser()
     # `$AMPLIFIER_AGENT_HOME` arrives through the default tier, because our
@@ -186,12 +183,12 @@ def resolved_engine_home() -> tuple[Path, str]:
     return home, setting.source
 
 
-def bind_engine_home() -> Path:
+def bind_engine_home(*, runs_dir: str | None = None) -> Path:
     """Resolve state placement without mutating the host environment.
 
     v0.22 uses AgentOptions.sessions_directory, not AMPLIFIER_AGENT_HOME.
     """
-    home, _ = resolved_engine_home()
+    home, _ = resolved_engine_home(runs_dir=runs_dir)
     return home
 
 
@@ -206,14 +203,14 @@ def _writable(path: Path) -> bool:
     return os.access(probe, os.W_OK)
 
 
-def engine_home_status() -> dict[str, Any]:
+def engine_home_status(*, runs_dir: str | None = None) -> dict[str, Any]:
     """Where the engine will write, and whether it can. Reported by `check`.
 
     Deterministic: reads settings and the filesystem, imports no engine, needs no
     credential. A host that cannot run a model-backed verb can still be told why
     before it tries one.
     """
-    home, source = resolved_engine_home()
+    home, source = resolved_engine_home(runs_dir=runs_dir)
     writable = _writable(home)
     status: dict[str, Any] = {
         "path": str(home),
@@ -244,7 +241,7 @@ def engine_home_status() -> dict[str, Any]:
     return status
 
 
-def ensure_engine_home_usable() -> Path:
+def ensure_engine_home_usable(*, runs_dir: str | None = None) -> Path:
     """Prove the engine can write where it is about to, or refuse saying where.
 
     Called from preflight and again from the turn itself. The failure this
@@ -253,14 +250,14 @@ def ensure_engine_home_usable() -> Path:
     and paid for -- a true message naming a path the caller never chose, with no
     statement of which knob moves it.
     """
-    home = bind_engine_home()
+    home = bind_engine_home(runs_dir=runs_dir)
     try:
         (home / WORK_SUBDIR).mkdir(parents=True, exist_ok=True)
         probe = home / WORK_SUBDIR / f".writable-{uuid.uuid4().hex}"
         probe.touch()
         probe.unlink()
     except OSError as exc:
-        _, source = resolved_engine_home()
+        _, source = resolved_engine_home(runs_dir=runs_dir)
         note = ""
         if _INHERITED_OVERWRITTEN_HOME:
             note = (
@@ -276,7 +273,7 @@ def ensure_engine_home_usable() -> Path:
 
             note += (
                 " The runs directory "
-                f"({fallback_engine_home(resolve_settings()['runs_dir'])}) was "
+                f"({fallback_engine_home(resolve_settings(runs_dir=runs_dir)['runs_dir'])}) was "
                 "tried as a fallback and cannot be written to either, so this "
                 "host has no usable path yet: runs_dir most likely needs "
                 "pointing somewhere allowed as well."
@@ -536,7 +533,9 @@ def select_provider(resolvable: Sequence[str], *, override: str | None) -> str:
     return resolvable[0]
 
 
-def preflight(*, provider: str | None = None, model: str | None = None) -> str:
+def preflight(
+    *, provider: str | None = None, model: str | None = None, runs_dir: str | None = None
+) -> str:
     """Confirm a turn could run, before any prompt is built.
 
     Two questions, and the second was learned from a real failure: a provider
@@ -547,7 +546,7 @@ def preflight(*, provider: str | None = None, model: str | None = None) -> str:
     """
     chosen = select_provider(available_providers(), override=provider)
     _validate_model_selection(chosen, model)
-    ensure_engine_home_usable()
+    ensure_engine_home_usable(runs_dir=runs_dir)
     return chosen
 
 
@@ -692,11 +691,12 @@ async def _run_turn_async(
     model: str | None = None,
     reasoning_effort: str | None = None,
     timeout_ms: int = 600_000,
+    runs_dir: str | None = None,
     on_event=None,
     _worker_command=None,
 ) -> TurnResult:
     """Supervise a disposable Agent process; never replay a submitted turn."""
-    home = ensure_engine_home_usable()
+    home = ensure_engine_home_usable(runs_dir=runs_dir)
     cwd = tempfile.mkdtemp(prefix="turn-", dir=str(home / WORK_SUBDIR))
     environment = dict(os.environ)
     environment.pop(LEGACY_ENGINE_HOME_ENV, None)
@@ -880,6 +880,7 @@ def run_turn(
     model: str | None = None,
     reasoning_effort: str | None = None,
     timeout_ms: int = 600_000,
+    runs_dir: str | None = None,
     on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> TurnResult:
     """Run one turn, synchronously, on an embedded engine.
@@ -898,6 +899,7 @@ def run_turn(
                 model=model,
                 reasoning_effort=reasoning_effort,
                 timeout_ms=timeout_ms,
+                runs_dir=runs_dir,
                 on_event=on_event,
             )
         )

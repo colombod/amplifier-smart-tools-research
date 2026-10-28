@@ -45,16 +45,18 @@ class AgentBackend:
         model: str | None = None,
         reasoning_effort: str | None = None,
         prompt_template: str | None = None,
+        runs_dir: str | None = None,
     ) -> None:
         self._provider = provider
         self._model = model
         self._reasoning_effort = reasoning_effort
         self._template = prompt_template
+        self._runs_dir = runs_dir
 
     def preflight(self) -> str:
         from research_core.engine import preflight
 
-        return preflight(provider=self._provider, model=self._model)
+        return preflight(provider=self._provider, model=self._model, runs_dir=self._runs_dir)
 
     def gather(
         self,
@@ -77,6 +79,7 @@ class AgentBackend:
             model=self._model,
             reasoning_effort=self._reasoning_effort,
             timeout_ms=budget.timeout_ms,
+            runs_dir=self._runs_dir,
             on_event=on_event,
         )
         # THE POST-CONDITION, and the only one available. Asking for tools is not

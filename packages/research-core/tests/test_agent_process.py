@@ -9,6 +9,29 @@ import pytest
 from research_core import engine
 
 
+async def _wait_for_start(task, trace):
+    # A worker that exits or times out before readiness must end this wait too.
+    # Cold Agent construction is separate from the adverse cleanup under test.
+    async with asyncio.timeout(30):
+        while not trace.exists():
+            if task.done():
+                await task
+                raise AssertionError("worker completed without the startup trace")
+            await asyncio.sleep(0.01)
+
+
+def test_startup_wait_observes_worker_failure(tmp_path):
+    async def failed():
+        raise RuntimeError("startup failed")
+
+    async def scenario():
+        task = asyncio.create_task(failed())
+        with pytest.raises(RuntimeError, match="startup failed"):
+            await _wait_for_start(task, tmp_path / "absent-trace")
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     "case", ["timeout_callback", "second_cancel", "resistant", "production_grace"]
 )
@@ -43,6 +66,10 @@ async def start(self, value):
             "type": "progress", "message": "callback-ready"
         }}) + "\\n")
         sys.__stdout__.flush()
+        while not Path(sys.argv[3]).exists():
+            await asyncio.sleep(0.01)
+    else:
+        # Hold admission until the parent has observed actual Agent readiness.
         while not Path(sys.argv[3]).exists():
             await asyncio.sleep(0.01)
     return turn
@@ -82,15 +109,15 @@ agent_worker.main()
             raise ValueError("presentation failed")
 
     async def scenario():
-        if case == "timeout_callback":
-            loop = asyncio.get_running_loop()
-            original_time = loop.time
-            monkeypatch.setattr(loop, "time", lambda: original_time() + clock_offset)
+        nonlocal clock_offset
+        loop = asyncio.get_running_loop()
+        original_time = loop.time
+        monkeypatch.setattr(loop, "time", lambda: original_time() + clock_offset)
         task = asyncio.create_task(
             engine._run_turn_async(
                 "No inference allowed",
                 provider="anthropic",
-                timeout_ms=30_000 if case == "timeout_callback" else 2000,
+                timeout_ms=30_000,
                 on_event=callback,
                 _worker_command=[
                     sys.executable,
@@ -101,12 +128,22 @@ agent_worker.main()
                 ],
             )
         )
+        try:
+            await _wait_for_start(task, trace)
+        except BaseException:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            raise
+        ready_at = time.monotonic()
         if case == "second_cancel":
-            while not trace.exists():
-                await asyncio.sleep(0.01)
             task.cancel()
             await asyncio.sleep(0.03)
             task.cancel()
+        elif case != "timeout_callback":
+            # Expire the real supervisor deadline only after startup, without
+            # spending 30 seconds waiting to enter the cleanup scenario.
+            clock_offset = 31.0
+            acknowledgement.touch()
         try:
             await task
         except asyncio.CancelledError:
@@ -122,6 +159,10 @@ agent_worker.main()
                 assert any("Presentation error: ValueError" in note for note in notes)
         else:
             pytest.fail("adverse turn accepted")
+        cleanup_elapsed = time.monotonic() - ready_at
+        assert cleanup_elapsed < (35 if case == "production_grace" else 6)
+        if case == "production_grace":
+            assert cleanup_elapsed >= 30
         count = len(observations)
         await asyncio.sleep(0.05)
         assert len(observations) == count
@@ -129,12 +170,7 @@ agent_worker.main()
             t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.done()
         ]
 
-    started = time.monotonic()
     asyncio.run(scenario())
-    elapsed = time.monotonic() - started
-    assert elapsed < (35 if case == "production_grace" else 6)
-    if case == "production_grace":
-        assert elapsed >= 30
     assert trace.exists(), "real Agent construction/start was not reached"
     if case in ("resistant", "production_grace"):
         assert trace.read_text() == "real Agent close resistant"

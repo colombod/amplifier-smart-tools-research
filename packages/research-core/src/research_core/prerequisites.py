@@ -123,7 +123,7 @@ def _ai_provider_detector() -> tuple[str, str]:
     return ABSENT, found.detail
 
 
-def _engine_home_detector() -> tuple[str, str]:
+def _engine_home_detector(*, runs_dir: str | None = None) -> tuple[str, str]:
     """Satisfied only if the engine could actually write where it will try to.
 
     Reuses `engine_home_status`, the SAME check `check`'s unconditional
@@ -135,7 +135,7 @@ def _engine_home_detector() -> tuple[str, str]:
     """
     from research_core.engine import engine_home_status
 
-    status = engine_home_status()
+    status = engine_home_status(runs_dir=runs_dir)
     if status["writable"]:
         return SATISFIED, f"{status['path']} ({status['source']}) is writable"
     return ABSENT, f"{status['path']} ({status['source']}): {status['detail']}"
@@ -206,7 +206,7 @@ def provider_availability() -> list[dict[str, Any]]:
     return breakdown
 
 
-def check_requirements(manifest: Manifest) -> list[Finding]:
+def check_requirements(manifest: Manifest, *, runs_dir: str | None = None) -> list[Finding]:
     """Look for everything this tool's own manifest says it needs."""
     findings: list[Finding] = []
     for requirement in manifest.requires:
@@ -217,6 +217,8 @@ def check_requirements(manifest: Manifest) -> list[Finding]:
                 "this tool declares this requirement but has no way to look for "
                 "it; that is a defect in the tool, not in your environment",
             )
+        elif detector is _engine_home_detector:
+            state, detail = _engine_home_detector(runs_dir=runs_dir)
         else:
             state, detail = detector()
         findings.append(
@@ -240,7 +242,7 @@ def check(manifest: Manifest, *, runs_dir: str | None = None) -> dict[str, Any]:
     ready or not, because the report is the deliverable. A caller that wants a
     non-zero exit for "not ready" can branch on `ready`.
     """
-    findings = check_requirements(manifest)
+    findings = check_requirements(manifest, runs_dir=runs_dir)
     missing_required = [f for f in findings if f.state != SATISFIED and not f.optional]
     unsatisfied_optional = [f for f in findings if f.state != SATISFIED and f.optional]
 
@@ -280,7 +282,7 @@ def check(manifest: Manifest, *, runs_dir: str | None = None) -> dict[str, Any]:
     # stage of a run it has already paid for.
     from research_core.engine import engine_home_status
 
-    document["engine_home"] = engine_home_status()
+    document["engine_home"] = engine_home_status(runs_dir=runs_dir)
 
     known_surfaces = sorted(SURFACES)
     document["credential_surfaces"] = known_surfaces

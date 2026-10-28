@@ -377,3 +377,96 @@ def test_nothing_is_announced_when_the_usual_place_works(isolated, monkeypatch):
     events: list[dict] = []
     engine._announce_fallback_home(events.append)
     assert events == []
+
+
+def test_check_uses_argument_runs_directory_for_fallback(isolated, monkeypatch):
+    from research_core import api
+
+    blocked = isolated / "blocked-home"
+    blocked.mkdir()
+    blocked.chmod(0o500)
+    monkeypatch.setenv("HOME", str(blocked))
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", None)
+    chosen = isolated / "chosen-runs"
+    before = dict(os.environ)
+    try:
+        reported = api.check("deep_research", runs_dir=str(chosen))
+        assert reported["runs_dir"]["writable"]
+        assert reported["engine_home"]["path"] == str(chosen / ".engine")
+        assert reported["engine_home"]["source"] == "fallback"
+        assert reported["engine_home"]["writable"]
+        assert dict(os.environ) == before
+    finally:
+        blocked.chmod(0o700)
+
+
+def test_reasoning_and_gathering_use_argument_runs_directory(isolated, monkeypatch):
+    from research_core.backends.agent import AgentBackend
+    from research_core.backends.base import Budget
+    from research_core.reasoning import AgentReasoner
+
+    blocked = isolated / "blocked-home"
+    blocked.mkdir()
+    blocked.chmod(0o500)
+    monkeypatch.setenv("HOME", str(blocked))
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", None)
+    monkeypatch.setattr(engine, "available_providers", lambda: ["anthropic"])
+    chosen = str(isolated / "chosen-runs")
+    calls = []
+
+    def turn(prompt, **kwargs):
+        home = ensure_engine_home_usable(runs_dir=kwargs.get("runs_dir"))
+        assert home == isolated / "chosen-runs" / ".engine"
+        calls.append(kwargs)
+        return engine.TurnResult(
+            text=json.dumps({"findings": "Evidence", "sources": [{"url": "https://example.org"}]}),
+            usage={},
+            tool_calls=1,
+            tool_successes=1,
+        )
+
+    monkeypatch.setattr(engine, "run_turn", turn)
+    try:
+        reasoner = AgentReasoner(provider="anthropic", runs_dir=chosen)
+        assert reasoner.preflight() == "anthropic"
+        assert reasoner.think("Summarise supplied evidence").text
+        backend = AgentBackend(provider="anthropic", runs_dir=chosen)
+        assert backend.preflight() == "anthropic"
+        assert backend.gather(
+            "A question", Budget(depth="low", max_sources=1, timeout_ms=100)
+        ).sources
+        assert len(calls) == 2
+    finally:
+        blocked.chmod(0o700)
+
+
+def test_worker_uses_argument_runs_directory(isolated, monkeypatch):
+    import asyncio
+
+    blocked = isolated / "blocked-home"
+    blocked.mkdir()
+    blocked.chmod(0o500)
+    monkeypatch.setenv("HOME", str(blocked))
+    monkeypatch.setattr(engine, "_INHERITED_ENGINE_HOME", None)
+    chosen = isolated / "chosen-runs"
+    worker = isolated / "worker.py"
+    worker.write_text(
+        "import json, os, sys; from pathlib import Path; "
+        "r=json.loads(sys.stdin.readline()); "
+        "assert Path(r['workspace']).parent == Path(os.environ['RESEARCH_ENGINE_HOME'])/'work'; "
+        "print(json.dumps({'type':'result','result':{'text':os.environ['RESEARCH_ENGINE_HOME'],'usage':{}}})); "
+        "print(json.dumps({'type':'settled'}))"
+    )
+    try:
+        result = asyncio.run(
+            engine._run_turn_async(
+                "No inference",
+                runs_dir=str(chosen),
+                timeout_ms=5000,
+                _worker_command=[sys.executable, str(worker)],
+            )
+        )
+        assert result.text == str(chosen / ".engine")
+        assert not list((chosen / ".engine" / "work").glob("turn-*"))
+    finally:
+        blocked.chmod(0o700)

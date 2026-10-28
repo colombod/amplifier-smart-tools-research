@@ -573,3 +573,25 @@ def test_the_backend_receives_the_scope_the_reasoner_produced(tmp_path):
     )
     run_research(tmp_path, backend=backend, reasoner=reasoner, query="vague?")
     assert backend.scopes == ["A sharpened question?"]
+
+
+def test_gathered_excerpts_reach_synthesis_and_retained_sources(tmp_path):
+    excerpt = "Measured primary evidence: all replicas converge after eventual delivery."
+    evidence = Evidence(
+        text="A short summary.",
+        sources=[
+            Source(
+                url="https://example.org/study",
+                title="Study",
+                snippet=excerpt,
+            )
+        ],
+        backend="scripted",
+    )
+    reasoner = scripted_reasoner(cites=["s1"])
+    result = run_research(tmp_path, backend=ScriptedBackend(evidence), reasoner=reasoner)
+    retained = json.loads(
+        (load_run(tmp_path / "runs", result["run_id"]).path / "sources.json").read_text()
+    )
+    assert retained["sources"][0]["snippet"] == excerpt
+    assert excerpt in reasoner.prompts[-1]

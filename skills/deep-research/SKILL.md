@@ -1,26 +1,28 @@
 ---
 name: deep-research
 description: >-
-  Researches a question across many sources and returns a short brief plus the
-  citations behind it. Reach for it when the ask sounds like "what do we actually know
-  about X?", "find me sources on this", or "I need to decide this and have not read
-  anything yet". Searches the live web and synthesises, returning a brief plus a
-  pointer to the full evidence kept on disk. Do NOT use it to check specific claims
-  you already have -- that is fact-check -- or for questions answerable from the code
-  or documents already in front of you. Use when (1) Find out what is known before
-  committing to a decision; (2) Get a short sourced answer without reading the sources
-  first; (3) Build a durable evidence record for later questions; (4) Produce a
-  bibliography without collecting references by hand.
+  Research open questions across multiple web sources and return a sourced brief with
+  retained evidence. Use when external evidence would inform a recommendation, plan,
+  design or implementation: compare approaches or products, investigate feasibility
+  and tradeoffs, review prior art or literature, survey a changing field, or
+  understand an unfamiliar domain. Consider it within a larger task even when the user
+  does not say "research" or name this tool. Use supplied documents and local code
+  first for questions they answer; use a direct lookup for one simple fact, and
+  fact-check for assessing existing claims. Use when (1) Compare options before
+  choosing an architecture, technology or product; (2) Investigate feasibility,
+  limitations and prior art before proposing a plan; (3) Build an evidence brief or
+  literature review with citations; (4) Reuse retained research evidence for later
+  questions.
 license: MIT
 metadata:
   author: colombod
   repository: https://github.com/colombod/amplifier-smart-tools-research
-  version: 0.10.0
+  version: 0.10.1
 ---
 
 # Using deep-research
 
-`deep-research --help` is the real document. This file only says how to get the tool.
+`deep-research --help` documents the installed tool. Read it before choosing commands.
 
 ## Install
 
@@ -36,6 +38,16 @@ uv add 'deep-research @ git+https://github.com/colombod/amplifier-smart-tools-re
 uvx --from 'git+https://github.com/colombod/amplifier-smart-tools-research#subdirectory=tools/deep-research' deep-research --help
 ```
 
+## When to bring it into a task
+
+When a missing external comparison or evidence review could change your answer, use this
+tool for that part of the task; do not wait for the user to name it. For example,
+investigate alternatives before recommending a stack, or prior approaches before
+designing a new feature. Form a question tied to the user's decision and constraints,
+then read the installed help and check readiness and estimated cost. Reuse relevant
+retained evidence when available. A quick lookup or a question settled by supplied files
+does not need a new research run.
+
 ## Use it
 
 Run `deep-research --help`. It prints the tool's skill: when to reach for it, every
@@ -48,7 +60,7 @@ That document comes from the binary you actually have, so it is correct for your
 installation. This file cannot be, and does not try.
 
 `deep-research manifest` reports the version actually installed; this pointer was
-generated from 0.10.0. If they differ, re-read `--help` -- flags and costs can change
+generated from 0.10.1. If they differ, re-read `--help` -- flags and costs can change
 between releases. Upgrade in place:
 
 ```bash

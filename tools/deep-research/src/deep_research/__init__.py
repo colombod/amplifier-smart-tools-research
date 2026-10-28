@@ -473,4 +473,13 @@ def pointer_skill() -> str:
         repository=REPOSITORY,
         author=AUTHOR,
         triggers=TRIGGERS,
+        discovery_guidance=(
+            "When a missing external comparison or evidence review could change your answer, "
+            "use this tool for that part of the task; do not wait for the user to name it. "
+            "For example, investigate alternatives before recommending a stack, or prior "
+            "approaches before designing a new feature. Form a question tied to the user's "
+            "decision and constraints, then read the installed help and check readiness and "
+            "estimated cost. Reuse relevant retained evidence when available. A quick lookup "
+            "or a question settled by supplied files does not need a new research run."
+        ),
     )

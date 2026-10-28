@@ -1,14 +1,14 @@
 ---
 smart_tool_format: 1
 name: deep-research
-version: 0.10.0
+version: 0.10.1
 description: >
-  Researches a question across many sources and returns a short brief plus the citations behind it. Reach for it when the ask sounds like "what do we actually know about X?", "find me sources on this", or "I need to decide this and have not read anything yet". Searches the live web and synthesises, returning a brief plus a pointer to the full evidence kept on disk. Do NOT use it to check specific claims you already have -- that is fact-check -- or for questions answerable from the code or documents already in front of you.
+  Research open questions across multiple web sources and return a sourced brief with retained evidence. Use when external evidence would inform a recommendation, plan, design or implementation: compare approaches or products, investigate feasibility and tradeoffs, review prior art or literature, survey a changing field, or understand an unfamiliar domain. Consider it within a larger task even when the user does not say "research" or name this tool. Use supplied documents and local code first for questions they answer; use a direct lookup for one simple fact, and fact-check for assessing existing claims.
 use_cases:
-  - Find out what is known before committing to a decision
-  - Get a short sourced answer without reading the sources first
-  - Build a durable evidence record for later questions
-  - Produce a bibliography without collecting references by hand
+  - Compare options before choosing an architecture, technology or product
+  - Investigate feasibility, limitations and prior art before proposing a plan
+  - Build an evidence brief or literature review with citations
+  - Reuse retained research evidence for later questions
 platforms:
   - linux
   - macos

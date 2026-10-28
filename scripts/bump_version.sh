@@ -90,25 +90,31 @@ MANIFESTS=(
 echo "=== writing VERSION ==="
 echo "$NEW_VERSION" > VERSION
 
-echo "=== updating pyproject.toml [project].version (static string, not dynamic) ==="
-for f in "${PYPROJECTS[@]}"; do
-  if ! grep -qE '^version = "[^"]+"' "$f"; then
-    echo "refusing: $f has no 'version = \"...\"' line to replace -- edit it by hand" >&2
-    exit 1
-  fi
-  sed -i -E "s/^version = \"[^\"]+\"/version = \"${NEW_VERSION}\"/" "$f"
-  echo "  $f -> $NEW_VERSION"
-done
+echo "=== updating static package and manifest versions ==="
+# BSD sed treats `-i -E` as a backup suffix, not extended-regex mode, so
+# the old command silently left every version unchanged on macOS.
+"$VENV/bin/python" - "$NEW_VERSION" "${PYPROJECTS[@]}" "${MANIFESTS[@]}" <<'PY'
+import pathlib
+import re
+import sys
 
-echo "=== updating SMART_TOOL.md 'version:' frontmatter ==="
-for f in "${MANIFESTS[@]}"; do
-  if ! grep -qE '^version: .+$' "$f"; then
-    echo "refusing: $f has no 'version: ...' frontmatter line -- edit it by hand" >&2
-    exit 1
-  fi
-  sed -i -E "s/^version: .+$/version: ${NEW_VERSION}/" "$f"
-  echo "  $f -> $NEW_VERSION"
-done
+version = sys.argv[1]
+edits = []
+for filename in sys.argv[2:]:
+    path = pathlib.Path(filename)
+    pattern, replacement = (
+        (r'^version = "[^"]+"$', f'version = "{version}"')
+        if path.suffix == ".toml"
+        else (r'^version: .+$', f'version: {version}')
+    )
+    text, count = re.subn(pattern, replacement, path.read_text(encoding="utf-8"), flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"refusing: {filename} has {count} version fields; expected exactly one")
+    edits.append((path, text))
+for path, text in edits:
+    path.write_text(text, encoding="utf-8")
+    print(f"  {path} -> {version}")
+PY
 
 echo "=== reinstalling into $VENV so dist-info matches the new pyproject.toml files ==="
 uv pip install --python "$VENV/bin/python" -e packages/research-core -q
@@ -127,9 +133,19 @@ pathlib.Path('skills/fact-check/SKILL.md').write_text(fact_check.pointer_skill()
 echo "  skills/deep-research/SKILL.md, skills/fact-check/SKILL.md regenerated"
 
 echo "=== self-check: do all seven files agree, and does the installed metadata agree too? ==="
+"$VENV/bin/python" - "$NEW_VERSION" <<'PY'
+import importlib.metadata
+import sys
+
+for package in ("research-core", "deep-research", "fact-check"):
+    actual = importlib.metadata.version(package)
+    if actual != sys.argv[1]:
+        raise SystemExit(f"self-check FAILED: {package} is {actual}, expected {sys.argv[1]}")
+PY
 if ! "$VENV/bin/python" -m pytest -q \
-      packages/research-core/tests/test_manifest.py -k version_matches_package_version \
-      packages/research-core/tests/test_skill.py -k committed_skill_file_matches; then
+      packages/research-core/tests/test_manifest.py \
+      packages/research-core/tests/test_skill.py \
+      -k 'version_matches_package_version or committed_skill_file_matches'; then
   echo "self-check FAILED -- do not commit this state" >&2
   exit 1
 fi
