@@ -52,6 +52,9 @@
 #                   artifacts into a fresh venv -> fetch the conformance kit
 #                   fresh -> run it against both tool roots -> deterministic
 #                   `manifest` smoke for both tools under `env -i`
+#   installed-runtime  built core/consumer wheels with Agent extras, dependency
+#                   checks and the full offline suite on Python 3.13 and 3.14.
+#                   Adapted from Brian Krabach's PR #3 for the PR #4 runtime.
 #   (scrubbed)      the same pytest suite again, but under `env -i HOME=<a
 #                   fresh empty dir> PATH="<venv>/bin:/usr/bin:/bin"` -- not
 #                   a ci.yml job, this box's own extra insurance (see above)
@@ -62,10 +65,10 @@
 #                   ci.yml itself only ever runs it after a push to main.
 #
 # USAGE
-#   scripts/preflight.sh                  # test + conformance (default, and
-#                                          # the pair that actually broke)
+#   scripts/preflight.sh                  # test + conformance + installed runtime
 #   scripts/preflight.sh test              # just the `test` job replica
 #   scripts/preflight.sh conformance        # just the `conformance` job replica
+#   scripts/preflight.sh installed-runtime  # both Python versions, installed wheels
 #   scripts/preflight.sh install-from-git   # best-effort `install-from-git`
 #                                            # replica; only meaningful for a
 #                                            # commit already on `origin`
@@ -85,8 +88,10 @@
 #   `conformance` adds: building two wheels (a few seconds), cloning
 #   microsoft/amplifier-smart-tools fresh (network, a few seconds to ~1
 #   minute depending on connection), and running the kit against both tool
-#   roots (a few seconds). Budget **1-2 minutes** for a full default run on a
-#   warm cache, longer on the first run of the day or a slow network. This is
+#   roots (a few seconds). Budget **1-2 minutes** for test + conformance on a
+#   warm cache, longer on the first run of the day or a slow network. The added
+#   installed-runtime matrix takes at least another 75 seconds (two production
+#   30-second cleanup checks), plus interpreter/dependency installation. This is
 #   not a `git commit` hook; it is a pre-push gate. Run it before every push
 #   that touches a version, a manifest, or a generated SKILL.md -- not on
 #   every save.
@@ -243,6 +248,56 @@ job_conformance() {
 }
 
 # ---------------------------------------------------------------------------
+# `installed-runtime` job replica -- contribution adapted from PR #3
+# ---------------------------------------------------------------------------
+job_installed_runtime() {
+  section "job: installed-runtime (built wheels, Agent extras, Python 3.13/3.14)"
+  local dist="$WORK/runtime-dist"
+  for root in packages/research-core tools/deep-research tools/fact-check; do
+    if ! uv build --wheel --out-dir "$dist" "$root" -q; then return 1; fi
+  done
+  local core
+  core=$(find "$dist" -name 'research_core-*.whl' -print)
+  local status=0
+  for version in 3.13 3.14; do
+    local venv="$WORK/venv-runtime-$version"
+    local clean_home="$WORK/runtime-home-$version"
+    local report="$WORK/runtime-$version.xml"
+    mkdir -p "$clean_home"
+    echo "--- Python $version: install built wheels and declared runtime extras ---"
+    if ! uv venv --python "$version" "$venv" -q; then return 1; fi
+    if ! uv pip install --python "$venv/bin/python" --only-binary amplifier-core \
+          "${core}[agent,perplexity]" pytest -q; then return 1; fi
+    if ! uv pip install --python "$venv/bin/python" --no-deps \
+          "$dist"/deep_research-*.whl "$dist"/fact_check-*.whl -q; then return 1; fi
+    if ! uv pip check --python "$venv/bin/python"; then return 1; fi
+    echo "--- Python $version: full suite, no real credentials, forced CI color ---"
+    if ! env -i HOME="$clean_home" PATH="$venv/bin:/usr/bin:/bin" FORCE_COLOR=1 \
+          "$venv/bin/python" -m pytest packages/research-core/tests -q --junitxml="$report"; then
+      status=1
+    fi
+    # Missing optional dependencies must fail this job rather than silently skip.
+    if ! "$venv/bin/python" - "$report" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+skipped = sum(int(s.get("skipped", 0)) for s in root.iter("testsuite"))
+if skipped:
+    raise SystemExit(f"installed-runtime must not skip tests: {skipped} skipped")
+PY
+    then status=1; fi
+    for tool in deep-research fact-check; do
+      if ! env -i HOME="$clean_home" PATH="$venv/bin:/usr/bin:/bin" \
+            "$venv/bin/$tool" --help < /dev/null > /dev/null; then status=1; fi
+      if ! env -i HOME="$clean_home" PATH="$venv/bin:/usr/bin:/bin" \
+            "$venv/bin/$tool" manifest < /dev/null > /dev/null; then status=1; fi
+    done
+  done
+  return $status
+}
+
+# ---------------------------------------------------------------------------
 # `install-from-git` job replica -- best effort, see header note
 # ---------------------------------------------------------------------------
 job_install_from_git() {
@@ -296,20 +351,25 @@ case "$MODE" in
   conformance)
     job_conformance; record "conformance" $?
     ;;
+  installed-runtime)
+    job_installed_runtime; record "installed-runtime" $?
+    ;;
   install-from-git)
     job_install_from_git; record "install-from-git" $?
     ;;
   default)
     job_test; record "test" $?
     job_conformance; record "conformance" $?
+    job_installed_runtime; record "installed-runtime" $?
     ;;
   all)
     job_test; record "test" $?
     job_conformance; record "conformance" $?
+    job_installed_runtime; record "installed-runtime" $?
     job_install_from_git; record "install-from-git" $?
     ;;
   *)
-    echo "usage: $0 [default|test|conformance|install-from-git|all]" >&2
+    echo "usage: $0 [default|test|conformance|installed-runtime|install-from-git|all]" >&2
     exit 2
     ;;
 esac

@@ -12,9 +12,17 @@ can consume, and the presence of the interpretation an agent cannot infer.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 TOOLS = ("deep_research", "fact_check")
+
+
+def _plain_help(text: str) -> str:
+    # Python 3.14 colors argparse help when CI sets FORCE_COLOR=1. Test the
+    # help contract independently of those terminal presentation sequences.
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def _skill(name: str) -> str:
@@ -105,7 +113,8 @@ def test_the_verb_table_matches_what_the_library_actually_exposes(tool):
 
 
 @pytest.mark.parametrize("tool", TOOLS)
-def test_dash_h_and_double_help_answer_different_readers(tool, capsys):
+@pytest.mark.parametrize("force_color", [None, "1"])
+def test_dash_h_and_double_help_answer_different_readers(tool, capsys, monkeypatch, force_color):
     """`-h` is the terse summary; `--help` is the skill.
 
     Adopted from David Koleczek's Smart Tool Creator after measuring our own
@@ -116,13 +125,19 @@ def test_dash_h_and_double_help_answer_different_readers(tool, capsys):
     """
     import importlib
 
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("PYTHON_COLORS", raising=False)
+    if force_color is None:
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+    else:
+        monkeypatch.setenv("FORCE_COLOR", force_color)
     cli = importlib.import_module(f"{tool}.cli")
 
     for flag, expected in (("-h", "usage:"), ("--help", "---")):
         with pytest.raises(SystemExit) as exit_info:
             cli.build_parser().parse_args([flag])
         assert exit_info.value.code == 0, f"{flag} must exit 0"
-        out = capsys.readouterr().out
+        out = _plain_help(capsys.readouterr().out)
         assert out.startswith(expected), f"{flag} printed the wrong document"
 
     # And they must genuinely differ -- one action bound to both spellings is
@@ -381,7 +396,8 @@ def test_the_skill_teaches_the_flag_that_costs_or_saves_money():
 
 
 @pytest.mark.parametrize("tool", TOOLS)
-def test_every_verb_answers_h_and_help_differently(tool, capsys):
+@pytest.mark.parametrize("force_color", [None, "1"])
+def test_every_verb_answers_h_and_help_differently(tool, capsys, monkeypatch, force_color):
     """The split holds at EVERY level, not just the root.
 
     `-h` is always the terse table for a person who already knows the verb.
@@ -395,6 +411,12 @@ def test_every_verb_answers_h_and_help_differently(tool, capsys):
     """
     import importlib
 
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("PYTHON_COLORS", raising=False)
+    if force_color is None:
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+    else:
+        monkeypatch.setenv("FORCE_COLOR", force_color)
     cli = importlib.import_module(f"{tool}.cli")
     parser = cli.build_parser()
     verbs = parser._subparsers._group_actions[0].choices
@@ -405,7 +427,7 @@ def test_every_verb_answers_h_and_help_differently(tool, capsys):
             with pytest.raises(SystemExit) as exit_info:
                 parser.parse_args([verb, flag])
             assert exit_info.value.code == 0, f"{verb} {flag} did not exit 0"
-            outputs[flag] = capsys.readouterr().out
+            outputs[flag] = _plain_help(capsys.readouterr().out)
 
         assert outputs["-h"].startswith("usage:"), f"{verb} -h is not the terse table"
         assert outputs["--help"].startswith("---"), (

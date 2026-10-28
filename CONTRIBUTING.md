@@ -44,13 +44,19 @@ fetches the conformance kit fresh, and runs it against both tool roots --
 plus the full `test` job (ruff + pytest) in a fresh venv, run TWICE: once
 normally and once with the environment scrubbed (`env -i`), because this
 box may resolve real provider credentials through host auth in a way a
-GitHub Actions runner never does. See the comment block at the top of the
+GitHub Actions runner never does. It also builds the shared core wheel and runs
+the full suite with the declared Agent runtime on Python 3.13 and 3.14. These
+installed-runtime runs use a scrubbed environment, force the same help coloring
+as CI, and refuse skipped tests. This coverage adapts Brian Krabach's PR #3
+contribution to the public Agent/process implementation merged in PR #4.
+See the comment block at the top of the
 script for the full job-by-job mapping to `.github/workflows/ci.yml`, the
 `install-from-git` job's pre-push limitation, and the `PREFLIGHT_SPEC_KIT_DIR`
 override.
 
-**Cost:** budget 1-2 minutes on a warm `uv` cache (network fetch of the
-conformance kit dominates); a few seconds more on a cold one. Not a
+**Cost:** budget 3-5 minutes on a warm `uv` cache, longer when Python or runtime
+dependencies need downloading. Two installed-runtime runs each exercise the
+production 30-second shutdown grace. Not a
 pre-commit hook -- a pre-push gate. Run it before pushing anything that
 touches a version, a manifest, or a generated `SKILL.md`; you do not need it
 for every save.
