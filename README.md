@@ -21,14 +21,39 @@ before they spend anything.
 
 ## Install
 
-Each tool installs on its own, no checkout required:
+### Install the guiding skills
+
+Give your agent guidance on when to use these tools and how to drive them:
 
 ```bash
-uv pip install "deep-research @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/deep-research"
-uv pip install "fact-check    @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/fact-check"
+npx skills add colombod/amplifier-smart-tools-research --skill deep-research fact-check
 ```
 
-Both pull the shared `research-core` automatically. Python 3.12+.
+Run this from your project directory and choose your supported agent harnesses
+in the installer. Add `-g` for a user-wide installation, or name just one skill
+after `--skill` to install only that tool's guidance.
+
+The [deep-research skill](skills/deep-research/SKILL.md) helps the agent recognize
+research opportunities within larger tasks; the [fact-check skill](skills/fact-check/SKILL.md)
+guides checks of existing claims. These install instructions into your agent, not
+the CLI programs or provider credentials. Install the tools below as well.
+
+### Install the CLI programs
+
+Install each CLI in its own isolated environment, no checkout required:
+
+```bash
+uv tool install "deep-research @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/deep-research"
+uv tool install "fact-check @ git+https://github.com/colombod/amplifier-smart-tools-research@main#subdirectory=tools/fact-check"
+```
+
+Both pull the shared `research-core` and their declared dependencies automatically.
+Requires `uv` and Python 3.12+. If `uv` reports that its tool executables are not on
+your `PATH`, run `uv tool update-shell` and restart your shell.
+
+`uv pip install` is for installing into an existing Python environment, such as
+when using the tools as libraries; it is not needed for the standalone CLI setup
+above. The guiding skills and the CLI programs are separate installs.
 
 ## Start here — this part costs nothing
 
