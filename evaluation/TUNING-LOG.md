@@ -374,3 +374,27 @@ who does not know whether its question is sharp is better served by paying.
 we have *proven* benefits from turning scope off — a caller with an already-sharp question — had
 no way to do it from the command line. Its help text carries both halves of the measurement, so
 the decision is at the point of use rather than in this file.
+
+
+## 008 — Preserve the source excerpts the backend already gathered
+
+2026-10-28. A live low-depth CRDT convergence question returned three retained sources
+but a low-confidence synthesis with no source citations. The raw Perplexity response
+contained a primary-source theorem excerpt. `number_sources` dropped every snippet and
+both research synthesis and claim assessment listed only titles and URLs.
+
+The change carries `Source.snippet` into `sources.json` and into each source's listing
+for reasoning. No judgment prompt or scoring rule changed. Old runs without snippets
+remain readable. New fact-check runs inherit snippets when the source run has them.
+
+A replay used the **same saved acquisition response**, capped at the same three sources,
+and the same question. Only Anthropic synthesis was called again; acquisition was not
+repeated or billed twice. Before: run `dr-4a5337cc`, low confidence, no citations in the
+brief. After: run `dr-6b3887b7`, medium confidence, brief cites `[s1][s2]`, with the primary
+source's conditions and a qualification about the weaker sources. One accepted synthesis
+attempt in each. Observed synthesis tokens: 1310/760 before, 2636/1007 after. The runtime
+did not report synthesis cost; total cost remains unknown. This is one paired observation,
+not a new judgment-quality benchmark or proof of general improvement.
+
+Regression tests check the retained excerpt and its delivery to both research synthesis
+and inherited fact-check assessment. Local maintenance evidence retains both run records.

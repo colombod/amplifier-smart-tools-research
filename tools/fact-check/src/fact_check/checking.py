@@ -357,6 +357,7 @@ def check_claims(
             provider=settings["provider"],
             model=settings["model"],
             timeout_ms=settings["timeout_ms"],
+            runs_dir=settings["runs_dir"],
         )
     attempts_allowed = max_attempts or settings["max_attempts"]
 

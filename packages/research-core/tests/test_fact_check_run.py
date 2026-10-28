@@ -114,6 +114,45 @@ def test_from_run_consumes_another_runs_evidence_without_gathering(tmp_path):
     assert [s["id"] for s in sources["sources"]] == ["s1", "s2", "s3"]
 
 
+def test_inherited_source_excerpts_reach_claim_assessment(tmp_path):
+    from dataclasses import replace
+
+    excerpt = "The observed replicas converge once every update has been delivered."
+    evidence = sample_evidence()
+    evidence = replace(evidence, sources=[replace(evidence.sources[0], snippet=excerpt)])
+    research = deep_research.research(
+        "Do replicas converge?",
+        backend=ScriptedBackend(evidence),
+        reasoner=ScriptedReasoner(
+            json.dumps(
+                {
+                    "brief": "Yes [s1].",
+                    "report": "## 1. Finding\n\nYes [s1].",
+                    "confidence": "medium",
+                }
+            )
+        ),
+        scope=False,
+        runs_dir=str(tmp_path / "runs"),
+        quiet=True,
+    )
+    reasoner = checking_reasoner(
+        {
+            "verdict": "supported",
+            "confidence": "high",
+            "reasoning": "Observed [s1].",
+            "sources": ["s1"],
+        }
+    )
+    result = check(tmp_path, ["Replicas converge."], reasoner, from_run=research["run_id"])
+    assert result["status"] == "complete"
+    assert any(excerpt in prompt for prompt in reasoner.prompts)
+    retained = json.loads(
+        (load_run(tmp_path / "runs", result["run_id"]).path / "sources.json").read_text()
+    )
+    assert retained["sources"][0]["snippet"] == excerpt
+
+
 def test_no_evidence_source_is_a_usage_error_not_a_silent_empty_check(tmp_path):
     with pytest.raises(UsageError) as excinfo:
         fact_check.check_claims(

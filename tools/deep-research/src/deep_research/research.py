@@ -43,7 +43,9 @@ _PROG = "deep-research"
 INLINE_BYTE_THRESHOLD = 8_000
 
 
-def _backend_for(name: str, *, provider: str | None, model: str | None) -> ResearchBackend:
+def _backend_for(
+    name: str, *, provider: str | None, model: str | None, runs_dir: str | None = None
+) -> ResearchBackend:
     if name == "perplexity":
         from research_core.backends.perplexity import PerplexityBackend
 
@@ -51,7 +53,7 @@ def _backend_for(name: str, *, provider: str | None, model: str | None) -> Resea
     if name == "agent":
         from research_core.backends.agent import AgentBackend
 
-        return AgentBackend(provider=provider, model=model)
+        return AgentBackend(provider=provider, model=model, runs_dir=runs_dir)
     from research_core.errors import UsageError
 
     raise UsageError(
@@ -67,6 +69,7 @@ def _reasoner_for(
     provider: str | None,
     model: str | None,
     timeout_ms: int,
+    runs_dir: str | None = None,
 ) -> Reasoner:
     """The reasoning seam. A supplied reasoner is how a test drives the whole
     pipeline with no provider and no tokens spent."""
@@ -74,7 +77,7 @@ def _reasoner_for(
         return reasoner
     from research_core.reasoning import AgentReasoner
 
-    return AgentReasoner(provider=provider, model=model, timeout_ms=timeout_ms)
+    return AgentReasoner(provider=provider, model=model, timeout_ms=timeout_ms, runs_dir=runs_dir)
 
 
 def number_sources(evidence: Evidence) -> list[dict[str, Any]]:
@@ -91,6 +94,7 @@ def number_sources(evidence: Evidence) -> list[dict[str, Any]]:
                 "id": f"s{index}",
                 "url": source.url,
                 "title": source.title,
+                "snippet": source.snippet,
                 "category": classify_url(source.url),
                 "found_in_stage": "gather",
             }
@@ -297,7 +301,10 @@ def research(
         backend
         if not isinstance(backend, str) and backend is not None
         else _backend_for(
-            settings["backend"], provider=settings["provider"], model=settings["model"]
+            settings["backend"],
+            provider=settings["provider"],
+            model=settings["model"],
+            runs_dir=settings["runs_dir"],
         )
     )
     thinker = _reasoner_for(
@@ -305,6 +312,7 @@ def research(
         provider=settings["provider"],
         model=settings["model"],
         timeout_ms=settings["timeout_ms"],
+        runs_dir=settings["runs_dir"],
     )
     attempts_allowed = max_attempts or settings["max_attempts"]
 

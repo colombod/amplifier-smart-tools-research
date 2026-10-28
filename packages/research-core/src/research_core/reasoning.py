@@ -63,16 +63,18 @@ class AgentReasoner:
         model: str | None = None,
         reasoning_effort: str | None = None,
         timeout_ms: int = 600_000,
+        runs_dir: str | None = None,
     ) -> None:
         self._provider = provider
         self._model = model
         self._reasoning_effort = reasoning_effort
         self._timeout_ms = timeout_ms
+        self._runs_dir = runs_dir
 
     def preflight(self) -> str:
         from research_core.engine import preflight
 
-        return preflight(provider=self._provider, model=self._model)
+        return preflight(provider=self._provider, model=self._model, runs_dir=self._runs_dir)
 
     def think(
         self, prompt: str, *, on_event: Callable[[dict[str, Any]], None] | None = None
@@ -86,6 +88,7 @@ class AgentReasoner:
             model=self._model,
             reasoning_effort=self._reasoning_effort,
             timeout_ms=self._timeout_ms,
+            runs_dir=self._runs_dir,
             on_event=on_event,
         )
         return Thought(text=result.text, usage=result.usage, provider=result.provider)

@@ -154,7 +154,9 @@ def verify_one(
     """Assess one claim. Claims are independent, so this is the unit that fans out."""
     known = {s["id"] for s in sources}
     listing = "\n".join(
-        f"[{s['id']}] {s.get('title') or '(untitled)'} — {s['url']}" for s in sources
+        f"[{s['id']}] {s.get('title') or '(untitled)'} — {s['url']}"
+        + (f"\nExcerpt: {s['snippet']}" if s.get("snippet") else "")
+        for s in sources
     )
 
     def validate(document: Any) -> dict[str, Any]:
