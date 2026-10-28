@@ -1,7 +1,7 @@
 ---
 smart_tool_format: 1
 name: deep-research
-version: 0.10.0
+version: 0.10.1
 description: >
   Research open questions across multiple web sources and return a sourced brief with retained evidence. Use when external evidence would inform a recommendation, plan, design or implementation: compare approaches or products, investigate feasibility and tradeoffs, review prior art or literature, survey a changing field, or understand an unfamiliar domain. Consider it within a larger task even when the user does not say "research" or name this tool. Use supplied documents and local code first for questions they answer; use a direct lookup for one simple fact, and fact-check for assessing existing claims.
 use_cases:

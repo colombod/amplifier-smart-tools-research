@@ -5,6 +5,9 @@ caller installing one gets the other, so a split version would be a fiction.
 
 ## Unreleased
 
+## 0.10.1 - 2026-10-28
+
+- Make the version-bump script portable to macOS and verify the requested installed versions.
 - Honor explicit `runs_dir` when choosing the confined-host engine fallback, including preflight, checks and worker state.
 - Preserve gathered source excerpts for synthesis and inherited fact-checking.
 - Improve deep-research skill discovery for evidence needs within planning, comparisons, feasibility and implementation tasks.
